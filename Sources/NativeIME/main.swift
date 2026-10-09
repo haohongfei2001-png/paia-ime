@@ -55,12 +55,13 @@ import EngineBridge
         candidates.show(s,below:rect,screen:screen.visibleFrame)
     }
 }
-@MainActor final class AppDelegate:NSObject,NSApplicationDelegate {
+@MainActor final class AppDelegate:NSObject,NSApplicationDelegate,NSWindowDelegate {
     var lab:LabEnvironment?,window:NSWindow?,view:LabTextView?
     func applicationDidFinishLaunching(_ notification:Notification) {
         do {
             let env=try LabEnvironment();lab=env
             let window=NSWindow(contentRect:NSRect(x:200,y:250,width:760,height:420),styleMask:[.titled,.closable,.resizable],backing:.buffered,defer:false)
+            window.delegate=self
             window.title="PAIA A1 · Synthetic AppKit host · Not a system input source"
             let scroll=NSScrollView(frame:window.contentView!.bounds);scroll.autoresizingMask=[.width,.height];scroll.hasVerticalScroller=true
             let view=LabTextView(frame:scroll.bounds);view.font = .systemFont(ofSize:22);view.isRichText=false;view.autoresizingMask=[.width,.height]
@@ -77,6 +78,8 @@ import EngineBridge
             window.makeKeyAndOrderFront(nil);window.makeFirstResponder(view);NSApp.activate(ignoringOtherApps:true)
         } catch { fputs("A1 startup failed; verified fixture/library configuration is required.\n",stderr);NSApp.terminate(nil) }
     }
+    func windowDidResignKey(_ notification:Notification) {view?.dispatcher.invalidate();view?.candidates.orderOut(nil)}
+    func applicationDidResignActive(_ notification:Notification) {view?.dispatcher.invalidate();view?.candidates.orderOut(nil)}
     func applicationShouldTerminateAfterLastWindowClosed(_ sender:NSApplication)->Bool {true}
     func applicationWillTerminate(_ notification:Notification) {view?.dispatcher.invalidate()}
 }

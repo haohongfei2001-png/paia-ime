@@ -7,6 +7,7 @@ import SessionCore
     public let session: InputSession
     private weak var client: NSTextView?
     private var active=true
+    private var observers:[NSObjectProtocol]=[]
     private var expectedText:String
     private var expectedSelection:NSRange
     private var expectedMarked:NSRange
@@ -19,7 +20,16 @@ import SessionCore
     public init(client: NSTextView, session: InputSession) {
         self.client=client; self.session=session
         expectedText=client.string;expectedSelection=client.selectedRange();expectedMarked=client.markedRange()
+        if let window=client.window {
+            observers.append(NotificationCenter.default.addObserver(forName:NSWindow.didResignKeyNotification,object:window,queue:.main) { [weak self] _ in
+                MainActor.assumeIsolated {self?.invalidate()}
+            })
+        }
+        observers.append(NotificationCenter.default.addObserver(forName:NSApplication.didResignActiveNotification,object:nil,queue:.main) { [weak self] _ in
+            MainActor.assumeIsolated {self?.invalidate()}
+        })
     }
+    deinit {for token in observers {NotificationCenter.default.removeObserver(token)}}
     @discardableResult public func apply(_ update: SessionUpdate) -> Bool {
         guard isCurrentTarget else {invalidate();return false}
         guard active, let client=client, let s=update.snapshot, s.session==session.key,

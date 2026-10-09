@@ -3,6 +3,7 @@ import XCTest
 import AppKit
 import EngineBridge
 import NativeHost
+import SessionCore
 // Run separately from EngineTests, because librime has one process-global lifecycle owner.
 final class AppKitHostTests:XCTestCase {
     static var lab:LabEnvironment!
@@ -55,6 +56,27 @@ final class AppKitHostTests:XCTestCase {
         _=host.apply(try s.process(.code(0xff57)))
         let u=try s.process(.code(44));XCTAssertTrue(host.apply(u));XCTAssertEqual(client.string,"你好")
         XCTAssertFalse(u.handled);XCTAssertEqual(host.insertCount,1)
+    }
+    @MainActor func testWindowResignKeyInvalidatesAndOldButtonKeepsItsSnapshot() throws {
+        _=NSApplication.shared
+        let window=NSWindow(contentRect:NSRect(x:0,y:0,width:500,height:200),styleMask:[.titled],backing:.buffered,defer:false)
+        let client=NSTextView(frame:NSRect(x:0,y:0,width:300,height:100));window.contentView?.addSubview(client)
+        window.makeKey();window.makeFirstResponder(client)
+        let s=try Self.lab.runtime.makeSession(),host=HostDispatcher(client:client,session:s)
+        for c in "nihao".utf8 {_=host.apply(try s.process(.code(Int32(c))))}
+        let panel=CandidatePanel();defer{panel.orderOut(nil);window.close()}
+        let old=s.snapshot!,rect=NSRect(x:100,y:200,width:100,height:20),screen=NSRect(x:0,y:0,width:800,height:600)
+        panel.show(old,below:rect,screen:screen)
+        let stack=try XCTUnwrap(panel.contentView?.subviews.first as? NSStackView)
+        let button=try XCTUnwrap(stack.arrangedSubviews.first as? NSButton)
+        _=host.apply(try s.process(.code(0xff08)))
+        panel.show(s.snapshot!,below:rect,screen:screen)
+        var clicked:CandidateRef?
+        panel.choose={clicked=$0};button.performClick(nil)
+        XCTAssertEqual(clicked,old.rows[0].ref)
+        XCTAssertThrowsError(try s.select(try XCTUnwrap(clicked)))
+        window.resignKey();XCTAssertFalse(host.isCurrentTarget)
+        XCTAssertThrowsError(try s.process(.code(97)))
     }
     @MainActor func testReturnConsumesOnceAndReplacesSelectedGrapheme() throws {
         _=NSApplication.shared

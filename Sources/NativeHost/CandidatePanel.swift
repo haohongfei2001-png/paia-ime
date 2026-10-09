@@ -2,6 +2,15 @@
 import AppKit
 import SessionCore
 
+@MainActor private final class CandidateButton:NSButton {
+    let candidate:CandidateRef
+    init(row:CandidateRow,title:String,target:AnyObject?,action:Selector?) {
+        candidate=row.ref
+        super.init(frame:.zero)
+        self.title=title;self.target=target;self.action=action
+    }
+    required init?(coder:NSCoder) {fatalError("not used")}
+}
 @MainActor public final class CandidatePanel: NSPanel {
     private var rows:[CandidateRow]=[]
     public var choose: ((CandidateRef)->Void)?
@@ -16,7 +25,7 @@ import SessionCore
         guard !rows.isEmpty else {orderOut(nil);return}
         let stack=NSStackView(); stack.orientation = .vertical; stack.alignment = .leading; stack.spacing=4
         for (i,row) in rows.enumerated() {
-            let button=NSButton(title:"\(i+1). \(row.text)",target:self,action:#selector(pick(_:)))
+            let button=CandidateButton(row:row,title:"\(i+1). \(row.text)",target:self,action:#selector(pick(_:)))
             button.tag=i; button.bezelStyle = .inline; button.font = .systemFont(ofSize:16)
             button.setAccessibilityLabel("Candidate \(i+1), \(row.text)")
             button.setAccessibilityValue(i==snapshot.highlighted ? "selected" : "")
@@ -30,6 +39,9 @@ import SessionCore
         let y=max(screen.minY,min(preferred>=screen.minY ? preferred : rect.maxY+4,screen.maxY-height))
         setFrame(NSRect(x:x,y:y,width:width,height:height),display:true);orderFront(nil)
     }
-    @objc private func pick(_ sender:NSButton) { guard rows.indices.contains(sender.tag) else{return}; choose?(rows[sender.tag].ref) }
+    @objc private func pick(_ sender:CandidateButton) {
+        // The clicked control retains the snapshot it displayed, even if a queued click outlives a render.
+        choose?(sender.candidate)
+    }
 }
 #endif

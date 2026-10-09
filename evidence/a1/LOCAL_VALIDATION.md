@@ -14,3 +14,7 @@ All native test inputs are repository-authored artificial fixtures. No private p
 ## First macOS CI attempt
 
 [Run 37977881640](https://github.com/haohongfei2001-png/paia-ime/actions/runs/37977881640), head ed71f2b: official archive/header checks and native C sanitizer guards passed. Swift app build failed on main-actor initialization and unavailable NSBeep symbol. Engine/host/benchmark skipped. Fixed by explicit MainActor entry and NSSound.beep; later exact-head CI must validate the correction.
+
+## Second macOS CI attempt
+
+[Run 37978051438](https://github.com/haohongfei2001-png/paia-ime/actions/runs/37978051438), head 500529e: native app build, C sanitizers and all 4 pure state/Unicode tests passed. Eight of nine real-engine test methods passed, including actual candidate selection, paging, one-shot commits and Unicode. The caret/edit test had three related failed assertions: upstream ordinary Left moved by syllable (4→2), while A1 requires raw-character movement (4→3). The adapter now uses the engine's documented keypad LeftByChar/RightByChar bindings; assertions were retained. Host/benchmark steps were skipped on that failed run.

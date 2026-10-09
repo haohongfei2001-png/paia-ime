@@ -97,7 +97,10 @@ public final class InputSession {
             if composing && (core.snapshot?.rawASCII.utf8.count ?? 0)>=4096 && (97...122).contains(code) {
                 return SessionUpdate(handled:true,snapshot:core.snapshot)
             }
-            return try step(1,code,modifiers)
+            // Rime ordinary Left/Right jump syllables; the contract here is raw-character movement.
+            // Its keypad-left/right bindings explicitly invoke engine LeftByChar/RightByChar.
+            let engineCode:Int32 = code==0xff51 ? 0xff96 : (code==0xff53 ? 0xff98 : code)
+            return try step(1,engineCode,modifiers)
         }
     }
 }
