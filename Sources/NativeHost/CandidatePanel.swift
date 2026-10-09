@@ -33,8 +33,11 @@ import SessionCore
             let selected=i==snapshot.highlighted
             // The marker remains visible without color; it reflects the same engine row Space selects.
             let button=CandidateButton(row:row,title:"\(selected ? "▶" : "  ") \(i+1). \(row.text)",target:self,action:#selector(pick(_:)))
-            button.tag=i;button.bezelStyle = .inline;button.font = .systemFont(ofSize:16,weight:selected ? .semibold:.regular)
-            button.contentTintColor=selected ? .controlAccentColor:.labelColor
+            button.tag=i;button.bezelStyle = .regularSquare;button.isBordered=false
+            let font=NSFont.systemFont(ofSize:16,weight:selected ? .semibold:.regular)
+            button.font=font
+            // Inline bezels dim title text in a non-key panel; retain explicit readable native colors.
+            button.attributedTitle=NSAttributedString(string:button.title,attributes:[.font:font,.foregroundColor:selected ? NSColor.controlAccentColor:NSColor.labelColor])
             button.refusesFirstResponder=true
             button.setAccessibilityLabel("Candidate \(i+1), \(row.text)")
             button.setAccessibilityValue(selected ? "selected" : "")
