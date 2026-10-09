@@ -2,6 +2,17 @@
 
 Baseline main: 60961fca1f767ffc8c17591c93adbc469f5edb06. PR #4 opened Draft.
 
+## Reviewed code checkpoint
+
+Exact source d2130bd179a7b02e6f34f4b66986575df86c7773 passed independent static review and all four macOS workflows:
+
+- B2 run 37996848547/job 114044988575/artifact 11647029639: nine governance methods, three file/cleanup methods, five native-manager methods and seven fresh-process real engine stages; zero failures/skips in B2. New explicit-read corruption rejection and personal-prefix/public-suffix preservation passed. The prefix selection produced no early commit; selecting the suffix produced the combined text once through the engine. The three selected-file methods run twice by the existing filters, counted once here.
+- A1 run 37996848526/job 114044988476/artifact 11647995168: ABI sanitizer, four pure-state, ten engine and six AppKit host tests, native app and fixed benchmark passed. The broad EngineTests filter also selects one B2 test that explicitly skips because no B2 generation was requested. That skip is retained; B2's own seven selected invocations all passed.
+- A2 run 37996848540/job 114044989109/artifact 11646954779: lease tests, all 28 native constraints, full-corpus paired comparator and AppKit host passed.
+- B1 run 37996848662/job 114044988928/artifact 11647432932: all twelve native control methods passed, including idle control refresh. The B2 manager image matches the inspected 92212fc PNG byte-for-byte (SHA-256 a9c9be1a09c7599fd37f639d9fccd7ecb71997a6e49d7f040a951362d093a0a3).
+
+A subsequent evidence-only update changes this documentation and makes the existing A1 workflow print every synthetic benchmark sample in text logs as well as its artifact. It does not change product source/tests, but exact final-head and merged-main CI are still required and recorded with the private recovery snapshot.
+
 ## Checkpoints
 
 - 1d91dfe1f289a0cefb0eadd09f80e76ea335ab56: initial explicit-store checkpoint. B2 run 37991207846 and A1/A2/B1 regressions 37991207673/37991207587/37991207745 succeeded. This checkpoint did not yet prove a personal engine overlay or manager UI.
@@ -18,3 +29,9 @@ Baseline main: 60961fca1f767ffc8c17591c93adbc469f5edb06. PR #4 opened Draft.
 SIMULATED: store mutations, canonical import/fault/limit cases and explicitly invoked host-edit policy boundary. ENGINE_NATIVE: compiled personal dictionaries, actual candidate ordering/selection, generation changes and no-learning checks. APPKIT_HOST: native controls, first-responder changes, NSTextView marked/commit behavior and inspected authored-view capture. No INSTALLED_IME, LIVE_CLIENT, HUMAN_STUDY, physical pointer or VoiceOver evidence.
 
 The corpus and generated personal stores are excluded from artifacts/recovery. Full raw job logs and machine/source receipts are retained with the private recovery snapshot. Each later code head requires its own applicable CI; older success is never transferred to a changed source tree.
+
+## Local and transfer limitations
+
+The Linux editor has no Swift/AppKit or clang. Local static resource/privacy checks and the historical 308 JavaScript reference checks passed; the attempted local sanitizer build could not start (`clang: command not found`). No Linux native pass is claimed. Native sanitizer results above come from the official macOS jobs.
+
+A GitHub artifact bytes URL for artifact 11646539512 returned HTTP 403 in the editor; no archive bytes were received. Complete job text and artifact metadata were retained. Final-head/main A1 CI additionally emits fresh complete synthetic benchmark JSON so its raw samples can be preserved in recovery without relying on that transfer. Earlier A1 summaries are not relabeled as raw-sample archives. Neither a transfer error nor an unrelated explicit skip is silently converted into a pass.

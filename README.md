@@ -4,7 +4,7 @@ An independent **macOS Chinese input method** project. PAIA is an optional futur
 
 ## Status
 
-**A1/A2 native engine research and B1 controls implemented; B2 explicit personal-lexicon lab in validation. System IME not installed.** The design/research package includes native AppKit test-probe code, a real librime engine experiment report, a browser prototype and bounded test evidence. An offline prototype and a synthetic AppKit host are **not** an installed macOS input source. Comparative user experience and accuracy versus WeChat/Sogou/Apple have not been established.
+**A1/A2 native engine research and B1 controls implemented; B2 explicit personal-lexicon lab implemented. System IME not installed.** The design/research package includes native AppKit test-probe code, a real librime engine experiment report, a browser prototype and bounded test evidence. An offline prototype and a synthetic AppKit host are **not** an installed macOS input source. Comparative user experience and accuracy versus WeChat/Sogou/Apple have not been established.
 
 ## Research / 研究资料
 

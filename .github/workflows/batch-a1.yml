@@ -56,7 +56,8 @@ jobs:
         run: |
           source .build/a1-env.sh
           swift run -c release paia-benchmark > evidence/a1-run/benchmark.json
-          python3 -c 'import json; d=json.load(open("evidence/a1-run/benchmark.json")); print(json.dumps({k:v for k,v in d.items() if "Latencies" not in k and k!="latenciesMilliseconds"},ensure_ascii=False,sort_keys=True))'
+          # Synthetic workload only: retain every sample in recoverable text logs as well as the artifact.
+          cat evidence/a1-run/benchmark.json
       - name: Preserve evidence including failures
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
