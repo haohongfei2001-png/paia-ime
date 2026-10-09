@@ -2,6 +2,16 @@
 
 Baseline main: 5994a16172f79d4127abf900793217aaa9f6c584. Draft PR #3.
 
+## First verified code checkpoint
+
+2b1475f4b4b159044c076196474d3e3c05728bad: B1 run 37989085318/job 114018354751/artifact 11645065163 PASSED. All 11 native methods passed with zero failures/skips; native executable built. Tests cover six spelling/script choices, literal supplementary-plane/combining/emoji input, punctuation, preview/marked acceptance/single commit, actual parameter edits, unfinished input, stale buttons/targets/candidates, source changes, nested foreign/nil focus and deactivation. Native synthetic-view pixels were inspected; source marked text and input controls were visible. Independent exact-head static review PASS. A1 run 37989085415 passed; final A2 status and final-tree reruns are recorded at closeout, not inferred here.
+
+B1 generated research input revision: bbde8cf4ffdcc7270fd32b8f8eebe40106e3b584ef05dc013fb36e2cff003bc2. Source/resource pins, core-only full corpus, isolated no-learning state and licensing restrictions are inherited from A2; the twelve derived B1 schemas do not alter A2's comparator inputs.
+
+Evidence category: APPKIT_HOST with real ENGINE_NATIVE calls. No INSTALLED_IME, LIVE_CLIENT, HUMAN_STUDY or visible-response latency result. All failures below remain part of the record.
+
+## Retained failures
+
 - 477364a09bda44edf5c2c1bc489a6f135c474fbe: B1 run 37986391131/job 114009325222 FAILED. All six schema/output choices and literal/Chinese punctuation native control tests passed. Repair-inspector entry failed in four methods (16 assertions); it was not accepted as working UI. A1 regression run 37986391243 succeeded. Native failure logs are retained. Independent review additionally found deterministic Accept focus-restoration self-cancellation and stale-resume UI cleanup problems; both fixed in subsequent changes. Extra field-editor/marked-range diagnostics and retained-control tests were added without weakening assertions.
 
 No physical mouse/VoiceOver, installed input source, live-client or user-quality claim. Research data remains in a separate unbundled B1 cache, and A2 comparison schemas remain unchanged.

@@ -219,7 +219,10 @@ import ConstraintCore
             dismissInspector(resume:false);editor.renderCandidates();status.stringValue="Marked text updated. Commit Chinese when ready.";updateControls()
         } catch {discardProposal();focusLease=nil;inspector.isHidden=true;status.stringValue=message(error);updateControls()}
     }
-    @objc private func cancelRepair(_ sender:NSButton){dismissInspector(resume:true);status.stringValue="Repair cancelled; original composition retained."}
+    @objc private func cancelRepair(_ sender:NSButton){
+        dismissInspector(resume:true)
+        status.stringValue=editor.dispatcher?.isCurrentTarget==true ? "Repair cancelled; original composition retained." : "Repair closed after a target change; no commit was made."
+    }
     private func dismissInspector(resume:Bool){
         discardProposal();if resume,let token=focusLease {_=editor.dispatcher?.resumeInspector(token)}
         focusLease=nil;selectedTarget=nil;inspector.isHidden=true;updateControls()

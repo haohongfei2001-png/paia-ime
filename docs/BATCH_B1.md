@@ -1,4 +1,4 @@
-# B1 native research controls (Draft)
+# B1 native research controls
 
 This is a small Batch B lab slice, not the full basic product or an installed IME. The A1 bundled app keeps its tiny fixture. A2's comparison schema/data remain unchanged. B1 derives twelve separate research schemas in an ignored cache; corpus and compiled dictionary files are never added to the app or CI artifacts.
 
@@ -25,12 +25,12 @@ Enable Keep composition for repair while idle. Confirm an engine candidate, then
 
 The synthetic host has an explicit same-window inspector lease. Host writes are prohibited while it is suspended. Only exact owned inspector views may receive that temporary focus; ordinary focus loss, external text/selection change, app/window loss or session change invalidates it. Acceptance restores the original text view and verifies its exact marked/text/selection identity before transfer. The two inspector inputs are dedicated NSTextViews, avoiding the transient identity of AppKit's shared field editor. There is no nil-responder, shared-editor or delegate-based exemption. See [Apple’s shared field-editor lifecycle](https://developer.apple.com/library/archive/documentation/Cocoa/Conceptual/TextEditing/Tasks/FieldEditor.html). This custom in-process protocol is not a claim that arbitrary installed IMK clients support the same handoff.
 
-Displayed target/candidate/accept controls retain their original action identities. A queued old control must not act on a newly rendered target or proposal. Cancellation, editing either field and closing the inspector destroy an unaccepted trial session.
+Displayed target/candidate/accept controls retain their original action identities. A queued old control must not act on a newly rendered target or proposal. Cancellation, editing either field and closing the inspector destroy an unaccepted trial session. Acceptance also compares the current parameter values with the preview; unfinished marked input in either parameter view is rejected. The native key-view loop is rebuilt for the current target and Accept controls. Ordinary unmarked Tab/Shift-Tab navigate; modified keys and unfinished input stay with the standard text system. Return in a repair parameter does not commit the source document.
 
 ## Verification scope
 
-Native tests run actual AppKit control actions and real librime. They check schema outputs, literal/punctuation semantics, marked text, single commit, focus changes and stale controls. Accessibility checks cover native labels/control state/defined key equivalents only. Physical keyboard/pointer interaction, visual layout on real displays and VoiceOver are not verified by these in-process checks.
+Native tests run actual AppKit control actions and real librime. They check schema outputs, literal/punctuation semantics, marked text, single commit, focus changes and stale controls. Accessibility checks cover native labels/control state, defined key equivalents, native text-view Tab and dynamic key-loop wiring. A deliberately authored synthetic root-view PNG is captured on macOS CI and visually inspected. Physical keyboard/pointer interaction, a display-size/appearance matrix and VoiceOver are not verified by these in-process checks.
 
-Read `evidence/b1/VALIDATION.md` for exact heads and failures. Initial repair-focus tests failed and remain recorded. Draft status persists until exact-final-head tests, A1/A2 regression and independent review finish.
+Read `evidence/b1/VALIDATION.md` for exact heads and failures. Initial repair-focus and text-system tests failed and remain recorded. Exact-head A1/A2 regression, B1 native control tests and independent review are required before merging.
 
 Later Batch B work still includes explicit user-dictionary governance, rare-character workflows, persistent settings, update/recovery behavior and installed-input-source compatibility. Production corpus redistribution clearance is still outstanding; no private profile, paid resource, signing credential, input-source preference or PAIA change is part of B1.

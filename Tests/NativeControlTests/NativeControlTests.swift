@@ -98,6 +98,10 @@ final class NativeControlTests:XCTestCase {
         d.editor.string="externally changed target";other.performClick(nil)
         XCTAssertEqual(d.editor.string,"externally changed target");XCTAssertEqual(d.editor.dispatcher?.insertCount,0)
         XCTAssertFalse(d.inspectorVisible);XCTAssertTrue(d.acceptStack.arrangedSubviews.isEmpty)
+        let(e,y)=try make();defer{y.close()};try heldSentence(e);_ = try preview(e,y)
+        e.editor.string="external edit before Cancel";e.cancelRepairButton.performClick(nil)
+        XCTAssertEqual(e.editor.string,"external edit before Cancel");XCTAssertEqual(e.editor.dispatcher?.insertCount,0)
+        XCTAssertFalse(e.status.stringValue.contains("original composition retained"))
     }
     @MainActor func testOldTargetAndCandidateControlsHoldDisplayedIdentity()throws {
         let(c,w)=try make();defer{w.close()};try heldSentence(c)
@@ -167,7 +171,7 @@ final class NativeControlTests:XCTestCase {
     @MainActor func testNativeLayoutCapture()throws {
         guard ProcessInfo.processInfo.environment["PAIA_CAPTURE_LAYOUT"]=="1" else{throw XCTSkip("Optional synthetic-view capture not requested")}
         let(c,w)=try make();defer{w.close()};w.orderFront(nil);w.makeKey();XCTAssertTrue(w.makeFirstResponder(c.editor))
-        try heldSentence(c);c.repairButton.performClick(nil)
+        try heldSentence(c);_ = try preview(c,w)
         XCTAssertTrue(c.inspectorVisible,c.status.stringValue)
         c.root.layoutSubtreeIfNeeded();c.root.displayIfNeeded()
         XCTAssertEqual(c.editor.string,"你好输入法世界");XCTAssertTrue(c.editor.hasMarkedText());XCTAssertTrue(c.inspectorVisible)
