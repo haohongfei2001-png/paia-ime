@@ -1,10 +1,20 @@
-# B1 native controls, work in progress
+# B1 native controls validation
 
-Baseline main: 5994a16172f79d4127abf900793217aaa9f6c584. Draft PR #3.
+Baseline main: 5994a16172f79d4127abf900793217aaa9f6c584. PR #3 opened as Draft.
+
+## Reviewed code checkpoint
+
+Exact code head 98ffe3a9339e3287c0752f6e11568acdbeb363ac: independent static review PASS; working tree clean. All three required workflows completed successfully:
+
+- B1 run 37989452317/job 114019591625/artifact 11644496606: 11 AppKit methods, zero failures/skips, native executable build. The captured and visually inspected preview shows original source marked text, replacement inputs, genuine engine preview and separate Accept control. Added external-target Cancel regression passed.
+- A1 run 37989452278/job 114019591279: sanitizer ABI guards, pure Unicode/state, native engine, synthetic AppKit, native app and fixed benchmark all passed.
+- A2 run 37989452281/job 114019591282: pure lease checks, 28 native constraint cases and full-corpus paired benchmark, synthetic AppKit all passed. No benchmark failures were discarded.
+
+This evidence update changes documentation only after the reviewed code. Exact final PR and merged-main workflow IDs/checkpoint metadata are retained with the private recovery snapshot; their results must not be inferred from an older head.
 
 ## First verified code checkpoint
 
-2b1475f4b4b159044c076196474d3e3c05728bad: B1 run 37989085318/job 114018354751/artifact 11645065163 PASSED. All 11 native methods passed with zero failures/skips; native executable built. Tests cover six spelling/script choices, literal supplementary-plane/combining/emoji input, punctuation, preview/marked acceptance/single commit, actual parameter edits, unfinished input, stale buttons/targets/candidates, source changes, nested foreign/nil focus and deactivation. Native synthetic-view pixels were inspected; source marked text and input controls were visible. Independent exact-head static review PASS. A1 run 37989085415 passed; final A2 status and final-tree reruns are recorded at closeout, not inferred here.
+2b1475f4b4b159044c076196474d3e3c05728bad: B1 run 37989085318/job 114018354751/artifact 11645065163 PASSED. All 11 native methods passed with zero failures/skips; native executable built. Tests cover six spelling/script choices, literal supplementary-plane/combining/emoji input, punctuation, preview/marked acceptance/single commit, actual parameter edits, unfinished input, stale buttons/targets/candidates, source changes, nested foreign/nil focus and deactivation. Native synthetic-view pixels were inspected; source marked text and input controls were visible. Independent exact-head static review PASS. A1 run 37989085415 and A2 run 37989085363 passed.
 
 B1 generated research input revision: bbde8cf4ffdcc7270fd32b8f8eebe40106e3b584ef05dc013fb36e2cff003bc2. Source/resource pins, core-only full corpus, isolated no-learning state and licensing restrictions are inherited from A2; the twelve derived B1 schemas do not alter A2's comparator inputs.
 
