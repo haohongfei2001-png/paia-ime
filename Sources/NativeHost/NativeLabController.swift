@@ -95,7 +95,7 @@ import ConstraintCore
         editor.candidates.choose={ [weak self] ref in
             guard let self=self,let host=self.editor.dispatcher,host.isCurrentTarget else{return}
             do {_=host.apply(try host.session.select(ref));self.editor.renderCandidates();self.updateControls()}
-            catch {self.status.stringValue="Stale candidate rejected.";self.editor.candidates.orderOut(nil)}
+            catch {self.status.stringValue="Candidate rejected for the current snapshot.";self.editor.renderCandidates()}
         }
         updateControls()
     }

@@ -37,6 +37,10 @@ See [A1 build, tests, resource pins and evidence boundaries](docs/BATCH_A1.md). 
 
 [B3 preference and recovery boundaries](docs/BATCH_B3.md) saves only four ordinary settings through a separate explicit Save control. New engine modes are prepared before replacing the current session; corrupt preferences and unconfirmed writes preserve usable input without silent overwrite or retry. [B3 evidence](evidence/b3/VALIDATION.md) records real native mode/restore stages, shared storage-identity hardening and the inspected synthetic view. Full signed update/install/recovery and physical-client validation remain open.
 
+## Batch B4 visible native candidate navigation
+
+[B4 selected-row and page presentation](docs/BATCH_B4.md) keeps the visible selection aligned with the real engine snapshot, adds honest current-page status, and preserves immutable candidate actions. [B4 validation](evidence/b4/VALIDATION.md) separates native navigation from synthetic presentation checks and tracks exact-head evidence.
+
 ## Batch A1 engineering contract
 
 Read **REPORT → VALIDATION → CODEX_HANDOFF**. Build the native Swift/AppKit/InputMethodKit project structure and a real, version-locked librime C API bridge; prove key → composition → candidate → engine selection → single commit in an isolated AppKit host before asserting system-IME compatibility. Never replace the input engine with the webpage's fixed examples.
