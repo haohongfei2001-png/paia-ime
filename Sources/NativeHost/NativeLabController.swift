@@ -89,7 +89,9 @@ import ConstraintCore
         button.title=title;button.target=self;button.action=action;button.bezelStyle = .rounded;button.refusesFirstResponder=refusesFocus;button.setAccessibilityLabel(title)
     }
     public func attach(to window:LabWindow)throws {
-        self.window=window;window.contentView=root;window.makeFirstResponder(editor);editor.dispatcher=try newDispatcher()
+        self.window=window;window.contentView=root
+        guard window.makeFirstResponder(editor) else{throw EngineError.closed}
+        editor.dispatcher=try newDispatcher()
         window.beforeFocusChange={ [weak self] responder in
             guard let self=self else{return};self.editor.dispatcher?.validateFocusChange(to:responder)
             if self.inspectorVisible && self.editor.dispatcher?.isInspectorSuspended != true {self.dismissInspector(resume:false)}
@@ -118,7 +120,7 @@ import ConstraintCore
         next.spelling=LabSpelling.allCases[spelling.indexOfSelectedItem];next.traditional=script.indexOfSelectedItem==1
         next.literal=literal.state == .on;next.chinesePunctuation=punctuation.state == .on;next.deferredCommit=hold.state == .on
         editor.dispatcher?.invalidate();configuration=next;editor.literalMode=next.literal
-        do {window?.makeFirstResponder(editor);editor.dispatcher=try newDispatcher();status.stringValue="Mode changed in the isolated native session."}
+        do {guard window?.makeFirstResponder(editor)==true else{throw EngineError.closed};editor.dispatcher=try newDispatcher();status.stringValue="Mode changed in the isolated native session."}
         catch {status.stringValue="Engine configuration failed; no fallback dictionary loaded."}
         updateControls()
     }

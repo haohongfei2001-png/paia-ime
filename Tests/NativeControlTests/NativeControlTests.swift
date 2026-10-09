@@ -28,8 +28,8 @@ final class NativeControlTests:XCTestCase {
         let mark=c.editor.markedRange(),selection=c.editor.selectedRange(),document=c.editor.string
         var transitions=[String]();let originalFocus=w.beforeFocusChange
         w.beforeFocusChange={responder in
-            let name=responder.map{String(describing:type(of:$0))} ?? "nil"
-            let delegate=(responder as? NSTextView)?.delegate.map{String(describing:type(of:$0))} ?? "none"
+            let name=responder.map{String(describing:Swift.type(of:$0))} ?? "nil"
+            let delegate=(responder as? NSTextView)?.delegate.map{String(describing:Swift.type(of:$0))} ?? "none"
             transitions.append("to="+name+" delegate="+delegate+" suspended=\(c.editor.dispatcher?.isInspectorSuspended ?? false) marked=\(c.editor.markedRange())")
             originalFocus?(responder)
         }
