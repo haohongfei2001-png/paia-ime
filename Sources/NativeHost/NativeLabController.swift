@@ -39,13 +39,14 @@ import ConstraintCore
     public private(set) var configuration=LabConfiguration()
     public var inspectorVisible:Bool {focusLease != nil}
     private let runtime:RimeRuntime
+    private let configuredSession:((LabConfiguration)throws->InputSession)?
     private let inspector=NSStackView(),targetScroll=NSScrollView()
     private weak var window:LabWindow?
     private var focusLease:UUID?,selectedTarget:RepairTarget?,proposal:RepairProposal?
     private var previewParameters:(raw:String,surface:String)?
     private var targetRenderID=UUID(),observers=[NSObjectProtocol]()
-    public init(runtime:RimeRuntime) {
-        self.runtime=runtime;super.init()
+    public init(runtime:RimeRuntime,configuredSession:((LabConfiguration)throws->InputSession)?=nil) {
+        self.runtime=runtime;self.configuredSession=configuredSession;super.init()
         root.orientation = .vertical;root.alignment = .leading;root.spacing=10;root.edgeInsets=NSEdgeInsets(top:16,left:16,bottom:16,right:16)
         spelling.addItems(withTitles:["Full pinyin","Flypy","Natural"]);script.addItems(withTitles:["Simplified","Traditional"])
         spelling.setAccessibilityLabel("Spelling system");script.setAccessibilityLabel("Output script")
@@ -119,7 +120,9 @@ import ConstraintCore
         updateControls()
     }
     private func newDispatcher()throws->HostDispatcher {
-        let session=try runtime.makeSession(schema:configuration.schema,deferredCommit:configuration.deferredCommit,chinesePunctuation:configuration.chinesePunctuation)
+        let session:InputSession
+        if let configuredSession=configuredSession{session=try configuredSession(configuration)}
+        else{session=try runtime.makeSession(schema:configuration.schema,deferredCommit:configuration.deferredCommit,chinesePunctuation:configuration.chinesePunctuation)}
         return HostDispatcher(client:editor,session:session)
     }
     public var hasComposition:Bool {guard let s=editor.dispatcher?.session.snapshot else{return false};return !s.rawASCII.isEmpty || !s.preedit.isEmpty}
@@ -128,7 +131,7 @@ import ConstraintCore
         for control:NSControl in [spelling,script,literal,punctuation,hold]{control.isEnabled=idle}
         commitButton.isEnabled=hasComposition && !inspectorVisible
         cancelCompositionButton.isEnabled=hasComposition && !inspectorVisible
-        repairButton.isEnabled=hasComposition && configuration.deferredCommit && !inspectorVisible
+        repairButton.isEnabled=hasComposition && configuration.deferredCommit && !inspectorVisible && editor.dispatcher?.session.supportsRepair==true
     }
     @objc private func changeConfiguration(_ sender:NSControl){
         guard !hasComposition,!inspectorVisible else{reflectConfiguration();status.stringValue="Commit or cancel composition before changing modes.";return}
@@ -154,7 +157,7 @@ import ConstraintCore
         do {_=host.apply(try host.session.process(.escape));editor.renderCandidates();updateControls()}catch{status.stringValue="Cancellation rejected for an invalid session."}
     }
     @objc private func beginRepair(_ sender:NSButton){
-        guard configuration.deferredCommit,let host=editor.dispatcher,host.isCurrentTarget,!inspectorVisible else{return}
+        guard configuration.deferredCommit,let host=editor.dispatcher,host.session.supportsRepair,host.isCurrentTarget,!inspectorVisible else{return}
         do {
             try refreshTargets(preserving:nil);guard selectedTarget != nil else{throw ConstraintError.invalidSpan}
             inspector.isHidden=false;focusLease=host.beginInspector(views:ownedInspectorViews())

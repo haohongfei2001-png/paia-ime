@@ -11,6 +11,7 @@ public struct PersonalTerm:Codable,Equatable,Identifiable {
     public var isDeleted:Bool {deletedAtMilliseconds != nil}
     public var readings:[String] {[reading]+aliases}
     public var comparisonKey:String {surface.precomposedStringWithCanonicalMapping+"\u{0}"+reading+"\u{0}"+scope.rawValue}
+    func sameContent(as other:PersonalTerm)->Bool {var rebased=other;rebased.revision=revision;return self==rebased}
 }
 public struct LexiconDocument:Codable,Equatable {
     public let formatVersion:Int
@@ -62,7 +63,10 @@ public enum LexiconCodec {
     public static func encode(_ document:LexiconDocument)throws->Data {
         try LexiconRules.validate(document)
         let payload=try encoder().encode(document),data=try encoder().encode(Envelope(format:"paia.personal-lexicon.v1",sha256:digest(payload),document:document))
-        guard data.count<=LexiconRules.maximumBytes else{throw LexiconError.limit};return data
+        // Reserve room for every active term's future tombstone and revision growth.
+        // A full accepted format must not prevent deletion merely because metadata grows.
+        let headroom=document.activeTerms.count*80+document.terms.count*16+document.activeTerms.filter{$0.explicitPin}.count*4+128
+        guard data.count+headroom<=LexiconRules.maximumBytes else{throw LexiconError.limit};return data
     }
     public static func decode(_ data:Data)throws->LexiconDocument {
         guard data.count<=LexiconRules.maximumBytes else{throw LexiconError.limit}

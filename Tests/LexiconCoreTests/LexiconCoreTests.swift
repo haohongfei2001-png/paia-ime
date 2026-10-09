@@ -1,5 +1,6 @@
 import XCTest
 import Foundation
+import Darwin
 @testable import LexiconCore
 
 final class LexiconCoreTests:XCTestCase {
@@ -41,6 +42,8 @@ final class LexiconCoreTests:XCTestCase {
         XCTAssertThrowsError(try b.applyImport(plan)){XCTAssertEqual($0 as? LexiconError,.stale)}
         let current=try b.previewImport(data);try b.applyImport(current)
         XCTAssertEqual(try b.snapshot().terms.count,2)
+        let repeated=try b.previewImport(data);XCTAssertEqual(repeated.unchanged,1);XCTAssertEqual(repeated.conflicts,0)
+        let unchanged=try b.exportData();try b.applyImport(repeated);XCTAssertEqual(try b.exportData(),unchanged)
         XCTAssertThrowsError(try a.applyImport(current))
         let bytes=try b.exportData();XCTAssertEqual(try LexiconCodec.encode(LexiconCodec.decode(bytes)),bytes)
     }
@@ -64,6 +67,10 @@ final class LexiconCoreTests:XCTestCase {
         try FileManager.default.createSymbolicLink(at:bad.appendingPathComponent("lexicon.json"),withDestinationURL:outside)
         XCTAssertThrowsError(try LexiconStore(directory:bad))
         XCTAssertEqual(try Data(contentsOf:outside),Data("untouched".utf8))
+        let fifo=try directory();XCTAssertEqual(mkfifo(fifo.appendingPathComponent("lexicon.json").path,0o600),0)
+        XCTAssertThrowsError(try LexiconStore(directory:fifo)){XCTAssertEqual($0 as? LexiconError,.unsafePath)}
+        let hardlink=try directory();try FileManager.default.linkItem(at:outside,to:hardlink.appendingPathComponent("lexicon.json"))
+        XCTAssertThrowsError(try LexiconStore(directory:hardlink)){XCTAssertEqual($0 as? LexiconError,.unsafePath)}
     }
     func testAtomicFailureAndUncertainPublicationAreNotRetried()throws {
         let path=try directory(),first=try LexiconStore(directory:path);let old=try first.exportData();first.close()
@@ -85,5 +92,24 @@ final class LexiconCoreTests:XCTestCase {
         let broken=Data("corrupt-current-authority".utf8);try broken.write(to:path.appendingPathComponent("lexicon.json"))
         XCTAssertThrowsError(try LexiconStore(directory:path))
         XCTAssertEqual(try Data(contentsOf:path.appendingPathComponent("lexicon.json")),broken)
+        try FileManager.default.removeItem(at:path.appendingPathComponent("lexicon.json"))
+        XCTAssertThrowsError(try LexiconStore(directory:path)) // Missing initialized authority is not a new store.
+        XCTAssertFalse(FileManager.default.fileExists(atPath:path.appendingPathComponent("lexicon.json").path))
+    }
+    func testMergedSizePreviewAndDeletionHeadroom()throws {
+        func document(_ range:Range<Int>)->LexiconDocument {
+            var doc=LexiconDocument();doc.revision=1
+            doc.terms=range.map{i in PersonalTerm(id:UUID(),surface:String(i)+String(repeating:"e"+String(repeating:"\u{301}",count:7),count:60),reading:"ce",aliases:[],scope:.fullSimplified,explicitPin:false,createdAtMilliseconds:0,revision:1,deletedAtMilliseconds:nil,noRelearn:false)}
+            return doc
+        }
+        let path=try directory(),seed=try LexiconStore(directory:path);seed.close()
+        var nearLimit=document(0..<1000)
+        while (try? LexiconCodec.encode(nearLimit))==nil{nearLimit.terms.removeLast()}
+        try LexiconCodec.encode(nearLimit).write(to:path.appendingPathComponent("lexicon.json"))
+        let store=try LexiconStore(directory:path);defer{store.close()}
+        let plan=try store.previewImport(LexiconCodec.encode(document(2000..<2050)))
+        XCTAssertFalse(plan.canApply);XCTAssertGreaterThan(plan.conflicts,0)
+        try store.setDeleted(id:nearLimit.terms[0].id,deleted:true,expectedRevision:1)
+        XCTAssertTrue(try store.snapshot().terms[0].isDeleted)
     }
 }
