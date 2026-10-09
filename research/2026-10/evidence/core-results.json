@@ -1,0 +1,1244 @@
+{
+  "kind": "synthetic reference-kernel tests; not native IMK or Chinese-engine validation",
+  "generated_at": "2026-10-09T18:29:55.587Z",
+  "node": "v22.16.0",
+  "source_sha256": "0469163c1b5a1973af29472e180b15ada9a5a8c7c82f1a8435740cb7e590e461",
+  "checks": 308,
+  "geometry_cases": 270,
+  "passed": 308,
+  "failed": 0,
+  "cases": [
+    {
+      "name": "space-ready-selects-first-fixture",
+      "passed": true
+    },
+    {
+      "name": "number-selects-exact-frozen-row",
+      "passed": true
+    },
+    {
+      "name": "invalid-row-does-not-commit",
+      "passed": true
+    },
+    {
+      "name": "candidate-list-is-frozen",
+      "passed": true
+    },
+    {
+      "name": "same-generation-late-ranking-cannot-move-target",
+      "passed": true
+    },
+    {
+      "name": "old-raw-response-refused",
+      "passed": true
+    },
+    {
+      "name": "old-caret-response-refused",
+      "passed": true
+    },
+    {
+      "name": "old-target-response-refused",
+      "passed": true
+    },
+    {
+      "name": "privacy-revokes-old-response",
+      "passed": true
+    },
+    {
+      "name": "private-generic-name-does-not-use-personal-fixture",
+      "passed": true
+    },
+    {
+      "name": "private-recall-abbreviation-not-used",
+      "passed": true
+    },
+    {
+      "name": "return-raw-is-explicit-not-send",
+      "passed": true
+    },
+    {
+      "name": "escape-only-clears-uncommitted",
+      "passed": true
+    },
+    {
+      "name": "unknown-raw-has-literal-fallback",
+      "passed": true
+    },
+    {
+      "name": "mid-string-insert",
+      "passed": true
+    },
+    {
+      "name": "backspace-from-caret",
+      "passed": true
+    },
+    {
+      "name": "left-boundary-no-underflow",
+      "passed": true
+    },
+    {
+      "name": "suspend-refuses-effects",
+      "passed": true
+    },
+    {
+      "name": "resume-owns-new-target",
+      "passed": true
+    },
+    {
+      "name": "reject-oversize-raw",
+      "passed": true
+    },
+    {
+      "name": "duplicate-row-identity-rejected",
+      "passed": true
+    },
+    {
+      "name": "invalid-engine-index-rejected",
+      "passed": true
+    },
+    {
+      "name": "effect-only-once",
+      "passed": true
+    },
+    {
+      "name": "wrong-target-no-effect",
+      "passed": true
+    },
+    {
+      "name": "unknown-write-outcome-does-not-auto-retry",
+      "passed": true
+    },
+    {
+      "name": "nonempty-explicit-selection-required",
+      "passed": true
+    },
+    {
+      "name": "unchanged-lease-admitted",
+      "passed": true
+    },
+    {
+      "name": "changed-target-refused",
+      "passed": true
+    },
+    {
+      "name": "changed-epoch-refused",
+      "passed": true
+    },
+    {
+      "name": "changed-privacy-refused",
+      "passed": true
+    },
+    {
+      "name": "changed-text-refused",
+      "passed": true
+    },
+    {
+      "name": "changed-start-refused",
+      "passed": true
+    },
+    {
+      "name": "changed-end-refused",
+      "passed": true
+    },
+    {
+      "name": "expired-lease-refused",
+      "passed": true
+    },
+    {
+      "name": "apply-preserves-prefix-suffix",
+      "passed": true
+    },
+    {
+      "name": "final-body-budget-refused-without-consuming",
+      "passed": true
+    },
+    {
+      "name": "input-evidence-is-not-message-evidence",
+      "passed": true
+    },
+    {
+      "name": "invalid-screen-refuses-anchor",
+      "passed": true
+    },
+    {
+      "name": "geometry-1",
+      "passed": true
+    },
+    {
+      "name": "geometry-2",
+      "passed": true
+    },
+    {
+      "name": "geometry-3",
+      "passed": true
+    },
+    {
+      "name": "geometry-4",
+      "passed": true
+    },
+    {
+      "name": "geometry-5",
+      "passed": true
+    },
+    {
+      "name": "geometry-6",
+      "passed": true
+    },
+    {
+      "name": "geometry-7",
+      "passed": true
+    },
+    {
+      "name": "geometry-8",
+      "passed": true
+    },
+    {
+      "name": "geometry-9",
+      "passed": true
+    },
+    {
+      "name": "geometry-10",
+      "passed": true
+    },
+    {
+      "name": "geometry-11",
+      "passed": true
+    },
+    {
+      "name": "geometry-12",
+      "passed": true
+    },
+    {
+      "name": "geometry-13",
+      "passed": true
+    },
+    {
+      "name": "geometry-14",
+      "passed": true
+    },
+    {
+      "name": "geometry-15",
+      "passed": true
+    },
+    {
+      "name": "geometry-16",
+      "passed": true
+    },
+    {
+      "name": "geometry-17",
+      "passed": true
+    },
+    {
+      "name": "geometry-18",
+      "passed": true
+    },
+    {
+      "name": "geometry-19",
+      "passed": true
+    },
+    {
+      "name": "geometry-20",
+      "passed": true
+    },
+    {
+      "name": "geometry-21",
+      "passed": true
+    },
+    {
+      "name": "geometry-22",
+      "passed": true
+    },
+    {
+      "name": "geometry-23",
+      "passed": true
+    },
+    {
+      "name": "geometry-24",
+      "passed": true
+    },
+    {
+      "name": "geometry-25",
+      "passed": true
+    },
+    {
+      "name": "geometry-26",
+      "passed": true
+    },
+    {
+      "name": "geometry-27",
+      "passed": true
+    },
+    {
+      "name": "geometry-28",
+      "passed": true
+    },
+    {
+      "name": "geometry-29",
+      "passed": true
+    },
+    {
+      "name": "geometry-30",
+      "passed": true
+    },
+    {
+      "name": "geometry-31",
+      "passed": true
+    },
+    {
+      "name": "geometry-32",
+      "passed": true
+    },
+    {
+      "name": "geometry-33",
+      "passed": true
+    },
+    {
+      "name": "geometry-34",
+      "passed": true
+    },
+    {
+      "name": "geometry-35",
+      "passed": true
+    },
+    {
+      "name": "geometry-36",
+      "passed": true
+    },
+    {
+      "name": "geometry-37",
+      "passed": true
+    },
+    {
+      "name": "geometry-38",
+      "passed": true
+    },
+    {
+      "name": "geometry-39",
+      "passed": true
+    },
+    {
+      "name": "geometry-40",
+      "passed": true
+    },
+    {
+      "name": "geometry-41",
+      "passed": true
+    },
+    {
+      "name": "geometry-42",
+      "passed": true
+    },
+    {
+      "name": "geometry-43",
+      "passed": true
+    },
+    {
+      "name": "geometry-44",
+      "passed": true
+    },
+    {
+      "name": "geometry-45",
+      "passed": true
+    },
+    {
+      "name": "geometry-46",
+      "passed": true
+    },
+    {
+      "name": "geometry-47",
+      "passed": true
+    },
+    {
+      "name": "geometry-48",
+      "passed": true
+    },
+    {
+      "name": "geometry-49",
+      "passed": true
+    },
+    {
+      "name": "geometry-50",
+      "passed": true
+    },
+    {
+      "name": "geometry-51",
+      "passed": true
+    },
+    {
+      "name": "geometry-52",
+      "passed": true
+    },
+    {
+      "name": "geometry-53",
+      "passed": true
+    },
+    {
+      "name": "geometry-54",
+      "passed": true
+    },
+    {
+      "name": "geometry-55",
+      "passed": true
+    },
+    {
+      "name": "geometry-56",
+      "passed": true
+    },
+    {
+      "name": "geometry-57",
+      "passed": true
+    },
+    {
+      "name": "geometry-58",
+      "passed": true
+    },
+    {
+      "name": "geometry-59",
+      "passed": true
+    },
+    {
+      "name": "geometry-60",
+      "passed": true
+    },
+    {
+      "name": "geometry-61",
+      "passed": true
+    },
+    {
+      "name": "geometry-62",
+      "passed": true
+    },
+    {
+      "name": "geometry-63",
+      "passed": true
+    },
+    {
+      "name": "geometry-64",
+      "passed": true
+    },
+    {
+      "name": "geometry-65",
+      "passed": true
+    },
+    {
+      "name": "geometry-66",
+      "passed": true
+    },
+    {
+      "name": "geometry-67",
+      "passed": true
+    },
+    {
+      "name": "geometry-68",
+      "passed": true
+    },
+    {
+      "name": "geometry-69",
+      "passed": true
+    },
+    {
+      "name": "geometry-70",
+      "passed": true
+    },
+    {
+      "name": "geometry-71",
+      "passed": true
+    },
+    {
+      "name": "geometry-72",
+      "passed": true
+    },
+    {
+      "name": "geometry-73",
+      "passed": true
+    },
+    {
+      "name": "geometry-74",
+      "passed": true
+    },
+    {
+      "name": "geometry-75",
+      "passed": true
+    },
+    {
+      "name": "geometry-76",
+      "passed": true
+    },
+    {
+      "name": "geometry-77",
+      "passed": true
+    },
+    {
+      "name": "geometry-78",
+      "passed": true
+    },
+    {
+      "name": "geometry-79",
+      "passed": true
+    },
+    {
+      "name": "geometry-80",
+      "passed": true
+    },
+    {
+      "name": "geometry-81",
+      "passed": true
+    },
+    {
+      "name": "geometry-82",
+      "passed": true
+    },
+    {
+      "name": "geometry-83",
+      "passed": true
+    },
+    {
+      "name": "geometry-84",
+      "passed": true
+    },
+    {
+      "name": "geometry-85",
+      "passed": true
+    },
+    {
+      "name": "geometry-86",
+      "passed": true
+    },
+    {
+      "name": "geometry-87",
+      "passed": true
+    },
+    {
+      "name": "geometry-88",
+      "passed": true
+    },
+    {
+      "name": "geometry-89",
+      "passed": true
+    },
+    {
+      "name": "geometry-90",
+      "passed": true
+    },
+    {
+      "name": "geometry-91",
+      "passed": true
+    },
+    {
+      "name": "geometry-92",
+      "passed": true
+    },
+    {
+      "name": "geometry-93",
+      "passed": true
+    },
+    {
+      "name": "geometry-94",
+      "passed": true
+    },
+    {
+      "name": "geometry-95",
+      "passed": true
+    },
+    {
+      "name": "geometry-96",
+      "passed": true
+    },
+    {
+      "name": "geometry-97",
+      "passed": true
+    },
+    {
+      "name": "geometry-98",
+      "passed": true
+    },
+    {
+      "name": "geometry-99",
+      "passed": true
+    },
+    {
+      "name": "geometry-100",
+      "passed": true
+    },
+    {
+      "name": "geometry-101",
+      "passed": true
+    },
+    {
+      "name": "geometry-102",
+      "passed": true
+    },
+    {
+      "name": "geometry-103",
+      "passed": true
+    },
+    {
+      "name": "geometry-104",
+      "passed": true
+    },
+    {
+      "name": "geometry-105",
+      "passed": true
+    },
+    {
+      "name": "geometry-106",
+      "passed": true
+    },
+    {
+      "name": "geometry-107",
+      "passed": true
+    },
+    {
+      "name": "geometry-108",
+      "passed": true
+    },
+    {
+      "name": "geometry-109",
+      "passed": true
+    },
+    {
+      "name": "geometry-110",
+      "passed": true
+    },
+    {
+      "name": "geometry-111",
+      "passed": true
+    },
+    {
+      "name": "geometry-112",
+      "passed": true
+    },
+    {
+      "name": "geometry-113",
+      "passed": true
+    },
+    {
+      "name": "geometry-114",
+      "passed": true
+    },
+    {
+      "name": "geometry-115",
+      "passed": true
+    },
+    {
+      "name": "geometry-116",
+      "passed": true
+    },
+    {
+      "name": "geometry-117",
+      "passed": true
+    },
+    {
+      "name": "geometry-118",
+      "passed": true
+    },
+    {
+      "name": "geometry-119",
+      "passed": true
+    },
+    {
+      "name": "geometry-120",
+      "passed": true
+    },
+    {
+      "name": "geometry-121",
+      "passed": true
+    },
+    {
+      "name": "geometry-122",
+      "passed": true
+    },
+    {
+      "name": "geometry-123",
+      "passed": true
+    },
+    {
+      "name": "geometry-124",
+      "passed": true
+    },
+    {
+      "name": "geometry-125",
+      "passed": true
+    },
+    {
+      "name": "geometry-126",
+      "passed": true
+    },
+    {
+      "name": "geometry-127",
+      "passed": true
+    },
+    {
+      "name": "geometry-128",
+      "passed": true
+    },
+    {
+      "name": "geometry-129",
+      "passed": true
+    },
+    {
+      "name": "geometry-130",
+      "passed": true
+    },
+    {
+      "name": "geometry-131",
+      "passed": true
+    },
+    {
+      "name": "geometry-132",
+      "passed": true
+    },
+    {
+      "name": "geometry-133",
+      "passed": true
+    },
+    {
+      "name": "geometry-134",
+      "passed": true
+    },
+    {
+      "name": "geometry-135",
+      "passed": true
+    },
+    {
+      "name": "geometry-136",
+      "passed": true
+    },
+    {
+      "name": "geometry-137",
+      "passed": true
+    },
+    {
+      "name": "geometry-138",
+      "passed": true
+    },
+    {
+      "name": "geometry-139",
+      "passed": true
+    },
+    {
+      "name": "geometry-140",
+      "passed": true
+    },
+    {
+      "name": "geometry-141",
+      "passed": true
+    },
+    {
+      "name": "geometry-142",
+      "passed": true
+    },
+    {
+      "name": "geometry-143",
+      "passed": true
+    },
+    {
+      "name": "geometry-144",
+      "passed": true
+    },
+    {
+      "name": "geometry-145",
+      "passed": true
+    },
+    {
+      "name": "geometry-146",
+      "passed": true
+    },
+    {
+      "name": "geometry-147",
+      "passed": true
+    },
+    {
+      "name": "geometry-148",
+      "passed": true
+    },
+    {
+      "name": "geometry-149",
+      "passed": true
+    },
+    {
+      "name": "geometry-150",
+      "passed": true
+    },
+    {
+      "name": "geometry-151",
+      "passed": true
+    },
+    {
+      "name": "geometry-152",
+      "passed": true
+    },
+    {
+      "name": "geometry-153",
+      "passed": true
+    },
+    {
+      "name": "geometry-154",
+      "passed": true
+    },
+    {
+      "name": "geometry-155",
+      "passed": true
+    },
+    {
+      "name": "geometry-156",
+      "passed": true
+    },
+    {
+      "name": "geometry-157",
+      "passed": true
+    },
+    {
+      "name": "geometry-158",
+      "passed": true
+    },
+    {
+      "name": "geometry-159",
+      "passed": true
+    },
+    {
+      "name": "geometry-160",
+      "passed": true
+    },
+    {
+      "name": "geometry-161",
+      "passed": true
+    },
+    {
+      "name": "geometry-162",
+      "passed": true
+    },
+    {
+      "name": "geometry-163",
+      "passed": true
+    },
+    {
+      "name": "geometry-164",
+      "passed": true
+    },
+    {
+      "name": "geometry-165",
+      "passed": true
+    },
+    {
+      "name": "geometry-166",
+      "passed": true
+    },
+    {
+      "name": "geometry-167",
+      "passed": true
+    },
+    {
+      "name": "geometry-168",
+      "passed": true
+    },
+    {
+      "name": "geometry-169",
+      "passed": true
+    },
+    {
+      "name": "geometry-170",
+      "passed": true
+    },
+    {
+      "name": "geometry-171",
+      "passed": true
+    },
+    {
+      "name": "geometry-172",
+      "passed": true
+    },
+    {
+      "name": "geometry-173",
+      "passed": true
+    },
+    {
+      "name": "geometry-174",
+      "passed": true
+    },
+    {
+      "name": "geometry-175",
+      "passed": true
+    },
+    {
+      "name": "geometry-176",
+      "passed": true
+    },
+    {
+      "name": "geometry-177",
+      "passed": true
+    },
+    {
+      "name": "geometry-178",
+      "passed": true
+    },
+    {
+      "name": "geometry-179",
+      "passed": true
+    },
+    {
+      "name": "geometry-180",
+      "passed": true
+    },
+    {
+      "name": "geometry-181",
+      "passed": true
+    },
+    {
+      "name": "geometry-182",
+      "passed": true
+    },
+    {
+      "name": "geometry-183",
+      "passed": true
+    },
+    {
+      "name": "geometry-184",
+      "passed": true
+    },
+    {
+      "name": "geometry-185",
+      "passed": true
+    },
+    {
+      "name": "geometry-186",
+      "passed": true
+    },
+    {
+      "name": "geometry-187",
+      "passed": true
+    },
+    {
+      "name": "geometry-188",
+      "passed": true
+    },
+    {
+      "name": "geometry-189",
+      "passed": true
+    },
+    {
+      "name": "geometry-190",
+      "passed": true
+    },
+    {
+      "name": "geometry-191",
+      "passed": true
+    },
+    {
+      "name": "geometry-192",
+      "passed": true
+    },
+    {
+      "name": "geometry-193",
+      "passed": true
+    },
+    {
+      "name": "geometry-194",
+      "passed": true
+    },
+    {
+      "name": "geometry-195",
+      "passed": true
+    },
+    {
+      "name": "geometry-196",
+      "passed": true
+    },
+    {
+      "name": "geometry-197",
+      "passed": true
+    },
+    {
+      "name": "geometry-198",
+      "passed": true
+    },
+    {
+      "name": "geometry-199",
+      "passed": true
+    },
+    {
+      "name": "geometry-200",
+      "passed": true
+    },
+    {
+      "name": "geometry-201",
+      "passed": true
+    },
+    {
+      "name": "geometry-202",
+      "passed": true
+    },
+    {
+      "name": "geometry-203",
+      "passed": true
+    },
+    {
+      "name": "geometry-204",
+      "passed": true
+    },
+    {
+      "name": "geometry-205",
+      "passed": true
+    },
+    {
+      "name": "geometry-206",
+      "passed": true
+    },
+    {
+      "name": "geometry-207",
+      "passed": true
+    },
+    {
+      "name": "geometry-208",
+      "passed": true
+    },
+    {
+      "name": "geometry-209",
+      "passed": true
+    },
+    {
+      "name": "geometry-210",
+      "passed": true
+    },
+    {
+      "name": "geometry-211",
+      "passed": true
+    },
+    {
+      "name": "geometry-212",
+      "passed": true
+    },
+    {
+      "name": "geometry-213",
+      "passed": true
+    },
+    {
+      "name": "geometry-214",
+      "passed": true
+    },
+    {
+      "name": "geometry-215",
+      "passed": true
+    },
+    {
+      "name": "geometry-216",
+      "passed": true
+    },
+    {
+      "name": "geometry-217",
+      "passed": true
+    },
+    {
+      "name": "geometry-218",
+      "passed": true
+    },
+    {
+      "name": "geometry-219",
+      "passed": true
+    },
+    {
+      "name": "geometry-220",
+      "passed": true
+    },
+    {
+      "name": "geometry-221",
+      "passed": true
+    },
+    {
+      "name": "geometry-222",
+      "passed": true
+    },
+    {
+      "name": "geometry-223",
+      "passed": true
+    },
+    {
+      "name": "geometry-224",
+      "passed": true
+    },
+    {
+      "name": "geometry-225",
+      "passed": true
+    },
+    {
+      "name": "geometry-226",
+      "passed": true
+    },
+    {
+      "name": "geometry-227",
+      "passed": true
+    },
+    {
+      "name": "geometry-228",
+      "passed": true
+    },
+    {
+      "name": "geometry-229",
+      "passed": true
+    },
+    {
+      "name": "geometry-230",
+      "passed": true
+    },
+    {
+      "name": "geometry-231",
+      "passed": true
+    },
+    {
+      "name": "geometry-232",
+      "passed": true
+    },
+    {
+      "name": "geometry-233",
+      "passed": true
+    },
+    {
+      "name": "geometry-234",
+      "passed": true
+    },
+    {
+      "name": "geometry-235",
+      "passed": true
+    },
+    {
+      "name": "geometry-236",
+      "passed": true
+    },
+    {
+      "name": "geometry-237",
+      "passed": true
+    },
+    {
+      "name": "geometry-238",
+      "passed": true
+    },
+    {
+      "name": "geometry-239",
+      "passed": true
+    },
+    {
+      "name": "geometry-240",
+      "passed": true
+    },
+    {
+      "name": "geometry-241",
+      "passed": true
+    },
+    {
+      "name": "geometry-242",
+      "passed": true
+    },
+    {
+      "name": "geometry-243",
+      "passed": true
+    },
+    {
+      "name": "geometry-244",
+      "passed": true
+    },
+    {
+      "name": "geometry-245",
+      "passed": true
+    },
+    {
+      "name": "geometry-246",
+      "passed": true
+    },
+    {
+      "name": "geometry-247",
+      "passed": true
+    },
+    {
+      "name": "geometry-248",
+      "passed": true
+    },
+    {
+      "name": "geometry-249",
+      "passed": true
+    },
+    {
+      "name": "geometry-250",
+      "passed": true
+    },
+    {
+      "name": "geometry-251",
+      "passed": true
+    },
+    {
+      "name": "geometry-252",
+      "passed": true
+    },
+    {
+      "name": "geometry-253",
+      "passed": true
+    },
+    {
+      "name": "geometry-254",
+      "passed": true
+    },
+    {
+      "name": "geometry-255",
+      "passed": true
+    },
+    {
+      "name": "geometry-256",
+      "passed": true
+    },
+    {
+      "name": "geometry-257",
+      "passed": true
+    },
+    {
+      "name": "geometry-258",
+      "passed": true
+    },
+    {
+      "name": "geometry-259",
+      "passed": true
+    },
+    {
+      "name": "geometry-260",
+      "passed": true
+    },
+    {
+      "name": "geometry-261",
+      "passed": true
+    },
+    {
+      "name": "geometry-262",
+      "passed": true
+    },
+    {
+      "name": "geometry-263",
+      "passed": true
+    },
+    {
+      "name": "geometry-264",
+      "passed": true
+    },
+    {
+      "name": "geometry-265",
+      "passed": true
+    },
+    {
+      "name": "geometry-266",
+      "passed": true
+    },
+    {
+      "name": "geometry-267",
+      "passed": true
+    },
+    {
+      "name": "geometry-268",
+      "passed": true
+    },
+    {
+      "name": "geometry-269",
+      "passed": true
+    },
+    {
+      "name": "geometry-270",
+      "passed": true
+    }
+  ]
+}

@@ -1,0 +1,2 @@
+on_device_model_availability=unavailable(FoundationModels.SystemLanguageModel.Availability.UnavailableReason.deviceNotEligible)
+generation_calls=0; cloud_calls=0

@@ -1,0 +1,234 @@
+[
+  {
+    "name": "initial-candidate-hidden",
+    "passed": true
+  },
+  {
+    "name": "real-key-space-inserts-fixture-once",
+    "passed": true
+  },
+  {
+    "name": "number-key-selects-displayed-row",
+    "passed": true
+  },
+  {
+    "name": "arrow-highlight-then-space",
+    "passed": true
+  },
+  {
+    "name": "composition-tab-belongs-to-fixture-selector",
+    "passed": true
+  },
+  {
+    "name": "return-retains-raw-no-form-send",
+    "passed": true
+  },
+  {
+    "name": "escape-does-not-delete-committed-draft",
+    "passed": true
+  },
+  {
+    "name": "oversize-input-cannot-select-old-candidate",
+    "passed": true
+  },
+  {
+    "name": "synthetic-native-composition-fence",
+    "passed": true
+  },
+  {
+    "name": "recall-does-not-auto-commit-pending-pinyin",
+    "passed": true
+  },
+  {
+    "name": "recall-inserts-exact-full-terminal-negation",
+    "passed": true
+  },
+  {
+    "name": "recall-empty-does-not-fabricate-history",
+    "passed": true
+  },
+  {
+    "name": "recall-refuses-host-text-drift",
+    "passed": true
+  },
+  {
+    "name": "recall-refuses-new-target",
+    "passed": true
+  },
+  {
+    "name": "recall-cancel-clears-private-preview",
+    "passed": true
+  },
+  {
+    "name": "private-mode-keeps-basic-input-no-personal-recall",
+    "passed": true
+  },
+  {
+    "name": "selected-edit-preserves-number-negation-clears-result",
+    "passed": true
+  },
+  {
+    "name": "selected-edit-refuses-text-drift",
+    "passed": true
+  },
+  {
+    "name": "selected-edit-refuses-selection-drift",
+    "passed": true
+  },
+  {
+    "name": "model-unavailable-no-cloud-fallback",
+    "passed": true
+  },
+  {
+    "name": "late-synthetic-result-cannot-revive-after-private",
+    "passed": true
+  },
+  {
+    "name": "explicit-save-retains-original-not-sent-event",
+    "passed": true
+  },
+  {
+    "name": "remove-expression-cannot-be-recalled-again",
+    "passed": true
+  },
+  {
+    "name": "local-span-specimen-keeps-both-other-segments",
+    "passed": true
+  },
+  {
+    "name": "three-onboarding-pages-complete-without-install",
+    "passed": true
+  },
+  {
+    "name": "settings-escape-restores-input-focus",
+    "passed": true
+  },
+  {
+    "name": "layout-1440x1000-light-typing",
+    "passed": true
+  },
+  {
+    "name": "layout-1440x1000-light-recall",
+    "passed": true
+  },
+  {
+    "name": "layout-1440x1000-light-assist",
+    "passed": true
+  },
+  {
+    "name": "layout-1440x1000-dark-typing",
+    "passed": true
+  },
+  {
+    "name": "layout-1440x1000-dark-recall",
+    "passed": true
+  },
+  {
+    "name": "layout-1440x1000-dark-assist",
+    "passed": true
+  },
+  {
+    "name": "layout-1280x800-light-typing",
+    "passed": true
+  },
+  {
+    "name": "layout-1280x800-light-recall",
+    "passed": true
+  },
+  {
+    "name": "layout-1280x800-light-assist",
+    "passed": true
+  },
+  {
+    "name": "layout-1280x800-dark-typing",
+    "passed": true
+  },
+  {
+    "name": "layout-1280x800-dark-recall",
+    "passed": true
+  },
+  {
+    "name": "layout-1280x800-dark-assist",
+    "passed": true
+  },
+  {
+    "name": "layout-768x900-light-typing",
+    "passed": true
+  },
+  {
+    "name": "layout-768x900-light-recall",
+    "passed": true
+  },
+  {
+    "name": "layout-768x900-light-assist",
+    "passed": true
+  },
+  {
+    "name": "layout-768x900-dark-typing",
+    "passed": true
+  },
+  {
+    "name": "layout-768x900-dark-recall",
+    "passed": true
+  },
+  {
+    "name": "layout-768x900-dark-assist",
+    "passed": true
+  },
+  {
+    "name": "layout-390x844-light-typing",
+    "passed": true
+  },
+  {
+    "name": "layout-390x844-light-recall",
+    "passed": true
+  },
+  {
+    "name": "layout-390x844-light-assist",
+    "passed": true
+  },
+  {
+    "name": "layout-390x844-dark-typing",
+    "passed": true
+  },
+  {
+    "name": "layout-390x844-dark-recall",
+    "passed": true
+  },
+  {
+    "name": "layout-390x844-dark-assist",
+    "passed": true
+  },
+  {
+    "name": "layout-320x640-light-typing",
+    "passed": true
+  },
+  {
+    "name": "layout-320x640-light-recall",
+    "passed": true
+  },
+  {
+    "name": "layout-320x640-light-assist",
+    "passed": true
+  },
+  {
+    "name": "layout-320x640-dark-typing",
+    "passed": true
+  },
+  {
+    "name": "layout-320x640-dark-recall",
+    "passed": true
+  },
+  {
+    "name": "layout-320x640-dark-assist",
+    "passed": true
+  },
+  {
+    "name": "no-page-runtime-errors",
+    "passed": true
+  },
+  {
+    "name": "zero-network-requests-during-test",
+    "passed": true
+  }
+]

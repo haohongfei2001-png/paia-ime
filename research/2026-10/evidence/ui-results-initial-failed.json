@@ -1,0 +1,323 @@
+{
+  "kind": "standalone offline HTML prototype; fixed fixture conversion and fixed edit, not native IME/AI/PAIA",
+  "generated_at": "2026-10-09T17:27:41.525660+00:00",
+  "browser": "144.0.7559.96",
+  "source_sha256": "b1ca96e77a8623cc5281fe2aeaa7a8e9e5bfd3882011903f52cc54f06be4dedf",
+  "passed": 14,
+  "failed": 44,
+  "total": 58,
+  "requests": [],
+  "page_errors": [
+    "Failed to execute 'write' on 'Document': Identifier '$' has already been declared",
+    "Failed to execute 'write' on 'Document': Identifier '$' has already been declared",
+    "Failed to execute 'write' on 'Document': Identifier '$' has already been declared",
+    "Failed to execute 'write' on 'Document': Identifier '$' has already been declared",
+    "Failed to execute 'write' on 'Document': Identifier '$' has already been declared",
+    "Failed to execute 'write' on 'Document': Identifier '$' has already been declared",
+    "Failed to execute 'write' on 'Document': Identifier '$' has already been declared",
+    "Failed to execute 'write' on 'Document': Identifier '$' has already been declared",
+    "Failed to execute 'write' on 'Document': Identifier '$' has already been declared",
+    "Failed to execute 'write' on 'Document': Identifier '$' has already been declared",
+    "Failed to execute 'write' on 'Document': Identifier '$' has already been declared",
+    "Failed to execute 'write' on 'Document': Identifier '$' has already been declared",
+    "Failed to execute 'write' on 'Document': Identifier '$' has already been declared",
+    "Failed to execute 'write' on 'Document': Identifier '$' has already been declared",
+    "Failed to execute 'write' on 'Document': Identifier '$' has already been declared",
+    "Failed to execute 'write' on 'Document': Identifier '$' has already been declared",
+    "Failed to execute 'write' on 'Document': Identifier '$' has already been declared",
+    "Failed to execute 'write' on 'Document': Identifier '$' has already been declared",
+    "Failed to execute 'write' on 'Document': Identifier '$' has already been declared",
+    "Failed to execute 'write' on 'Document': Identifier '$' has already been declared",
+    "Failed to execute 'write' on 'Document': Identifier '$' has already been declared",
+    "Failed to execute 'write' on 'Document': Identifier '$' has already been declared",
+    "Failed to execute 'write' on 'Document': Identifier '$' has already been declared",
+    "Failed to execute 'write' on 'Document': Identifier '$' has already been declared",
+    "Failed to execute 'write' on 'Document': Identifier '$' has already been declared",
+    "Failed to execute 'write' on 'Document': Identifier '$' has already been declared",
+    "Failed to execute 'write' on 'Document': Identifier '$' has already been declared",
+    "Failed to execute 'write' on 'Document': Identifier '$' has already been declared",
+    "Failed to execute 'write' on 'Document': Identifier '$' has already been declared",
+    "Failed to execute 'write' on 'Document': Identifier '$' has already been declared",
+    "Failed to execute 'write' on 'Document': Identifier '$' has already been declared",
+    "Failed to execute 'write' on 'Document': Identifier '$' has already been declared",
+    "Failed to execute 'write' on 'Document': Identifier '$' has already been declared"
+  ],
+  "cases": [
+    {
+      "name": "initial-candidate-hidden",
+      "passed": true
+    },
+    {
+      "name": "real-key-space-inserts-fixture-once",
+      "passed": true
+    },
+    {
+      "name": "number-key-selects-displayed-row",
+      "passed": true
+    },
+    {
+      "name": "arrow-highlight-then-space",
+      "passed": true
+    },
+    {
+      "name": "composition-tab-belongs-to-fixture-selector",
+      "passed": true
+    },
+    {
+      "name": "return-retains-raw-no-form-send",
+      "passed": true
+    },
+    {
+      "name": "escape-does-not-delete-committed-draft",
+      "passed": true
+    },
+    {
+      "name": "oversize-input-cannot-select-old-candidate",
+      "passed": true
+    },
+    {
+      "name": "synthetic-native-composition-fence",
+      "passed": true
+    },
+    {
+      "name": "recall-does-not-auto-commit-pending-pinyin",
+      "passed": true
+    },
+    {
+      "name": "recall-inserts-exact-full-terminal-negation",
+      "passed": true
+    },
+    {
+      "name": "recall-empty-does-not-fabricate-history",
+      "passed": true
+    },
+    {
+      "name": "recall-refuses-host-text-drift",
+      "passed": false,
+      "error": "Locator.click: Timeout 1800ms exceeded.\nCall log:\n  - waiting for locator(\"#drift\")\n    - locator resolved to <button id=\"drift\">模拟宿主原文改变</button>\n  - attempting click action\n    2 × waiting for element to be visible, enabled and stable\n      - element is not visible\n    - retrying click action\n    - waiting 20ms\n    2 × waiting for element to be visible, enabled and stable\n      - element is not visible\n    - retrying click action\n      - waiting 100ms\n    3 × waiting for element to be visible, enabled and stable\n      - element is not visible\n    - retrying click action\n      - waiting 500ms\n"
+    },
+    {
+      "name": "recall-refuses-new-target",
+      "passed": false,
+      "error": "Locator.click: Timeout 1800ms exceeded.\nCall log:\n  - waiting for locator(\"[data-scene=\\\"recall\\\"]\")\n    - locator resolved to <button data-scene=\"recall\" aria-pressed=\"true\">03 我的表达</button>\n  - attempting click action\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <input id=\"query\" class=\"search\" autocomplete=\"off\" aria-label=\"查找已保存表达\" placeholder=\"查找你保存过的话\"/> from <section id=\"recallPanel\" aria-label=\"我的表达\" class=\"panel recall\">…</section> subtree intercepts pointer events\n    - retrying click action\n    - waiting 20ms\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <input id=\"query\" class=\"search\" autocomplete=\"off\" aria-label=\"查找已保存表达\" placeholder=\"查找你保存过的话\"/> from <section id=\"recallPanel\" aria-label=\"我的表达\" class=\"panel recall\">…</section> subtree intercepts pointer events\n    - retrying click action\n      - waiting 100ms\n    3 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <input id=\"query\" class=\"search\" autocomplete=\"off\" aria-label=\"查找已保存表达\" placeholder=\"查找你保存过的话\"/> from <section id=\"recallPanel\" aria-label=\"我的表达\" class=\"panel recall\">…</section> subtree intercepts pointer events\n    - retrying click action\n      - waiting 500ms\n"
+    },
+    {
+      "name": "recall-cancel-clears-private-preview",
+      "passed": false,
+      "error": "Locator.click: Timeout 1800ms exceeded.\nCall log:\n  - waiting for locator(\"[data-scene=\\\"recall\\\"]\")\n    - locator resolved to <button data-scene=\"recall\" aria-pressed=\"true\">03 我的表达</button>\n  - attempting click action\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <input id=\"query\" class=\"search\" autocomplete=\"off\" aria-label=\"查找已保存表达\" placeholder=\"查找你保存过的话\"/> from <section id=\"recallPanel\" aria-label=\"我的表达\" class=\"panel recall\">…</section> subtree intercepts pointer events\n    - retrying click action\n    - waiting 20ms\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <input id=\"query\" class=\"search\" autocomplete=\"off\" aria-label=\"查找已保存表达\" placeholder=\"查找你保存过的话\"/> from <section id=\"recallPanel\" aria-label=\"我的表达\" class=\"panel recall\">…</section> subtree intercepts pointer events\n    - retrying click action\n      - waiting 100ms\n    3 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <input id=\"query\" class=\"search\" autocomplete=\"off\" aria-label=\"查找已保存表达\" placeholder=\"查找你保存过的话\"/> from <section id=\"recallPanel\" aria-label=\"我的表达\" class=\"panel recall\">…</section> subtree intercepts pointer events\n    - retrying click action\n      - waiting 500ms\n"
+    },
+    {
+      "name": "private-mode-keeps-basic-input-no-personal-recall",
+      "passed": false,
+      "error": "Locator.click: Timeout 1800ms exceeded.\nCall log:\n  - waiting for locator(\"[data-scene=\\\"private\\\"]\")\n    - locator resolved to <button data-scene=\"private\" aria-pressed=\"false\">05 私密输入</button>\n  - attempting click action\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <input id=\"query\" class=\"search\" autocomplete=\"off\" aria-label=\"查找已保存表达\" placeholder=\"查找你保存过的话\"/> from <section id=\"recallPanel\" aria-label=\"我的表达\" class=\"panel recall\">…</section> subtree intercepts pointer events\n    - retrying click action\n    - waiting 20ms\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <input id=\"query\" class=\"search\" autocomplete=\"off\" aria-label=\"查找已保存表达\" placeholder=\"查找你保存过的话\"/> from <section id=\"recallPanel\" aria-label=\"我的表达\" class=\"panel recall\">…</section> subtree intercepts pointer events\n    - retrying click action\n      - waiting 100ms\n    3 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <input id=\"query\" class=\"search\" autocomplete=\"off\" aria-label=\"查找已保存表达\" placeholder=\"查找你保存过的话\"/> from <section id=\"recallPanel\" aria-label=\"我的表达\" class=\"panel recall\">…</section> subtree intercepts pointer events\n    - retrying click action\n      - waiting 500ms\n"
+    },
+    {
+      "name": "selected-edit-preserves-number-negation-clears-result",
+      "passed": false,
+      "error": "Locator.click: Timeout 1800ms exceeded.\nCall log:\n  - waiting for locator(\"[data-scene=\\\"assist\\\"]\")\n    - locator resolved to <button data-scene=\"assist\" aria-pressed=\"false\">04 按需修改</button>\n  - attempting click action\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <input id=\"query\" class=\"search\" autocomplete=\"off\" aria-label=\"查找已保存表达\" placeholder=\"查找你保存过的话\"/> from <section id=\"recallPanel\" aria-label=\"我的表达\" class=\"panel recall\">…</section> subtree intercepts pointer events\n    - retrying click action\n    - waiting 20ms\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <input id=\"query\" class=\"search\" autocomplete=\"off\" aria-label=\"查找已保存表达\" placeholder=\"查找你保存过的话\"/> from <section id=\"recallPanel\" aria-label=\"我的表达\" class=\"panel recall\">…</section> subtree intercepts pointer events\n    - retrying click action\n      - waiting 100ms\n    3 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <input id=\"query\" class=\"search\" autocomplete=\"off\" aria-label=\"查找已保存表达\" placeholder=\"查找你保存过的话\"/> from <section id=\"recallPanel\" aria-label=\"我的表达\" class=\"panel recall\">…</section> subtree intercepts pointer events\n    - retrying click action\n      - waiting 500ms\n"
+    },
+    {
+      "name": "selected-edit-refuses-text-drift",
+      "passed": false,
+      "error": "Locator.click: Timeout 1800ms exceeded.\nCall log:\n  - waiting for locator(\"[data-scene=\\\"assist\\\"]\")\n    - locator resolved to <button data-scene=\"assist\" aria-pressed=\"false\">04 按需修改</button>\n  - attempting click action\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <input id=\"query\" class=\"search\" autocomplete=\"off\" aria-label=\"查找已保存表达\" placeholder=\"查找你保存过的话\"/> from <section id=\"recallPanel\" aria-label=\"我的表达\" class=\"panel recall\">…</section> subtree intercepts pointer events\n    - retrying click action\n    - waiting 20ms\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <input id=\"query\" class=\"search\" autocomplete=\"off\" aria-label=\"查找已保存表达\" placeholder=\"查找你保存过的话\"/> from <section id=\"recallPanel\" aria-label=\"我的表达\" class=\"panel recall\">…</section> subtree intercepts pointer events\n    - retrying click action\n      - waiting 100ms\n    3 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <input id=\"query\" class=\"search\" autocomplete=\"off\" aria-label=\"查找已保存表达\" placeholder=\"查找你保存过的话\"/> from <section id=\"recallPanel\" aria-label=\"我的表达\" class=\"panel recall\">…</section> subtree intercepts pointer events\n    - retrying click action\n      - waiting 500ms\n"
+    },
+    {
+      "name": "selected-edit-refuses-selection-drift",
+      "passed": false,
+      "error": "Locator.click: Timeout 1800ms exceeded.\nCall log:\n  - waiting for locator(\"[data-scene=\\\"assist\\\"]\")\n    - locator resolved to <button data-scene=\"assist\" aria-pressed=\"false\">04 按需修改</button>\n  - attempting click action\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <input id=\"query\" class=\"search\" autocomplete=\"off\" aria-label=\"查找已保存表达\" placeholder=\"查找你保存过的话\"/> from <section id=\"recallPanel\" aria-label=\"我的表达\" class=\"panel recall\">…</section> subtree intercepts pointer events\n    - retrying click action\n    - waiting 20ms\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <input id=\"query\" class=\"search\" autocomplete=\"off\" aria-label=\"查找已保存表达\" placeholder=\"查找你保存过的话\"/> from <section id=\"recallPanel\" aria-label=\"我的表达\" class=\"panel recall\">…</section> subtree intercepts pointer events\n    - retrying click action\n      - waiting 100ms\n    3 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <input id=\"query\" class=\"search\" autocomplete=\"off\" aria-label=\"查找已保存表达\" placeholder=\"查找你保存过的话\"/> from <section id=\"recallPanel\" aria-label=\"我的表达\" class=\"panel recall\">…</section> subtree intercepts pointer events\n    - retrying click action\n      - waiting 500ms\n"
+    },
+    {
+      "name": "model-unavailable-no-cloud-fallback",
+      "passed": false,
+      "error": "Locator.check: Timeout 1800ms exceeded.\nCall log:\n  - waiting for locator(\"#modelUnavailable\")\n    - locator resolved to <input type=\"checkbox\" id=\"modelUnavailable\"/>\n  - attempting click action\n    2 × waiting for element to be visible, enabled and stable\n      - element is not visible\n    - retrying click action\n    - waiting 20ms\n    2 × waiting for element to be visible, enabled and stable\n      - element is not visible\n    - retrying click action\n      - waiting 100ms\n    3 × waiting for element to be visible, enabled and stable\n      - element is not visible\n    - retrying click action\n      - waiting 500ms\n"
+    },
+    {
+      "name": "late-synthetic-result-cannot-revive-after-private",
+      "passed": true
+    },
+    {
+      "name": "explicit-save-retains-original-not-sent-event",
+      "passed": false,
+      "error": "Locator.click: Timeout 1800ms exceeded.\nCall log:\n  - waiting for locator(\"#confirmSave\")\n    - locator resolved to <button class=\"primary\" id=\"confirmSave\">保存</button>\n  - attempting click action\n    2 × waiting for element to be visible, enabled and stable\n      - element is not visible\n    - retrying click action\n    - waiting 20ms\n    2 × waiting for element to be visible, enabled and stable\n      - element is not visible\n    - retrying click action\n      - waiting 100ms\n    3 × waiting for element to be visible, enabled and stable\n      - element is not visible\n    - retrying click action\n      - waiting 500ms\n"
+    },
+    {
+      "name": "remove-expression-cannot-be-recalled-again",
+      "passed": false,
+      "error": "Locator.click: Timeout 1800ms exceeded.\nCall log:\n  - waiting for locator(\"#deleteExpression\")\n    - locator resolved to <button id=\"deleteExpression\">移除</button>\n  - attempting click action\n    2 × waiting for element to be visible, enabled and stable\n      - element is not visible\n    - retrying click action\n    - waiting 20ms\n    2 × waiting for element to be visible, enabled and stable\n      - element is not visible\n    - retrying click action\n      - waiting 100ms\n    3 × waiting for element to be visible, enabled and stable\n      - element is not visible\n    - retrying click action\n      - waiting 500ms\n"
+    },
+    {
+      "name": "local-span-specimen-keeps-both-other-segments",
+      "passed": false,
+      "error": "Locator.click: Timeout 1800ms exceeded.\nCall log:\n  - waiting for locator(\"#repairchoices button\").nth(1)\n"
+    },
+    {
+      "name": "three-onboarding-pages-complete-without-install",
+      "passed": false,
+      "error": "assertion failed"
+    },
+    {
+      "name": "settings-escape-restores-input-focus",
+      "passed": false,
+      "error": "assertion failed"
+    },
+    {
+      "name": "layout-1440x1000-light-typing",
+      "passed": false,
+      "error": "assertion failed"
+    },
+    {
+      "name": "layout-1440x1000-light-recall",
+      "passed": false,
+      "error": "assertion failed"
+    },
+    {
+      "name": "layout-1440x1000-light-assist",
+      "passed": false,
+      "error": "assertion failed"
+    },
+    {
+      "name": "layout-1440x1000-dark-typing",
+      "passed": false,
+      "error": "assertion failed"
+    },
+    {
+      "name": "layout-1440x1000-dark-recall",
+      "passed": false,
+      "error": "assertion failed"
+    },
+    {
+      "name": "layout-1440x1000-dark-assist",
+      "passed": false,
+      "error": "assertion failed"
+    },
+    {
+      "name": "layout-1280x800-light-typing",
+      "passed": false,
+      "error": "assertion failed"
+    },
+    {
+      "name": "layout-1280x800-light-recall",
+      "passed": false,
+      "error": "assertion failed"
+    },
+    {
+      "name": "layout-1280x800-light-assist",
+      "passed": false,
+      "error": "assertion failed"
+    },
+    {
+      "name": "layout-1280x800-dark-typing",
+      "passed": false,
+      "error": "assertion failed"
+    },
+    {
+      "name": "layout-1280x800-dark-recall",
+      "passed": false,
+      "error": "assertion failed"
+    },
+    {
+      "name": "layout-1280x800-dark-assist",
+      "passed": false,
+      "error": "assertion failed"
+    },
+    {
+      "name": "layout-768x900-light-typing",
+      "passed": false,
+      "error": "assertion failed"
+    },
+    {
+      "name": "layout-768x900-light-recall",
+      "passed": false,
+      "error": "assertion failed"
+    },
+    {
+      "name": "layout-768x900-light-assist",
+      "passed": false,
+      "error": "assertion failed"
+    },
+    {
+      "name": "layout-768x900-dark-typing",
+      "passed": false,
+      "error": "assertion failed"
+    },
+    {
+      "name": "layout-768x900-dark-recall",
+      "passed": false,
+      "error": "assertion failed"
+    },
+    {
+      "name": "layout-768x900-dark-assist",
+      "passed": false,
+      "error": "assertion failed"
+    },
+    {
+      "name": "layout-390x844-light-typing",
+      "passed": false,
+      "error": "assertion failed"
+    },
+    {
+      "name": "layout-390x844-light-recall",
+      "passed": false,
+      "error": "assertion failed"
+    },
+    {
+      "name": "layout-390x844-light-assist",
+      "passed": false,
+      "error": "assertion failed"
+    },
+    {
+      "name": "layout-390x844-dark-typing",
+      "passed": false,
+      "error": "assertion failed"
+    },
+    {
+      "name": "layout-390x844-dark-recall",
+      "passed": false,
+      "error": "assertion failed"
+    },
+    {
+      "name": "layout-390x844-dark-assist",
+      "passed": false,
+      "error": "assertion failed"
+    },
+    {
+      "name": "layout-320x640-light-typing",
+      "passed": false,
+      "error": "assertion failed"
+    },
+    {
+      "name": "layout-320x640-light-recall",
+      "passed": false,
+      "error": "assertion failed"
+    },
+    {
+      "name": "layout-320x640-light-assist",
+      "passed": false,
+      "error": "assertion failed"
+    },
+    {
+      "name": "layout-320x640-dark-typing",
+      "passed": false,
+      "error": "assertion failed"
+    },
+    {
+      "name": "layout-320x640-dark-recall",
+      "passed": false,
+      "error": "assertion failed"
+    },
+    {
+      "name": "layout-320x640-dark-assist",
+      "passed": false,
+      "error": "assertion failed"
+    },
+    {
+      "name": "no-page-runtime-errors",
+      "passed": false,
+      "error": "[\"Failed to execute 'write' on 'Document': Identifier '$' has already been declared\", \"Failed to execute 'write' on 'Document': Identifier '$' has already been declared\", \"Failed to execute 'write' on 'Document': Identifier '$' has already been declared\", \"Failed to execute 'write' on 'Document': Identifier '$' has already been declared\", \"Failed to execute 'write' on 'Document': Identifier '$' has already been declared\", \"Failed to execute 'write' on 'Document': Identifier '$' has already been declared\", \"Failed to execute 'write' on 'Document': Identifier '$' has already been declared\", \"Failed to execute 'write' on 'Document': Identifier '$' has already been declared\", \"Failed to execute 'write' on 'Document': Identifier '$' has already been declared\", \"Failed to execute 'write' on 'Document': Identifier '$' has already been declared\", \"Failed to execute 'write' on 'Document': Identifier '$' has already been declared\", \"Failed to execute 'write' on 'Document': Identifier '$' has already been declared\", \"Failed to execute 'write' on 'Document': Identifier '$' has already been declared\", \"Failed to execute 'write' on 'Document': Identifier '$' has already been declared\", \"Failed to execute 'write' on 'Document': Identifier '$' has already been declared\", \"Failed to execute 'write' on 'Document': Identifier '$' has already been declared\", \"Failed to execute 'write' on 'Document': Identifier '$' has already been declared\", \"Failed to execute 'write' on 'Document': Identifier '$' has already been declared\", \"Failed to execute 'write' on 'Document': Identifier '$' has already been declared\", \"Failed to execute 'write' on 'Document': Identifier '$' has already been declared\", \"Failed to execute 'write' on 'Document': Identifier '$' has already been declared\", \"Failed to execute 'write' on 'Document': Identifier '$' has already been declared\", \"Failed to execute 'write' on 'Document': Identifier '$' has already been declared\", \"Failed to execute 'write' on 'Document': Identifier '$' has already been declared\", \"Failed to execute 'write' on 'Document': Identifier '$' has already been declared\", \"Failed to execute 'write' on 'Document': Identifier '$' has already been declared\", \"Failed to execute 'write' on 'Document': Identifier '$' has already been declared\", \"Failed to execute 'write' on 'Document': Identifier '$' has already been declared\", \"Failed to execute 'write' on 'Document': Identifier '$' has already been declared\", \"Failed to execute 'write' on 'Document': Identifier '$' has already been declared\", \"Failed to execute 'write' on 'Document': Identifier '$' has already been declared\", \"Failed to execute 'write' on 'Document': Identifier '$' has already been declared\", \"Failed to execute 'write' on 'Document': Identifier '$' has already been declared\"]"
+    },
+    {
+      "name": "zero-network-requests-during-test",
+      "passed": true
+    }
+  ]
+}

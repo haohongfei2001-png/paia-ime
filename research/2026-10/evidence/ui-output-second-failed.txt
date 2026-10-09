@@ -1,0 +1,125 @@
+PASS initial-candidate-hidden
+PASS real-key-space-inserts-fixture-once
+PASS number-key-selects-displayed-row
+PASS arrow-highlight-then-space
+PASS composition-tab-belongs-to-fixture-selector
+PASS return-retains-raw-no-form-send
+PASS escape-does-not-delete-committed-draft
+PASS oversize-input-cannot-select-old-candidate
+PASS synthetic-native-composition-fence
+PASS recall-does-not-auto-commit-pending-pinyin
+PASS recall-inserts-exact-full-terminal-negation
+PASS recall-empty-does-not-fabricate-history
+PASS recall-refuses-host-text-drift
+PASS recall-refuses-new-target
+PASS recall-cancel-clears-private-preview
+PASS private-mode-keeps-basic-input-no-personal-recall
+FAIL selected-edit-preserves-number-negation-clears-result Page.wait_for_function: EvalError: Evaluating a string as JavaScript violates the following Content Security Policy directive because 'unsafe-eval' is not an allowed source of script: script-src 'unsafe-inline'".
+
+    at eval (<anonymous>)
+    at predicate (eval at evaluate (:290:30), <anonymous>:4:
+FAIL selected-edit-refuses-text-drift Page.wait_for_function: EvalError: Evaluating a string as JavaScript violates the following Content Security Policy directive because 'unsafe-eval' is not an allowed source of script: script-src 'unsafe-inline'".
+
+    at eval (<anonymous>)
+    at predicate (eval at evaluate (:290:30), <anonymous>:4:
+FAIL selected-edit-refuses-selection-drift Page.wait_for_function: EvalError: Evaluating a string as JavaScript violates the following Content Security Policy directive because 'unsafe-eval' is not an allowed source of script: script-src 'unsafe-inline'".
+
+    at eval (<anonymous>)
+    at predicate (eval at evaluate (:290:30), <anonymous>:4:
+PASS model-unavailable-no-cloud-fallback
+PASS late-synthetic-result-cannot-revive-after-private
+PASS explicit-save-retains-original-not-sent-event
+PASS remove-expression-cannot-be-recalled-again
+PASS local-span-specimen-keeps-both-other-segments
+PASS three-onboarding-pages-complete-without-install
+PASS settings-escape-restores-input-focus
+PASS layout-1440x1000-light-typing
+PASS layout-1440x1000-light-recall
+PASS layout-1440x1000-light-assist
+PASS layout-1440x1000-dark-typing
+PASS layout-1440x1000-dark-recall
+PASS layout-1440x1000-dark-assist
+PASS layout-1280x800-light-typing
+PASS layout-1280x800-light-recall
+PASS layout-1280x800-light-assist
+PASS layout-1280x800-dark-typing
+PASS layout-1280x800-dark-recall
+PASS layout-1280x800-dark-assist
+PASS layout-768x900-light-typing
+PASS layout-768x900-light-recall
+PASS layout-768x900-light-assist
+PASS layout-768x900-dark-typing
+PASS layout-768x900-dark-recall
+PASS layout-768x900-dark-assist
+PASS layout-390x844-light-typing
+PASS layout-390x844-light-recall
+PASS layout-390x844-light-assist
+PASS layout-390x844-dark-typing
+PASS layout-390x844-dark-recall
+PASS layout-390x844-dark-assist
+PASS layout-320x640-light-typing
+PASS layout-320x640-light-recall
+PASS layout-320x640-light-assist
+PASS layout-320x640-dark-typing
+PASS layout-320x640-dark-recall
+PASS layout-320x640-dark-assist
+Traceback (most recent call last):
+  File "/mnt/data/mac-ime-flagship/engineering/test-ui.py", line 123, in <module>
+    scene(state)
+    ~~~~~^^^^^^^
+  File "/mnt/data/mac-ime-flagship/engineering/test-ui.py", line 17, in scene
+    def scene(x):page.locator('[data-scene="'+x+'"]').click()
+                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/opt/pyvenv/lib/python3.13/site-packages/playwright/sync_api/_generated.py", line 15637, in click
+    self._sync(
+    ~~~~~~~~~~^
+        self._impl_obj.click(
+        ^^^^^^^^^^^^^^^^^^^^^
+    ...<10 lines>...
+        )
+        ^
+    )
+    ^
+  File "/opt/pyvenv/lib/python3.13/site-packages/playwright/_impl/_sync_base.py", line 115, in _sync
+    return task.result()
+           ~~~~~~~~~~~^^
+  File "/opt/pyvenv/lib/python3.13/site-packages/playwright/_impl/_locator.py", line 162, in click
+    return await self._frame._click(self._selector, strict=True, **params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/pyvenv/lib/python3.13/site-packages/playwright/_impl/_frame.py", line 566, in _click
+    await self._channel.send("click", self._timeout, locals_to_params(locals()))
+  File "/opt/pyvenv/lib/python3.13/site-packages/playwright/_impl/_connection.py", line 69, in send
+    return await self._connection.wrap_api_call(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "/opt/pyvenv/lib/python3.13/site-packages/playwright/_impl/_connection.py", line 559, in wrap_api_call
+    raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+playwright._impl._errors.TimeoutError: Locator.click: Timeout 1800ms exceeded.
+Call log:
+  - waiting for locator("[data-scene=\"assist\"]")
+    - locator resolved to <button data-scene="assist" aria-pressed="false">04 按需修改</button>
+  - attempting click action
+    2 × waiting for element to be visible, enabled and stable
+      - element is visible, enabled and stable
+      - scrolling into view if needed
+      - done scrolling
+      - <input id="query" class="search" autocomplete="off" aria-label="查找已保存表达" placeholder="查找你保存过的话"/> from <section id="recallPanel" aria-label="我的表达" class="panel recall">…</section> subtree intercepts pointer events
+    - retrying click action
+    - waiting 20ms
+    2 × waiting for element to be visible, enabled and stable
+      - element is visible, enabled and stable
+      - scrolling into view if needed
+      - done scrolling
+      - <input id="query" class="search" autocomplete="off" aria-label="查找已保存表达" placeholder="查找你保存过的话"/> from <section id="recallPanel" aria-label="我的表达" class="panel recall">…</section> subtree intercepts pointer events
+    - retrying click action
+      - waiting 100ms
+    3 × waiting for element to be visible, enabled and stable
+      - element is visible, enabled and stable
+      - scrolling into view if needed
+      - done scrolling
+      - <input id="query" class="search" autocomplete="off" aria-label="查找已保存表达" placeholder="查找你保存过的话"/> from <section id="recallPanel" aria-label="我的表达" class="panel recall">…</section> subtree intercepts pointer events
+    - retrying click action
+      - waiting 500ms
+

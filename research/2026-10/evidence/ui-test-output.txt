@@ -1,0 +1,70 @@
+PASS initial-candidate-hidden
+PASS real-key-space-inserts-fixture-once
+PASS number-key-selects-displayed-row
+PASS arrow-highlight-then-space
+PASS composition-tab-belongs-to-fixture-selector
+PASS return-retains-raw-no-form-send
+PASS escape-does-not-delete-committed-draft
+PASS oversize-input-cannot-select-old-candidate
+PASS synthetic-native-composition-fence
+PASS recall-does-not-auto-commit-pending-pinyin
+PASS recall-inserts-exact-full-terminal-negation
+PASS recall-empty-does-not-fabricate-history
+PASS recall-refuses-host-text-drift
+PASS recall-refuses-new-target
+PASS recall-cancel-clears-private-preview
+PASS private-mode-keeps-basic-input-no-personal-recall
+PASS selected-edit-preserves-number-negation-clears-result
+PASS selected-edit-refuses-text-drift
+PASS selected-edit-refuses-selection-drift
+PASS model-unavailable-no-cloud-fallback
+PASS late-synthetic-result-cannot-revive-after-private
+PASS explicit-save-retains-original-not-sent-event
+PASS remove-expression-cannot-be-recalled-again
+PASS local-span-specimen-keeps-both-other-segments
+PASS three-onboarding-pages-complete-without-install
+PASS settings-escape-restores-input-focus
+PASS layout-1440x1000-light-typing
+PASS layout-1440x1000-light-recall
+PASS layout-1440x1000-light-assist
+PASS layout-1440x1000-dark-typing
+PASS layout-1440x1000-dark-recall
+PASS layout-1440x1000-dark-assist
+PASS layout-1280x800-light-typing
+PASS layout-1280x800-light-recall
+PASS layout-1280x800-light-assist
+PASS layout-1280x800-dark-typing
+PASS layout-1280x800-dark-recall
+PASS layout-1280x800-dark-assist
+PASS layout-768x900-light-typing
+PASS layout-768x900-light-recall
+PASS layout-768x900-light-assist
+PASS layout-768x900-dark-typing
+PASS layout-768x900-dark-recall
+PASS layout-768x900-dark-assist
+PASS layout-390x844-light-typing
+PASS layout-390x844-light-recall
+PASS layout-390x844-light-assist
+PASS layout-390x844-dark-typing
+PASS layout-390x844-dark-recall
+PASS layout-390x844-dark-assist
+PASS layout-320x640-light-typing
+PASS layout-320x640-light-recall
+PASS layout-320x640-light-assist
+PASS layout-320x640-dark-typing
+PASS layout-320x640-dark-recall
+PASS layout-320x640-dark-assist
+PASS no-page-runtime-errors
+PASS zero-network-requests-during-test
+{
+  "kind": "standalone offline HTML prototype; fixed fixture conversion and fixed edit, not native IME/AI/PAIA",
+  "generated_at": "2026-10-09T17:29:23.961179+00:00",
+  "browser": "144.0.7559.96",
+  "source_sha256": "cf67f41e6d44ecca8766e925476044d1cca40165431e539bef7f58794f5ec27f",
+  "passed": 58,
+  "failed": 0,
+  "total": 58,
+  "requests": [],
+  "page_errors": [],
+  "cases": []
+}

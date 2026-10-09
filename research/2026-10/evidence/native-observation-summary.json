@@ -1,0 +1,77 @@
+{
+  "kind": "Tool-observed summary, NOT a byte-identical copy of original native output",
+  "study_date_local": "2026-10-09 to 2026-10-10 Asia/Shanghai",
+  "machine": {
+    "chip": "Apple M5",
+    "ram_bytes": 25769803776,
+    "os": "macOS 27.0 (26A428)",
+    "swift": "6.4",
+    "arch": "arm64"
+  },
+  "appkit": {
+    "passed": 31,
+    "total": 31,
+    "installed_ime": false,
+    "cross_application": false,
+    "source_sha256": "b3bee608c1f5442da158a690898bf69f5469bc8ef848b6c3dceb81c3b1f2a05e",
+    "original_result_sha256": "dbb195ee4360ff04af3e0b0e89f01c89cfe9f15eeeaa837e0af05dfba053b60d"
+  },
+  "rime_baseline": {
+    "package": "Squirrel 1.1.2 extracted, not installed",
+    "library_version": "1.16.0",
+    "schema": "luna_pinyin_simp",
+    "user_dict": false,
+    "fixtures": 24,
+    "rounds": 8,
+    "keys": 2240,
+    "latency_boundary": "ctypes process_key + get_context + copy <=5 candidate strings + free_context; excludes UI/system event transit",
+    "latency_ms": {
+      "p50": 0.038041,
+      "p95": 0.281292,
+      "p99": 0.492541,
+      "max": 0.604917
+    },
+    "cold_deploy_s": 2.4800532918889076,
+    "process_peak_rss_bytes": 337625088,
+    "original_result_sha256": "995254f2998c3be684035e01916225c8223d7b2fb7190234df52fb1820a1697e"
+  },
+  "dictionary_ablation": {
+    "explicit_entries": 3,
+    "changed_target_top1": 3,
+    "unchanged_control_top1": 21,
+    "keys": 2240,
+    "p99_ms": 0.461208,
+    "not_blind_accuracy_test": true,
+    "rows": [
+      {
+        "input": "linxiaotang",
+        "before": "林小唐",
+        "after": "林小棠"
+      },
+      {
+        "input": "qianyiweixuexi",
+        "before": "钱以为学习",
+        "after": "迁移微学习"
+      },
+      {
+        "input": "qwxg",
+        "before": "全无心肝",
+        "after": "请勿修改"
+      }
+    ]
+  },
+  "foundation_models": {
+    "returned": "unavailable(deviceNotEligible)",
+    "diagnosis": "not established",
+    "generation_calls": 0,
+    "cloud_calls": 0
+  },
+  "limits": [
+    "No registered/activated input method",
+    "No closed-source competitor accuracy or endurance comparison",
+    "No actual LLM/ASR generation benchmark",
+    "No human user study",
+    "No PAIA writes or live connection",
+    "24 handcrafted fixtures are not a general accuracy benchmark"
+  ]
+}
