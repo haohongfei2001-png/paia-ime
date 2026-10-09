@@ -16,6 +16,7 @@ import SessionCore
     public var choose: ((CandidateRef)->Void)?
     public init() {
         super.init(contentRect:NSRect(x:0,y:0,width:420,height:48),styleMask:[.borderless,.nonactivatingPanel],backing:.buffered,defer:false)
+        isReleasedWhenClosed=false
         isFloatingPanel=true; level = .floating; hidesOnDeactivate=true; hasShadow=true
         backgroundColor = .windowBackgroundColor
     }

@@ -61,6 +61,7 @@ import EngineBridge
         do {
             let env=try LabEnvironment();lab=env
             let window=NSWindow(contentRect:NSRect(x:200,y:250,width:760,height:420),styleMask:[.titled,.closable,.resizable],backing:.buffered,defer:false)
+            window.isReleasedWhenClosed=false
             window.delegate=self
             window.title="PAIA A1 · Synthetic AppKit host · Not a system input source"
             let scroll=NSScrollView(frame:window.contentView!.bounds);scroll.autoresizingMask=[.width,.height];scroll.hasVerticalScroller=true

@@ -6,6 +6,11 @@
 #include <string.h>
 #include <stdio.h>
 #include <limits.h>
+#include <time.h>
+static uint64_t monotonic_ns(void) {
+    struct timespec t;
+    return clock_gettime(CLOCK_MONOTONIC,&t)==0 ? (uint64_t)t.tv_sec*1000000000ULL+(uint64_t)t.tv_nsec : 0;
+}
 static pthread_mutex_t owner = PTHREAD_MUTEX_INITIALIZER;
 static RimeApi *api;
 static void *library_handle;
@@ -125,6 +130,7 @@ int paia_rime_step(uint64_t id, int action, int key, int modifiers, PaiaRimeSnap
     pthread_mutex_lock(&owner);
     int rc=PAIA_OK;
     if (!api || !api->find_session(id)) { rc=PAIA_SESSION; goto done; }
+    uint64_t engine_begin=monotonic_ns();
     if (action==1) out->handled=api->process_key(id,key,modifiers);
     else if (action==2) {
         if (key<0 || key>=PAIA_MAX_CANDIDATES) { rc=PAIA_BOUNDS; goto done; }
@@ -136,7 +142,10 @@ int paia_rime_step(uint64_t id, int action, int key, int modifiers, PaiaRimeSnap
         out->handled=api->select_candidate_on_current_page(id,(size_t)key);
     } else if (action==3) { api->clear_composition(id); out->handled=1; }
     else if (action!=0) { rc=PAIA_BOUNDS; goto done; }
+    out->engine_nanoseconds=monotonic_ns()-engine_begin;
+    uint64_t copy_begin=monotonic_ns();
     rc=snapshot(id,out);
+    out->copy_nanoseconds=monotonic_ns()-copy_begin;
 done:
     pthread_mutex_unlock(&owner);
     if (rc) paia_rime_free_snapshot(out);

@@ -60,6 +60,7 @@ final class AppKitHostTests:XCTestCase {
     @MainActor func testWindowResignKeyInvalidatesAndOldButtonKeepsItsSnapshot() throws {
         _=NSApplication.shared
         let window=NSWindow(contentRect:NSRect(x:0,y:0,width:500,height:200),styleMask:[.titled],backing:.buffered,defer:false)
+        window.isReleasedWhenClosed=false
         let client=NSTextView(frame:NSRect(x:0,y:0,width:300,height:100));window.contentView?.addSubview(client)
         window.makeKey();window.makeFirstResponder(client)
         let s=try Self.lab.runtime.makeSession(),host=HostDispatcher(client:client,session:s)

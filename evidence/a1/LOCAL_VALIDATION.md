@@ -18,3 +18,7 @@ All native test inputs are repository-authored artificial fixtures. No private p
 ## Second macOS CI attempt
 
 [Run 37978051438](https://github.com/haohongfei2001-png/paia-ime/actions/runs/37978051438), head 500529e: native app build, C sanitizers and all 4 pure state/Unicode tests passed. Eight of nine real-engine test methods passed, including actual candidate selection, paging, one-shot commits and Unicode. The caret/edit test had three related failed assertions: upstream ordinary Left moved by syllable (4→2), while A1 requires raw-character movement (4→3). The adapter now uses the engine's documented keypad LeftByChar/RightByChar bindings; assertions were retained. Host/benchmark steps were skipped on that failed run.
+
+## Third macOS CI attempt
+
+[Run 37978365691](https://github.com/haohongfei2001-png/paia-ime/actions/runs/37978365691), head e555183: native build, sanitizers, all 4 pure tests and all 9 real-engine tests passed. Five AppKit tests passed; the new window-resignation/queued-button lifecycle test terminated with signal 11, so APPKIT_HOST did not pass and benchmark was skipped. Follow-up makes window ownership explicit (`isReleasedWhenClosed=false`) and invalidates state before any potentially reentrant host mutation. The full test remains enabled; only a successful rerun can establish the fix.

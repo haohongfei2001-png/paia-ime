@@ -11,6 +11,7 @@ typedef struct {
     char *raw, *preedit, *commit;
     char **candidates;
     size_t caret_utf8;
+    uint64_t engine_nanoseconds, copy_nanoseconds;
     int preedit_caret_utf8, selection_start_utf8, selection_end_utf8;
     int page, highlighted, has_more, count, handled;
 } PaiaRimeSnapshot;

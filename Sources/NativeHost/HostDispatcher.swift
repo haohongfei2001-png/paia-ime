@@ -54,11 +54,11 @@ import SessionCore
     }
     public func invalidate() {
         guard active else {return}
+        active=false; session.end()
         if let client=client,client.string==expectedText,client.selectedRange()==expectedSelection,client.markedRange()==expectedMarked,client.hasMarkedText() {
             client.setMarkedText("",selectedRange:NSRange(location:0,length:0),replacementRange:NSRange(location:NSNotFound,length:0))
             client.unmarkText()
         }
-        active=false; session.end()
     }
 }
 #endif

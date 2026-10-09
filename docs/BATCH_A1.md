@@ -31,7 +31,7 @@ Engine and host suites run in separate processes because librime has one process
 
 `Resources/a1-lock.json` pins all fixture files/header/notices by SHA256 and the official macOS universal engine archive. The tiny artificial dictionary exists to test bridge semantics, paging, Unicode and reproducibility. It is not a modern competitive pinyin corpus and has no accuracy-comparison significance. `Resources/dependency-notices.json` records static dependency provenance; no optional engine plugins, models or third-party dictionaries are extracted.
 
-The benchmark keeps all measured key latencies and failures, records inputs, source SHA, OS, engine, dictionary, sample count, warmup and clean learning state. It measures the whole Swift policy/C-API/copy/state path; it does not isolate engine-only time, UI layout, host calls, compositor or visible presentation.
+The benchmark keeps all measured key latencies and failures, records inputs, source SHA, OS, engine, dictionary, sample count, warmup and clean learning state. It reports separate process_key time, commit/context copy-and-free time and total Swift session time. UI layout, host protocol, compositor and visible presentation are explicitly unmeasured.
 
 ## Evidence classification
 

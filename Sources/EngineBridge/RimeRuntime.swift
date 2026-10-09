@@ -24,6 +24,9 @@ public final class RimeRuntime {
     }
 }
 
+public struct EngineTiming {
+    public let engineNanoseconds:UInt64, copyNanoseconds:UInt64
+}
 public enum InputKey {
     case code(Int32, modifiers: Int32 = 0), returnKey, space, number(Int), escape, command
 }
@@ -32,6 +35,8 @@ public final class InputSession {
     private let lock=NSRecursiveLock()
     private var core: SessionCore
     private var ended=false
+    private var timing=EngineTiming(engineNanoseconds:0,copyNanoseconds:0)
+    public var lastTiming:EngineTiming {lock.lock();defer{lock.unlock()};return timing}
     internal init(runtime: RimeRuntime,id: UInt64) {
         self.runtime=runtime; self.id=id; core=SessionCore(dictionaryRevision:runtime.dictionaryRevision)
     }
@@ -52,6 +57,7 @@ public final class InputSession {
         let rc=paia_rime_step(id,action,key,modifiers,&c)
         defer {paia_rime_free_snapshot(&c)}
         guard rc==PAIA_OK else { core.invalidate(); throw EngineError.code(rc) }
+        timing=EngineTiming(engineNanoseconds:c.engine_nanoseconds,copyNanoseconds:c.copy_nanoseconds)
         func string(_ p: UnsafeMutablePointer<CChar>?) throws -> String {
             guard let p=p else { return "" }
             guard let s=String(validatingUTF8:p) else { throw EngineError.invalidUTF8 }
