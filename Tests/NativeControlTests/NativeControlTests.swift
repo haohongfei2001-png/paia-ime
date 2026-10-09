@@ -13,11 +13,11 @@ final class NativeControlTests:XCTestCase {
         let w=LabWindow(contentRect:NSRect(x:0,y:0,width:1040,height:720),styleMask:[.titled,.closable,.resizable],backing:.buffered,defer:false)
         w.isReleasedWhenClosed=false;try c.attach(to:w);w.makeKey();XCTAssertTrue(w.makeFirstResponder(c.editor));return(c,w)
     }
-    @MainActor func key(_ text:String,_ view:LabTextView,keyCode:UInt16=0)throws {
+    @MainActor func key(_ text:String,_ view:NSTextView,keyCode:UInt16=0)throws {
         let event=try XCTUnwrap(NSEvent.keyEvent(with:.keyDown,location:.zero,modifierFlags:[],timestamp:0,windowNumber:view.window?.windowNumber ?? 0,context:nil,characters:text,charactersIgnoringModifiers:text,isARepeat:false,keyCode:keyCode))
         view.keyDown(with:event)
     }
-    @MainActor func type(_ text:String,_ view:LabTextView)throws {for c in text{try key(String(c),view,keyCode:c==" " ? 49:0)}}
+    @MainActor func type(_ text:String,_ view:NSTextView)throws {for c in text{try key(String(c),view,keyCode:c==" " ? 49:0)}}
     @MainActor func configurationAction(_ c:NativeLabController){NSApp.sendAction(c.spelling.action!,to:c.spelling.target,from:c.spelling)}
     @MainActor func heldSentence(_ c:NativeLabController)throws {
         c.hold.performClick(nil);XCTAssertTrue(c.configuration.deferredCommit)
@@ -42,7 +42,7 @@ final class NativeControlTests:XCTestCase {
         XCTAssertTrue(w.makeFirstResponder(c.rawField));c.rawField.stringValue="daimashencha"
         XCTAssertTrue(w.makeFirstResponder(c.surfaceField));c.surfaceField.stringValue="代码审查"
         XCTAssertEqual(c.editor.markedRange(),mark);XCTAssertEqual(c.editor.selectedRange(),selection);XCTAssertEqual(c.editor.string,document)
-        c.controlTextDidChange(Notification(name:NSControl.textDidChangeNotification,object:c.surfaceField))
+        c.textDidChange(Notification(name:NSText.didChangeNotification,object:c.surfaceField))
         c.previewButton.performClick(nil)
         XCTAssertEqual(c.previewLabel.stringValue,"你好代码审查世界",c.status.stringValue)
         return try XCTUnwrap(c.acceptStack.arrangedSubviews.first as? NSButton)
@@ -134,6 +134,30 @@ final class NativeControlTests:XCTestCase {
             XCTAssertThrowsError(try c.editor.dispatcher!.session.refresh())
         }
     }
+    @MainActor func testInspectorTypingCancelsPreviewAndTabKeepsOwnedFocus()throws {
+        let(c,w)=try make();defer{w.close()};try heldSentence(c)
+        let accept=try preview(c,w),original=c.editor.string
+        XCTAssertTrue(w.makeFirstResponder(c.rawField));try key("\t",c.rawField,keyCode:48)
+        XCTAssertTrue(w.firstResponder===c.surfaceField);XCTAssertTrue(c.inspectorVisible)
+        c.surfaceField.setSelectedRange(NSRange(location:c.surfaceField.string.utf16.count,length:0))
+        try key("x",c.surfaceField)
+        XCTAssertTrue(c.acceptStack.arrangedSubviews.isEmpty);XCTAssertEqual(c.previewLabel.stringValue,"")
+        accept.performClick(nil);XCTAssertEqual(c.editor.string,original);XCTAssertEqual(c.editor.dispatcher?.insertCount,0)
+        c.cancelRepairButton.performClick(nil);XCTAssertEqual(c.editor.string,original)
+    }
+    @MainActor func testParameterMutationAndUnfinishedInputRejectAccept()throws {
+        let(c,w)=try make();defer{w.close()};try heldSentence(c)
+        let accept=try preview(c,w),original=c.editor.string
+        c.rawField.stringValue="different" // Programmatic mutation need not notify the delegate.
+        accept.performClick(nil);XCTAssertEqual(c.editor.string,original);XCTAssertTrue(c.acceptStack.arrangedSubviews.isEmpty)
+        c.rawField.stringValue="daimashencha";c.previewButton.performClick(nil)
+        let next=try XCTUnwrap(c.acceptStack.arrangedSubviews.first as? NSButton)
+        c.surfaceField.setMarkedText("未完成",selectedRange:NSRange(location:3,length:0),replacementRange:NSRange(location:0,length:c.surfaceField.string.utf16.count))
+        XCTAssertTrue(c.surfaceField.hasMarkedText());next.performClick(nil)
+        XCTAssertEqual(c.editor.string,original);XCTAssertTrue(c.acceptStack.arrangedSubviews.isEmpty)
+        c.previewButton.performClick(nil);XCTAssertTrue(c.acceptStack.arrangedSubviews.isEmpty)
+        XCTAssertEqual(c.editor.dispatcher?.insertCount,0)
+    }
     @MainActor func testNativeLayoutCapture()throws {
         guard ProcessInfo.processInfo.environment["PAIA_CAPTURE_LAYOUT"]=="1" else{throw XCTSkip("Optional synthetic-view capture not requested")}
         let(c,w)=try make();defer{w.close()};try heldSentence(c);c.repairButton.performClick(nil)
@@ -147,7 +171,7 @@ final class NativeControlTests:XCTestCase {
         try data.write(to:directory.appendingPathComponent("native-controls.png"))
         // Deliberate test-only capture of this authored synthetic document, never a desktop screenshot.
         let encoded=data.base64EncodedString();var offset=encoded.startIndex;var index=0
-        while offset<encoded.endIndex {let end=encoded.index(offset,offsetBy:3000,limitedBy:encoded.endIndex) ?? encoded.endIndex;print("PAIA_B1_IMAGE_\(index):"+encoded[offset..<end]);offset=end;index+=1}
+        while offset<encoded.endIndex {let end=encoded.index(offset,offsetBy:3000,limitedBy:encoded.endIndex) ?? encoded.endIndex;FileHandle.standardError.write(Data(("PAIA_B1_IMAGE_\(index):"+encoded[offset..<end]+"\n").utf8));offset=end;index+=1}
     }
     @MainActor func testNativeControlAccessibilityAndWindowDeactivation()throws {
         let(c,w)=try make();defer{w.close()}

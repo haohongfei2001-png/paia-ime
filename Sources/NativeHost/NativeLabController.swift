@@ -21,14 +21,14 @@ import ConstraintCore
     }
     required init?(coder:NSCoder){fatalError("not used")}
 }
-@MainActor public final class NativeLabController:NSObject,NSTextFieldDelegate {
+@MainActor public final class NativeLabController:NSObject,NSTextViewDelegate {
     public let editor=LabTextView(frame:.zero)
     public let root=NSStackView(),spelling=NSPopUpButton(frame:.zero,pullsDown:false),script=NSPopUpButton(frame:.zero,pullsDown:false)
     public let literal=NSButton(checkboxWithTitle:"Literal text",target:nil,action:nil)
     public let punctuation=NSButton(checkboxWithTitle:"Chinese , ? ! ;",target:nil,action:nil)
     public let hold=NSButton(checkboxWithTitle:"Keep composition for repair",target:nil,action:nil)
     public let commitButton=NSButton(),cancelCompositionButton=NSButton(),repairButton=NSButton()
-    public let rawField=NSTextField(),surfaceField=NSTextField(),previewButton=NSButton(),cancelRepairButton=NSButton()
+    public let rawField=RepairInputView(),surfaceField=RepairInputView(),previewButton=NSButton(),cancelRepairButton=NSButton()
     public let status=NSTextField(wrappingLabelWithString:""),previewLabel=NSTextField(wrappingLabelWithString:"")
     public let targetStack=NSStackView(),acceptStack=NSStackView()
     public private(set) var configuration=LabConfiguration()
@@ -37,6 +37,7 @@ import ConstraintCore
     private let inspector=NSStackView(),targetScroll=NSScrollView()
     private weak var window:LabWindow?
     private var focusLease:UUID?,selectedTarget:RepairTarget?,proposal:RepairProposal?
+    private var previewParameters:(raw:String,surface:String)?
     private var targetRenderID=UUID(),observers=[NSObjectProtocol]()
     public init(runtime:RimeRuntime) {
         self.runtime=runtime;super.init()
@@ -65,13 +66,16 @@ import ConstraintCore
         targetScroll.hasHorizontalScroller=true;targetScroll.hasVerticalScroller=false;targetScroll.documentView=targetStack
         targetScroll.heightAnchor.constraint(equalToConstant:52).isActive=true
         inspector.addArrangedSubview(targetScroll)
-        rawField.placeholderString="Replacement raw spelling";surfaceField.placeholderString="Desired engine text"
         rawField.setAccessibilityLabel("Replacement raw spelling");surfaceField.setAccessibilityLabel("Desired engine text")
         rawField.delegate=self;surfaceField.delegate=self
-        rawField.widthAnchor.constraint(equalToConstant:300).isActive=true;surfaceField.widthAnchor.constraint(equalToConstant:300).isActive=true
-        inspector.addArrangedSubview(NSStackView(views:[rawField,surfaceField]))
+        let rawColumn=NSStackView(views:[NSTextField(labelWithString:"Replacement raw spelling"),rawField])
+        let surfaceColumn=NSStackView(views:[NSTextField(labelWithString:"Desired engine text"),surfaceField])
+        for column in [rawColumn,surfaceColumn]{column.orientation = .vertical;column.alignment = .leading}
+        inspector.addArrangedSubview(NSStackView(views:[rawColumn,surfaceColumn]))
         configure(previewButton,"Preview without committing",#selector(preparePreview(_:)))
         configure(cancelRepairButton,"Cancel repair",#selector(cancelRepair(_:)))
+        rawField.nextKeyView=surfaceField;surfaceField.nextKeyView=previewButton
+        previewButton.nextKeyView=cancelRepairButton;cancelRepairButton.nextKeyView=rawField
         inspector.addArrangedSubview(NSStackView(views:[previewButton,cancelRepairButton]))
         previewLabel.setAccessibilityLabel("Verified engine preview");inspector.addArrangedSubview(previewLabel);inspector.addArrangedSubview(acceptStack)
         root.addArrangedSubview(inspector);root.addArrangedSubview(status)
@@ -96,14 +100,8 @@ import ConstraintCore
         self.window=window;window.contentView=root
         guard window.makeFirstResponder(editor) else{throw EngineError.closed}
         editor.dispatcher=try newDispatcher()
-        window.beforeFocusChange={ [weak self,weak window] responder in
-            guard let self=self,let window=window else{return}
-            // AppKit installs its shared field editor before assigning its delegate.
-            // Permit that exact nested transition only under an already-approved owned field request.
-            if window.focusTransitionDepth>1,let field=window.primaryFocusRequest as? NSTextField,
-               self.editor.dispatcher?.permitsInspectorFocus(field)==true,
-               let fieldEditor=responder as? NSTextView,fieldEditor.isFieldEditor,
-               window.fieldEditor(false,for:field)===fieldEditor {return}
+        window.beforeFocusChange={ [weak self] responder in
+            guard let self=self else{return}
             self.editor.dispatcher?.validateFocusChange(to:responder)
             if self.inspectorVisible && self.editor.dispatcher?.isInspectorSuspended != true {self.dismissInspector(resume:false)}
         }
@@ -185,14 +183,15 @@ import ConstraintCore
             rawField.stringValue=String(decoding:Array(raw.utf8)[sender.binding.anchor.bytes],as:UTF8.self);surfaceField.stringValue=sender.binding.anchor.text
         }
     }
-    public func controlTextDidChange(_ notification:Notification){discardProposal();status.stringValue="Edit changed. Preview again before accepting."}
-    private func discardProposal(){proposal?.cancel();proposal=nil;previewLabel.stringValue="";for view in acceptStack.arrangedSubviews {acceptStack.removeArrangedSubview(view);view.removeFromSuperview()}}
+    public func textDidChange(_ notification:Notification){discardProposal();status.stringValue="Edit changed. Preview again before accepting."}
+    private func discardProposal(){proposal?.cancel();proposal=nil;previewParameters=nil;previewLabel.stringValue="";for view in acceptStack.arrangedSubviews {acceptStack.removeArrangedSubview(view);view.removeFromSuperview()}}
     @objc private func preparePreview(_ sender:NSButton){
         guard let host=editor.dispatcher,let token=focusLease,let target=selectedTarget,host.permitsInspectorFocus(window?.firstResponder) else{editor.dispatcher?.invalidate();dismissInspector(resume:false);return}
         discardProposal()
+        guard !rawField.hasMarkedText(),!surfaceField.hasMarkedText() else{status.stringValue="Finish editing the repair inputs before previewing.";return}
         do {
             let p=try host.session.prepareRepair(target:target,replacementRaw:rawField.stringValue,surface:surfaceField.stringValue)
-            proposal=p;previewLabel.stringValue=p.preview
+            proposal=p;previewParameters=(rawField.stringValue,surfaceField.stringValue);previewLabel.stringValue=p.preview
             acceptStack.addArrangedSubview(AcceptButton(p,target:self,action:#selector(acceptPreview(_:))))
             try refreshTargets(preserving:target.anchor)
             guard host.updateInspectorViews(token,views:ownedInspectorViews()) else{throw ConstraintError.stale}
@@ -201,6 +200,8 @@ import ConstraintCore
     }
     @objc private func acceptPreview(_ sender:AcceptButton){
         guard let current=proposal,current===sender.proposal else{return}
+        guard let parameters=previewParameters,parameters.raw==rawField.stringValue,parameters.surface==surfaceField.stringValue,
+              !rawField.hasMarkedText(),!surfaceField.hasMarkedText() else{discardProposal();status.stringValue="Repair inputs changed; preview again.";return}
         guard let token=focusLease,let host=editor.dispatcher,host.resumeInspector(token) else{
             editor.dispatcher?.invalidate();dismissInspector(resume:false);status.stringValue="Changed target rejected; repair closed.";return
         }
