@@ -117,6 +117,8 @@ public final class InputSession {
         lock.lock();defer{lock.unlock()};_ = try lease()
         guard target.lease.matches(core.snapshot,revision:runtime.dictionaryRevision,request:repairRequest) else{throw ConstraintError.stale}
         guard target.index>=0,(1...2048).contains(limit),!replacementRaw.utf8.contains(0),!surface.utf8.contains(0) else{throw ConstraintError.invalidSpan}
+        let currentAnchors=try repairAnchors().rows
+        guard currentAnchors.indices.contains(target.index),currentAnchors[target.index]==target.anchor else{throw ConstraintError.stale}
         repairRequest += 1;let identity=try lease()
         var trial=PaiaG01Trial()
         let rc=paia_rime_g01_prepare(id,target.index,replacementRaw,surface,limit,&trial)

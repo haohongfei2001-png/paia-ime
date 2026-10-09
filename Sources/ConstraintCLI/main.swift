@@ -116,6 +116,15 @@ run("G01.sentence.native.decomposition"){
     let p=try s.prepareRepair(target:try s.repairAnchors().targets[target],replacementRaw:"nihao",surface:"拟好");_ = try s.applyRepair(p);try commit(s,"你好拟好你")
     return "actual Sentence components and word_lengths validated by full-raw replay"
 }
+run("G01.traditional.whole-sentence.mapping"){
+    let s=try runtime.makeSession(schema:"paia_a2_full_traditional",deferredCommit:true);defer{s.end()}
+    try type("nihaoshurufashijie",s)
+    let sentence=try s.repairChoices(limit:128).rows.first(where:{$0.anchor.text=="你好輸入法世界"}).unwrap("traditional whole sentence not emitted")
+    _ = try s.selectForRepair(sentence)
+    let target=try s.repairAnchors().targets.first(where:{$0.anchor.text=="輸入法"}).unwrap("no verified traditional inner component")
+    let p=try s.prepareRepair(target:target,replacementRaw:"daimashencha",surface:"代碼審查");_ = try s.applyRepair(p)
+    try commit(s,"你好代碼審查世界");return "genuine spans independently replayed through actual filtered candidates; engine commits Traditional once"
+}
 // Same full corpus, native translator and task inputs for both lanes. No answer rows are added.
 let vocabulary:[(String,String)]=[("daimashencha","代码审查"),("chixujicheng","持续集成"),("danyuanceshi","单元测试"),("fenbushixitong","分布式系统"),("shengchengshirengongzhineng","生成式人工智能"),("dayuyanmoxing","大语言模型")]
 for (raw,expected) in vocabulary {
