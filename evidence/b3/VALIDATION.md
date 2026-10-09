@@ -31,6 +31,18 @@ Tests-only head 0960769065ca689265fcbc6bbd183067b3c0bf64 reproduced a real AppKi
 
 The fix refuses existing marks at dispatcher construction (ending the rejected engine session), refuses renewal while an unowned mark remains, and routes the existing nil-dispatcher path back to AppKit. Mode/Save/defaults consider host marked text busy; engine actions require their own current target. Added factory-count tests verify no new session while marked and successful renewal after the original owner unmarks. Exact fixed-head and merged-main native checks are required separately; earlier successes are not inherited. This uses synthetic text via actual NSTextView APIs, not a live third-party IME compatibility test.
 
+## Ownership fix verified at 5d36c23
+
+Exact head 5d36c23813910d6e2a6abc9362dcaa883db6733b (tree ff7eddb5237b756184be26d94d818fb5dc266d38) passed both independent static reviews and all five native workflows:
+
+- A1 run 38001410715/job 114060100628/artifact 11649106934: eight AppKit methods including both new ownership/renewal regressions passed; existing state, sanitizer ABI, engine and 3,800-sample benchmark passed. The unrelated B2-unconfigured engine-filter skip remains explicit.
+- A2 run 38001410772/job 114060100766/artifact 11649806991: all 28 real constraints, paired full-corpus benchmark and AppKit tests passed.
+- B1 run 38001410751/job 114060100568/artifact 11649132717: all twelve control/focus/repair methods passed.
+- B2 run 38001410720/job 114060100789/artifact 11649617681: ten governance, four file and five manager methods plus seven native stages passed.
+- B3 run 38001410687/job 114060100711/artifact 11649817141: nine store methods and all nine fresh-process native stages passed. The previously failing literal foreign-mark checks now pass without removing or weakening the assertions. No B3 failure or skip remains at this head.
+
+The new B3 view capture was inspected and again contains committed “你好” plus Save/defaults/status controls; its pixels match the earlier improved PNG (same SHA-256 listed above). The API-simulated foreign owner is tested in-process, not pictured as a real installed IME. This later evidence-only commit does not change Sources/Tests/Resources/Tools/Package.swift/research; final-head and merged-main checks are nevertheless verified separately and retained in the private recovery snapshot.
+
 ## Review-led additions verified at 0c8cd9c
 
 Selected-root replacement guards for settings and B2 lexicon authority; identity-bound B2 scratch cleanup; first-save and marker/integrity/duplicate-key/revision fault cases; a returned dirty real session rejected and ended without harming the old dispatcher; closed-window settings action invalidation. These passed their own new-head macOS run listed above. Review findings and any failures/skips remain in the private recovery logs rather than being hidden by earlier green checks.
