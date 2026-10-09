@@ -33,4 +33,20 @@ final class SelectedFileTests:XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath:live.directory.path));XCTAssertTrue(FileManager.default.fileExists(atPath:untouched.path))
         try next.remove();XCTAssertFalse(FileManager.default.fileExists(atPath:next.directory.path));try live.remove()
     }
+    func testUndeletableInactiveGenerationDoesNotBlockStartup()throws {
+        guard getuid() != 0 else{throw XCTSkip("Permission fixture requires non-root runner")}
+        let root=FileManager.default.temporaryDirectory.appendingPathComponent("paia-b2-cleanup-failure-"+UUID().uuidString)
+        let first=try PersonalScratch(storeDirectory:root),managed=first.directory.deletingLastPathComponent()
+        let process=Process();process.executableURL=URL(fileURLWithPath:"/usr/bin/true");try process.run();process.waitUntilExit()
+        let id=UUID().uuidString,orphan=managed.appendingPathComponent(id),locked=orphan.appendingPathComponent("inaccessible")
+        try FileManager.default.createDirectory(at:locked,withIntermediateDirectories:true)
+        try JSONSerialization.data(withJSONObject:["format":1,"id":id,"pid":process.processIdentifier]).write(to:orphan.appendingPathComponent(".owner.json"))
+        try Data("synthetic".utf8).write(to:locked.appendingPathComponent("data"))
+        defer{_ = chmod(locked.path,0o700);try? FileManager.default.removeItem(at:root)}
+        XCTAssertEqual(chmod(locked.path,0),0)
+        let next=try PersonalScratch(storeDirectory:root)
+        XCTAssertEqual(next.cleanupFailures,1);XCTAssertTrue(FileManager.default.fileExists(atPath:next.directory.path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath:orphan.path));try next.remove();try first.remove()
+    }
+
 }

@@ -97,7 +97,8 @@ final class PersonalEngineTests:XCTestCase {
         let user=environment.temporaryDirectory.appendingPathComponent("engine-user")
         let files=FileManager.default.enumerator(at:user,includingPropertiesForKeys:nil)!.allObjects.compactMap{$0 as? URL}
         XCTAssertFalse(files.contains{$0.lastPathComponent.contains("userdb")},"Implicit learning database created")
-        XCTAssertTrue(environment.runtime.close());XCTAssertFalse(FileManager.default.fileExists(atPath:environment.temporaryDirectory.path))
+        let retained=try session();_ = try retained.process(.code(110))
+        XCTAssertTrue(environment.runtime.close());XCTAssertThrowsError(try retained.refresh());XCTAssertTrue(environment.runtime.close());XCTAssertFalse(FileManager.default.fileExists(atPath:environment.temporaryDirectory.path))
         XCTAssertThrowsError(try environment.makeSession(configuration:LabConfiguration()))
         print("B2_ENGINE_NATIVE stage=\(stage) activeTerms=\(environment.resources.activeTerms) revision=\(environment.resources.revision); no private input in this fixture")
     }

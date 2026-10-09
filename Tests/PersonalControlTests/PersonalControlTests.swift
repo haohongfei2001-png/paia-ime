@@ -44,6 +44,8 @@ final class PersonalControlTests:XCTestCase {
         current.performClick(nil);XCTAssertEqual(try store.snapshot().activeTerms.map{$0.surface},["审阅的词"])
         old.performClick(nil);current.performClick(nil);XCTAssertEqual(try store.snapshot().revision,1)
         let exported=root.appendingPathComponent("export.json");try c.writeSelectedExport(exported);XCTAssertEqual(try SelectedLexiconFile.read(exported),try store.exportData())
+        let before=try store.exportData();XCTAssertThrowsError(try c.writeSelectedExport(store.directory.appendingPathComponent("lexicon.json")))
+        XCTAssertEqual(try store.exportData(),before)
     }
     @MainActor func testSelectedIdentityCannotMoveWithAnotherRowAndSourceRevision()throws {
         let(c,w,store,root)=try fixture();defer{w.close();store.close();try? FileManager.default.removeItem(at:root)}
@@ -53,9 +55,9 @@ final class PersonalControlTests:XCTestCase {
         (try XCTUnwrap(c.rows.arrangedSubviews.last as? NSButton)).performClick(nil);oldDelete.performClick(nil)
         XCTAssertEqual(try store.snapshot().activeTerms.count,2)
         let current=try XCTUnwrap(c.actions.arrangedSubviews.first as? NSButton)
-        _ = try store.add(surface:"外部明确操作","wai bu ming que cao zuo",expectedRevision:2)
+        _ = try store.add(surface:"外部明确操作",reading:"wai bu ming que cao zuo",expectedRevision:2)
         current.performClick(nil);XCTAssertEqual(try store.snapshot().activeTerms.count,3)
-        XCTAssertTrue(c.status.stringValue.contains("reopen"))
+        XCTAssertTrue(c.status.stringValue.contains("Restart the lab"))
     }
     @MainActor func testAccessibleLabelsAndNoImplicitFieldSave()throws {
         let(c,w,store,root)=try fixture();defer{w.close();store.close();try? FileManager.default.removeItem(at:root)}
@@ -63,6 +65,21 @@ final class PersonalControlTests:XCTestCase {
         c.controlTextDidChange(Notification(name:NSControl.textDidChangeNotification,object:c.surface));c.pin.performClick(nil)
         XCTAssertEqual(try store.exportData(),before);XCTAssertEqual(c.surface.accessibilityLabel(),"Exact term text")
         XCTAssertEqual(c.previewDetails.accessibilityLabel(),"Complete import additions and conflict details")
+    }
+    @MainActor func testSyntheticManagerLayoutCapture()throws {
+        guard ProcessInfo.processInfo.environment["PAIA_CAPTURE_B2_LAYOUT"]=="1" else{throw XCTSkip("Synthetic B2 root-view capture not selected")}
+        let(c,w,store,root)=try fixture();defer{w.close();store.close();try? FileManager.default.removeItem(at:root)}
+        w.orderFront(nil);fill(c,"林小棠","lin xiao tang");c.pin.performClick(nil);c.addButton.performClick(nil)
+        let source=try LexiconStore(directory:root.appendingPathComponent("source"));defer{source.close()}
+        _ = try source.add(surface:"穹海测例【B2甲】",reading:"qiong hai ce li jia",aliases:["qiong hai ce li yi"],expectedRevision:0)
+        let chosen=root.appendingPathComponent("synthetic-import.json");try SelectedLexiconFile.write(source.exportData(),to:chosen);try c.previewSelectedFile(chosen)
+        c.root.layoutSubtreeIfNeeded();c.root.displayIfNeeded()
+        let bitmap=try XCTUnwrap(c.root.bitmapImageRepForCachingDisplay(in:c.root.bounds));c.root.cacheDisplay(in:c.root.bounds,to:bitmap)
+        let data=try XCTUnwrap(bitmap.representation(using:.png,properties:[:]))
+        let output=URL(fileURLWithPath:FileManager.default.currentDirectoryPath).appendingPathComponent("evidence/b2-run");try FileManager.default.createDirectory(at:output,withIntermediateDirectories:true)
+        try data.write(to:output.appendingPathComponent("personal-manager.png"))
+        let encoded=data.base64EncodedString();var offset=encoded.startIndex,index=0
+        while offset<encoded.endIndex{let end=encoded.index(offset,offsetBy:3000,limitedBy:encoded.endIndex) ?? encoded.endIndex;FileHandle.standardError.write(Data(("PAIA_B2_IMAGE_\(index):"+encoded[offset..<end]+"\n").utf8));offset=end;index+=1}
     }
 }
 #endif

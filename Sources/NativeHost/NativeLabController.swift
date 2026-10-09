@@ -3,7 +3,7 @@ import AppKit
 import EngineBridge
 import ConstraintCore
 
-@MainActor private final class LabStackView:NSStackView {
+@MainActor final class LabStackView:NSStackView {
     override var isOpaque:Bool {true}
     override func draw(_ dirtyRect:NSRect){NSColor.windowBackgroundColor.setFill();dirtyRect.fill();super.draw(dirtyRect)}
 }

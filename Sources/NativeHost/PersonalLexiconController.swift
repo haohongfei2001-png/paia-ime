@@ -29,7 +29,8 @@ import LexiconCore
     required init?(coder:NSCoder){fatalError("not used")}
 }
 @MainActor public final class PersonalLexiconController:NSObject,NSWindowDelegate,NSTextFieldDelegate {
-    public let root=NSStackView(),rows=NSStackView(),actions=NSStackView(),importActions=NSStackView()
+    public let root:NSStackView=LabStackView()
+    public let rows=NSStackView(),actions=NSStackView(),importActions=NSStackView()
     public let surface=NSTextField(),reading=NSTextField(),aliases=NSTextField(),pin=NSButton(checkboxWithTitle:"Pin this reading",target:nil,action:nil)
     public let newButton=NSButton(),addButton=NSButton(),exportButton=NSButton(),importButton=NSButton(),cancelImportButton=NSButton(),previousButton=NSButton(),nextButton=NSButton()
     public let status=NSTextField(wrappingLabelWithString:""),importSummary=NSTextField(wrappingLabelWithString:"")
@@ -104,7 +105,7 @@ import LexiconCore
         case LexiconError.conflict:status.stringValue="Conflicting identity, alias or pin. Resolve it explicitly; nothing saved."
         case LexiconError.deleted:status.stringValue="A protected deletion exists. Select that record and explicitly Restore."
         case LexiconError.limit,LexiconError.overflow:status.stringValue="Store/import limit reached; nothing saved."
-        default:onChange();status.stringValue="Authority changed or storage outcome is unavailable. Personal overlay disabled; reopen to verify. No automatic retry."
+        default:onChange();status.stringValue="Authority changed or storage outcome is unavailable. Personal overlay disabled. Restart the lab to verify; no automatic retry."
         }
     }
     @objc private func addTerm(_ sender:NSButton){guard isOpen,selected==nil else{return};do{_ = try store.add(surface:surface.stringValue,reading:reading.stringValue,aliases:parsedAliases(),pin:pin.state == .on,expectedRevision:document.revision);try changed()}catch{failed(error)}}
@@ -119,7 +120,12 @@ import LexiconCore
         previewDetails.sizeToFit()
         importActions.addArrangedSubview(ImportApplyButton(plan,render:token,target:self,action:#selector(applyImport(_:))))
     }
-    public func writeSelectedExport(_ url:URL)throws {guard isOpen else{throw LexiconError.stale};try SelectedLexiconFile.write(store.exportData(),to:url);status.stringValue="Explicit export saved. It includes tombstones; keep this personal file private."}
+    public func writeSelectedExport(_ url:URL)throws {
+        guard isOpen else{throw LexiconError.stale}
+        let parent=url.deletingLastPathComponent().resolvingSymlinksInPath().path,authority=store.directory.resolvingSymlinksInPath().path
+        guard parent != authority,!parent.hasPrefix(authority+"/") else{throw LexiconError.unsafePath}
+        try SelectedLexiconFile.write(store.exportData(),to:url);status.stringValue="Explicit export saved. It includes tombstones; keep this personal file private."
+    }
     @objc private func cancelImport(_ sender:NSButton){cancelPreview()}
     @objc private func applyImport(_ sender:ImportApplyButton){guard isOpen,sender.render==importRender else{return};do{try store.applyImport(sender.plan);try changed()}catch{failed(error)}}
     @objc private func importFile(_ sender:NSButton){

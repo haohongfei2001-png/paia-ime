@@ -6,6 +6,7 @@ import LexiconCore
     public let runtime:RimeRuntime,temporaryDirectory:URL,resources:PersonalResources
     public let store:LexiconStore?
     public let authorityUnavailable:Bool
+    public let cleanupFailures:Int
     public private(set) var pendingRestart=false
     private final class WeakSession {weak var value:InputSession?;init(_ value:InputSession){self.value=value}}
     private var sessions=[WeakSession]()
@@ -20,14 +21,16 @@ import LexiconCore
         catch {authority?.close();authority=nil;unavailable=true} // Never revive a stale personal dictionary on corrupt authority.
         store=authority;authorityUnavailable=unavailable
         let scratchRoot=authority == nil ? FileManager.default.temporaryDirectory.appendingPathComponent("paia-b2-public-v1"):storeURL
-        let scratch=try PersonalScratch(storeDirectory:scratchRoot),temp=scratch.directory;temporaryDirectory=temp
+        let scratch=try PersonalScratch(storeDirectory:scratchRoot),temp=scratch.directory;temporaryDirectory=temp;cleanupFailures=scratch.cleanupFailures
+        var started:RimeRuntime?
         do {
             resources=try PersonalSchemaBuilder.prepare(baseline:URL(fileURLWithPath:required("PAIA_B1_SHARED")),destination:temp.appendingPathComponent("shared"),document:document,baseRevision:required("PAIA_B1_REVISION"))
             let user=temp.appendingPathComponent("engine-user");try FileManager.default.createDirectory(at:user,withIntermediateDirectories:false)
-            runtime=try RimeRuntime(library:required("PAIA_RIME_LIBRARY"),shared:resources.shared.path,isolatedUser:user.path,dictionaryRevision:resources.revision,
+            let engine=try RimeRuntime(library:required("PAIA_RIME_LIBRARY"),shared:resources.shared.path,isolatedUser:user.path,dictionaryRevision:resources.revision,
                 schemas:resources.schemas,g01Library:required("PAIA_G01_LIBRARY"),repairDisabledSchemas:resources.overlaySchemas,cleanup:{try scratch.remove()})
+            started=engine;runtime=engine
             try PersonalSchemaBuilder.verifyCompiled(resources,userDirectory:user)
-        } catch {authority?.close();try? FileManager.default.removeItem(at:temp);throw error}
+        } catch {if let engine=started{_ = engine.close()}else{try? scratch.remove()};authority?.close();throw error}
     }
     public func disableOverlayUntilRestart(){pendingRestart=true;for session in sessions{session.value?.end()};sessions=[]}
     public func makeSession(configuration:LabConfiguration)throws->InputSession {
@@ -37,8 +40,9 @@ import LexiconCore
         sessions.removeAll{$0.value==nil};sessions.append(WeakSession(session));return session
     }
     public var status:String {
-        if authorityUnavailable{return "Personal authority unavailable. Public baseline only; no older personal data restored."}
-        if pendingRestart{return "Saved changes. Personal overlay disabled until next launch; baseline input remains available."}
-        return "Personal entries active only in Full/Simplified. Other modes use the baseline; personal-overlay repair is unsupported."
+        let cleanup=cleanupFailures>0 ? " Some inactive derived data could not be removed." : ""
+        if authorityUnavailable{return "Personal authority unavailable. Public baseline only; no older personal data restored."+cleanup}
+        if pendingRestart{return "Saved changes. Personal overlay disabled until next launch; baseline input remains available."+cleanup}
+        return "Personal entries active only in Full/Simplified. Other modes use the baseline; personal-overlay repair is unsupported."+cleanup
     }
 }

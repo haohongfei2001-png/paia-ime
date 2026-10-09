@@ -60,14 +60,15 @@ import EngineBridge
     @objc func openPersonalTerms(_ sender:NSButton){
         guard let environment=personal,let store=environment.store,let controls=controls,!controls.hasComposition,!controls.inspectorVisible else{return}
         if let existing=managerWindow,personalManager?.isOpen==true{existing.makeKeyAndOrderFront(nil);return}
+        let invalidatePersonal:()->Void = {[weak self] in
+            environment.disableOverlayUntilRestart();self?.view?.dispatcher?.invalidate();self?.view?.candidates.orderOut(nil);self?.controls?.status.stringValue=environment.status
+        }
         do {
-            let manager=PersonalLexiconController(store:store){[weak self] in
-                environment.disableOverlayUntilRestart();self?.view?.dispatcher?.invalidate();self?.view?.candidates.orderOut(nil);self?.controls?.status.stringValue=environment.status
-            }
+            let manager=PersonalLexiconController(store:store,onChange:invalidatePersonal)
             let window=NSWindow(contentRect:NSRect(x:150,y:100,width:900,height:850),styleMask:[.titled,.closable,.resizable],backing:.buffered,defer:false)
             window.isReleasedWhenClosed=false;window.title="Explicit personal terms · No automatic learning"
             try manager.attach(to:window);personalManager=manager;managerWindow=window;window.makeKeyAndOrderFront(nil)
-        }catch{controls.status.stringValue="Personal authority unavailable; no automatic recovery or retry."}
+        }catch{invalidatePersonal();controls.status.stringValue="Personal authority unavailable. Overlay disabled; restart the lab to verify."}
     }
     func windowDidResignKey(_ notification:Notification) {view?.dispatcher?.invalidate();view?.candidates.orderOut(nil)}
     func applicationDidResignActive(_ notification:Notification) {view?.dispatcher?.invalidate();view?.candidates.orderOut(nil)}
