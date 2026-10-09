@@ -35,6 +35,7 @@ jobs:
         run: |
           set -o pipefail
           source .build/b1-env.sh
+          export PAIA_CAPTURE_LAYOUT=1
           swift test --filter NativeControlTests 2>&1 | tee evidence/b1-run/control-tests.txt
           swift build --product PAIANativeLab 2>&1 | tee evidence/b1-run/app-build.txt
       - name: Preserve evidence only

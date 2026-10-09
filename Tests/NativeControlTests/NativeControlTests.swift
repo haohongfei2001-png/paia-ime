@@ -118,6 +118,21 @@ final class NativeControlTests:XCTestCase {
         d.cancelCompositionButton.performClick(nil);d.spelling.selectItem(at:1);configurationAction(d)
         oldCandidate.performClick(nil);XCTAssertEqual(d.editor.string,"");XCTAssertEqual(d.editor.dispatcher?.insertCount,0)
     }
+    @MainActor func testNativeLayoutCapture()throws {
+        guard ProcessInfo.processInfo.environment["PAIA_CAPTURE_LAYOUT"]=="1" else{throw XCTSkip("Optional synthetic-view capture not requested")}
+        let(c,w)=try make();defer{w.close()};try heldSentence(c);c.repairButton.performClick(nil)
+        XCTAssertTrue(c.inspectorVisible,c.status.stringValue)
+        w.orderFront(nil);c.root.layoutSubtreeIfNeeded();c.root.displayIfNeeded()
+        let bitmap=try XCTUnwrap(c.root.bitmapImageRepForCachingDisplay(in:c.root.bounds))
+        c.root.cacheDisplay(in:c.root.bounds,to:bitmap)
+        let data=try XCTUnwrap(bitmap.representation(using:.png,properties:[:]))
+        let directory=URL(fileURLWithPath:FileManager.default.currentDirectoryPath).appendingPathComponent("evidence/b1-run")
+        try FileManager.default.createDirectory(at:directory,withIntermediateDirectories:true)
+        try data.write(to:directory.appendingPathComponent("native-controls.png"))
+        // Deliberate test-only capture of this authored synthetic document, never a desktop screenshot.
+        let encoded=data.base64EncodedString();var offset=encoded.startIndex;var index=0
+        while offset<encoded.endIndex {let end=encoded.index(offset,offsetBy:3000,limitedBy:encoded.endIndex) ?? encoded.endIndex;print("PAIA_B1_IMAGE_\(index):"+encoded[offset..<end]);offset=end;index+=1}
+    }
     @MainActor func testNativeControlAccessibilityAndWindowDeactivation()throws {
         let(c,w)=try make();defer{w.close()}
         XCTAssertEqual(c.spelling.accessibilityLabel(),"Spelling system")

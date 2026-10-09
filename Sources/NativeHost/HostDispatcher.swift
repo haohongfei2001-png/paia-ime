@@ -51,8 +51,11 @@ import SessionCore
         guard unchangedTarget,let state=inspector,session.snapshot?.inputGeneration==state.generation,let client=client else{return false}
         if responder===client{return true}
         if state.views.contains(where:{$0===responder}){return true}
-        if let editor=responder as? NSTextView,editor.isFieldEditor,
-           let delegate=editor.delegate as? NSView,state.views.contains(where:{$0===delegate}) {return true}
+        if let editor=responder as? NSTextView,editor.isFieldEditor {
+            if let delegate=editor.delegate as? NSView,state.views.contains(where:{$0===delegate}) {return true}
+            // NSControl reports an editor only while that exact receiver is actively edited.
+            if state.views.compactMap({$0 as? NSControl}).contains(where:{$0.currentEditor()===editor}) {return true}
+        }
         return false
     }
     public func validateFocusChange(to responder:NSResponder?) {

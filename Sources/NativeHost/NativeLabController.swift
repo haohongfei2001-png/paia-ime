@@ -34,7 +34,7 @@ import ConstraintCore
     public private(set) var configuration=LabConfiguration()
     public var inspectorVisible:Bool {focusLease != nil}
     private let runtime:RimeRuntime
-    private let inspector=NSStackView()
+    private let inspector=NSStackView(),targetScroll=NSScrollView()
     private weak var window:LabWindow?
     private var focusLease:UUID?,selectedTarget:RepairTarget?,proposal:RepairProposal?
     private var targetRenderID=UUID(),observers=[NSObjectProtocol]()
@@ -62,7 +62,10 @@ import ConstraintCore
         root.addArrangedSubview(NSStackView(views:[commitButton,cancelCompositionButton,repairButton]))
         inspector.orientation = .vertical;inspector.alignment = .leading;inspector.spacing=8;inspector.isHidden=true
         targetStack.orientation = .horizontal;targetStack.spacing=6
-        inspector.addArrangedSubview(targetStack)
+        targetScroll.hasHorizontalScroller=true;targetScroll.hasVerticalScroller=false;targetScroll.documentView=targetStack
+        targetScroll.heightAnchor.constraint(equalToConstant:52).isActive=true
+        targetScroll.widthAnchor.constraint(equalTo:root.widthAnchor,constant:-32).isActive=true
+        inspector.addArrangedSubview(targetScroll)
         rawField.placeholderString="Replacement raw spelling";surfaceField.placeholderString="Desired engine text"
         rawField.setAccessibilityLabel("Replacement raw spelling");surfaceField.setAccessibilityLabel("Desired engine text")
         rawField.delegate=self;surfaceField.delegate=self
@@ -92,9 +95,21 @@ import ConstraintCore
         self.window=window;window.contentView=root
         guard window.makeFirstResponder(editor) else{throw EngineError.closed}
         editor.dispatcher=try newDispatcher()
-        window.beforeFocusChange={ [weak self] responder in
-            guard let self=self else{return};self.editor.dispatcher?.validateFocusChange(to:responder)
+        window.beforeFocusChange={ [weak self,weak window] responder in
+            guard let self=self,let window=window else{return}
+            // AppKit installs its shared field editor before assigning its delegate.
+            // Permit that exact nested transition only under an already-approved owned field request.
+            if window.focusTransitionDepth>1,let field=window.primaryFocusRequest as? NSTextField,
+               self.editor.dispatcher?.permitsInspectorFocus(field)==true,
+               let fieldEditor=responder as? NSTextView,fieldEditor.isFieldEditor,
+               window.fieldEditor(false,for:field)===fieldEditor {return}
+            self.editor.dispatcher?.validateFocusChange(to:responder)
             if self.inspectorVisible && self.editor.dispatcher?.isInspectorSuspended != true {self.dismissInspector(resume:false)}
+        }
+        window.afterFocusChange={ [weak self,weak window] in
+            guard let self=self,self.inspectorVisible,let host=self.editor.dispatcher,
+                  host.isInspectorSuspended else{return}
+            if !host.permitsInspectorFocus(window?.firstResponder){host.invalidate();self.dismissInspector(resume:false)}
         }
         for (name,object) in [(NSWindow.didResignKeyNotification,window as AnyObject?),(NSWindow.willCloseNotification,window as AnyObject?),(NSApplication.didResignActiveNotification,nil)] {
             observers.append(NotificationCenter.default.addObserver(forName:name,object:object,queue:.main){[weak self] _ in MainActor.assumeIsolated {self?.dismissInspector(resume:false);self?.editor.dispatcher?.invalidate();self?.editor.candidates.orderOut(nil)}})
@@ -152,6 +167,7 @@ import ConstraintCore
         selectedTarget=old == nil ? targets.first : targets.first(where:{$0.anchor==old})
         targetRenderID=UUID();for view in targetStack.arrangedSubviews {targetStack.removeArrangedSubview(view);view.removeFromSuperview()}
         for target in targets {targetStack.addArrangedSubview(TargetButton(target,renderID:targetRenderID,target:self,action:#selector(selectTarget(_:))))}
+        targetStack.layoutSubtreeIfNeeded();targetStack.setFrameSize(NSSize(width:max(1,targetStack.fittingSize.width),height:32))
         if old==nil,let target=selectedTarget,let raw=host.session.snapshot?.rawASCII {
             rawField.stringValue=String(decoding:Array(raw.utf8)[target.anchor.bytes],as:UTF8.self);surfaceField.stringValue=target.anchor.text
         }
