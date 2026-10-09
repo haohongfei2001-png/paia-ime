@@ -100,7 +100,7 @@ public final class InputSession {
         case .code(let code, let modifiers):
             // Non-text keys belong to the host when idle. Command/Option are handled by the host adapter.
             if !composing && !(97...122).contains(code) {return passthrough()}
-            if composing && (core.snapshot?.rawASCII.utf8.count ?? 0)>=4096 && (97...122).contains(code) {
+            if composing && (core.snapshot?.rawASCII.utf8.count ?? 0)>=4096 && ((97...122).contains(code) || code==39) {
                 return SessionUpdate(handled:true,snapshot:core.snapshot)
             }
             // Rime ordinary Left/Right jump syllables; the contract here is raw-character movement.

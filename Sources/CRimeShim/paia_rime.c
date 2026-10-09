@@ -51,7 +51,9 @@ int paia_rime_open(const char *library, const char *shared, const char *isolated
     if (!library_handle) goto done;
     RimeApi *(*get_api)(void) = (RimeApi *(*)(void))dlsym(library_handle, "rime_get_api");
     api = get_api ? get_api() : NULL;
-    if (!paia_rime_api_compatible(api) || strcmp(api->get_version(), "1.16.0")) { rc = PAIA_ABI; api = NULL; goto fail; }
+    if (!paia_rime_api_compatible(api)) { rc=PAIA_ABI;api=NULL;goto fail; }
+    const char *version=api->get_version();
+    if (!version || strcmp(version,"1.16.0")) {rc=PAIA_ABI;api=NULL;goto fail;}
     shared_path = strdup(shared); user_path = strdup(isolated_user);
     if (!shared_path || !user_path) { rc=PAIA_ALLOCATION; api=NULL; goto fail; }
     RIME_STRUCT(RimeTraits, traits);

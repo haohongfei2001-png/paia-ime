@@ -80,6 +80,20 @@ final class EngineTests:XCTestCase {
         XCTAssertTrue(s.reserve(try XCTUnwrap(u.commit)))
         XCTAssertEqual(try s.refresh().snapshot?.rawASCII,"")
     }
+    func testConcurrentShortLivedSessionsRemainIsolated() throws {
+        let runtime=Self.lab!.runtime,lock=NSLock()
+        var errors:[String]=[]
+        DispatchQueue.concurrentPerform(iterations:16) { _ in
+            do {
+                let s=try runtime.makeSession();defer{s.end()}
+                for c in "nihao".utf8 {_=try s.process(.code(Int32(c)))}
+                let u=try s.process(.space)
+                guard let effect=u.commit,effect.text=="你好",s.reserve(effect) else {throw EngineError.closed}
+                guard try s.refresh().commit==nil else {throw EngineError.closed}
+            } catch {lock.lock();errors.append("isolated session failed");lock.unlock()}
+        }
+        XCTAssertEqual(errors,[])
+    }
     func testIndependentSessionsAndNoUserDictionary() throws {
         let a=try make(),b=try make();defer{a.end();b.end()}
         try type("nihao",a);try type("shi",b)

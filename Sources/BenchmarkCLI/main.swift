@@ -30,30 +30,48 @@ benchmark: for round in -1..<rounds {
             let elapsed=Double(DispatchTime.now().uptimeNanoseconds-begin)/1_000_000
             if round>=0 {
                 samples.append(elapsed)
-                engineSamples.append(Double(session.lastTiming.engineNanoseconds)/1_000_000)
-                copySamples.append(Double(session.lastTiming.copyNanoseconds)/1_000_000)
+                if !failed {
+                    engineSamples.append(Double(session.lastTiming.engineNanoseconds)/1_000_000)
+                    copySamples.append(Double(session.lastTiming.copyNanoseconds)/1_000_000)
+                }
             }
             if failed {break benchmark}
         }
     }
 }
-let sorted=samples.sorted()
-func percentile(_ p:Double)->Double {sorted.isEmpty ? 0 : sorted[max(0,Int(ceil(Double(sorted.count)*p))-1)]}
-func summary(_ samples:[Double])->[String:Any] {
-    let sorted=samples.sorted()
-    func p(_ q:Double)->Double {sorted.isEmpty ? 0 : sorted[max(0,Int(ceil(Double(sorted.count)*q))-1)]}
-    return ["samples":samples.count,"p50":p(0.5),"p95":p(0.95),"p99":p(0.99),"max":(sorted.last ?? 0)]
+struct Statistics:Codable {
+    let samples:Int
+    let p50:Double,p95:Double,p99:Double,max:Double
+    init(_ values:[Double]) {
+        let sorted=values.sorted()
+        func percentile(_ q:Double)->Double {sorted.isEmpty ? 0 : sorted[Swift.max(0,Int(ceil(Double(sorted.count)*q))-1)]}
+        samples=values.count;p50=percentile(0.5);p95=percentile(0.95);p99=percentile(0.99)
+        max=sorted.last ?? 0
+    }
 }
-let result:[String:Any] = ["evidence":"ENGINE_NATIVE","engine":"librime \(env.runtime.version)",
-    "dictionaryRevision":env.runtime.dictionaryRevision,"os":ProcessInfo.processInfo.operatingSystemVersionString,
-    "sourceSHA":ProcessInfo.processInfo.environment["PAIA_SOURCE_SHA"] ?? "local-uncommitted",
-    "fixtureInputs":tasks,"rounds":rounds,"warmupRounds":1,"samples":samples.count,
-    "boundary":"Swift session policy + serialized C API process_key + commit/context copy/free + pure state; no UI or visible rendering",
-    "learning":"disabled; fresh isolated user directory",
-    "componentsMilliseconds":["engineProcessKey":summary(engineSamples),"commitContextCopyAndFree":summary(copySamples),"sessionTotal":summary(samples)],
-    "unmeasured":["AppKit layout","host protocol","visible presentation"],"milliseconds":["p50":percentile(0.5),"p95":percentile(0.95),"p99":percentile(0.99),"max":(sorted.last ?? 0)],
-    "complete":failures.isEmpty,"unmeasuredKeys":rounds*tasks.reduce(0,{$0+$1.utf8.count})-samples.count,"failures":failures,"failureCount":failures.count,"latenciesMilliseconds":samples,"engineLatenciesMilliseconds":engineSamples,"copyLatenciesMilliseconds":copySamples]
-let data=try JSONSerialization.data(withJSONObject:result,options:[.prettyPrinted,.sortedKeys])
-FileHandle.standardOutput.write(data)
+struct Report:Codable {
+    let evidence:String,engine:String,dictionaryRevision:String,os:String,sourceSHA:String
+    let fixtureInputs:[String],rounds:Int,warmupRounds:Int,samples:Int
+    let boundary:String,learning:String
+    let componentsMilliseconds:[String:Statistics]
+    let unmeasured:[String],unavailableComponentSamples:Int
+    let milliseconds:Statistics,complete:Bool,unmeasuredKeys:Int
+    let failures:[String],failureCount:Int
+    let latenciesMilliseconds:[Double],engineLatenciesMilliseconds:[Double],copyLatenciesMilliseconds:[Double]
+}
+let result=Report(evidence:"ENGINE_NATIVE",engine:"librime \(env.runtime.version)",
+    dictionaryRevision:env.runtime.dictionaryRevision,os:ProcessInfo.processInfo.operatingSystemVersionString,
+    sourceSHA:ProcessInfo.processInfo.environment["PAIA_SOURCE_SHA"] ?? "local-uncommitted",
+    fixtureInputs:tasks,rounds:rounds,warmupRounds:1,samples:samples.count,
+    boundary:"Swift session policy + serialized C API process_key + commit/context copy/free + pure state; no UI or visible rendering",
+    learning:"disabled; fresh isolated user directory",
+    componentsMilliseconds:["engineProcessKey":Statistics(engineSamples),"commitContextCopyAndFree":Statistics(copySamples),"sessionTotal":Statistics(samples)],
+    unmeasured:["AppKit layout","host protocol","visible presentation"],
+    unavailableComponentSamples:samples.count-engineSamples.count,milliseconds:Statistics(samples),
+    complete:failures.isEmpty,unmeasuredKeys:rounds*tasks.reduce(0,{$0+$1.utf8.count})-samples.count,
+    failures:failures,failureCount:failures.count,latenciesMilliseconds:samples,
+    engineLatenciesMilliseconds:engineSamples,copyLatenciesMilliseconds:copySamples)
+let encoder=JSONEncoder();encoder.outputFormatting=[.prettyPrinted,.sortedKeys]
+FileHandle.standardOutput.write(try encoder.encode(result))
 session.end()
 if !failures.isEmpty {exit(1)}
