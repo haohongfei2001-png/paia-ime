@@ -64,7 +64,6 @@ import ConstraintCore
         targetStack.orientation = .horizontal;targetStack.spacing=6
         targetScroll.hasHorizontalScroller=true;targetScroll.hasVerticalScroller=false;targetScroll.documentView=targetStack
         targetScroll.heightAnchor.constraint(equalToConstant:52).isActive=true
-        targetScroll.widthAnchor.constraint(equalTo:root.widthAnchor,constant:-32).isActive=true
         inspector.addArrangedSubview(targetScroll)
         rawField.placeholderString="Replacement raw spelling";surfaceField.placeholderString="Desired engine text"
         rawField.setAccessibilityLabel("Replacement raw spelling");surfaceField.setAccessibilityLabel("Desired engine text")
@@ -76,6 +75,8 @@ import ConstraintCore
         inspector.addArrangedSubview(NSStackView(views:[previewButton,cancelRepairButton]))
         previewLabel.setAccessibilityLabel("Verified engine preview");inspector.addArrangedSubview(previewLabel);inspector.addArrangedSubview(acceptStack)
         root.addArrangedSubview(inspector);root.addArrangedSubview(status)
+        // Activate cross-view constraints only after both views share an ancestor.
+        targetScroll.widthAnchor.constraint(equalTo:root.widthAnchor,constant:-32).isActive=true
         status.setAccessibilityLabel("Input status")
         editor.makeSession={ [weak self] in guard let self=self else{return nil};return try? self.newDispatcher() }
         editor.willEdit={ [weak self] in if self?.inspectorVisible==true {self?.dismissInspector(resume:true)} }

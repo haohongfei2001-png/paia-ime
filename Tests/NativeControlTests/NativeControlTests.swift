@@ -61,8 +61,8 @@ final class NativeControlTests:XCTestCase {
     @MainActor func testLiteralAndPunctuationControlsHaveActualSemantics()throws {
         let(c,w)=try make();defer{w.close()}
         c.literal.performClick(nil);XCTAssertTrue(c.configuration.literal)
-        try type("RAG user_id /tmp/a 3.14 12:34",c.editor)
-        XCTAssertEqual(c.editor.string,"RAG user_id /tmp/a 3.14 12:34")
+        try type("RAG user_id /tmp/a 3.14 12:34 𠀀 e\u{301} 👩🏽‍💻",c.editor)
+        XCTAssertEqual(c.editor.string,"RAG user_id /tmp/a 3.14 12:34 𠀀 e\u{301} 👩🏽‍💻")
         c.literal.performClick(nil);c.punctuation.performClick(nil)
         try type(",?!;",c.editor);XCTAssertTrue(c.editor.string.hasSuffix("，？！；"))
         try type(" 3.14 12:34",c.editor);XCTAssertTrue(c.editor.string.hasSuffix(" 3.14 12:34"))
@@ -117,6 +117,22 @@ final class NativeControlTests:XCTestCase {
         let oldCandidate=try XCTUnwrap(stack.arrangedSubviews.first as? NSButton)
         d.cancelCompositionButton.performClick(nil);d.spelling.selectItem(at:1);configurationAction(d)
         oldCandidate.performClick(nil);XCTAssertEqual(d.editor.string,"");XCTAssertEqual(d.editor.dispatcher?.insertCount,0)
+    }
+    @MainActor func testNestedForeignOrNilFocusFailsClosed()throws {
+        for useNil in [false,true] {
+            let(c,w)=try make();try heldSentence(c);c.repairButton.performClick(nil);XCTAssertTrue(c.inspectorVisible)
+            let foreign=NSTextField();c.root.addArrangedSubview(foreign)
+            let original=w.beforeFocusChange;var injected=false
+            defer{w.beforeFocusChange=original;w.close()}
+            w.beforeFocusChange={responder in
+                original?(responder)
+                if responder===c.surfaceField && !injected {injected=true;_ = w.makeFirstResponder(useNil ? nil:foreign)}
+            }
+            _ = w.makeFirstResponder(c.surfaceField)
+            XCTAssertTrue(injected);XCTAssertFalse(c.inspectorVisible);XCTAssertEqual(c.editor.dispatcher?.insertCount,0)
+            XCTAssertEqual(w.focusTransitionDepth,0);XCTAssertNil(w.primaryFocusRequest)
+            XCTAssertThrowsError(try c.editor.dispatcher!.session.refresh())
+        }
     }
     @MainActor func testNativeLayoutCapture()throws {
         guard ProcessInfo.processInfo.environment["PAIA_CAPTURE_LAYOUT"]=="1" else{throw XCTSkip("Optional synthetic-view capture not requested")}
