@@ -1,0 +1,39 @@
+# B1 native controls validation
+
+Baseline main: 5994a16172f79d4127abf900793217aaa9f6c584. PR #3 opened as Draft.
+
+## Reviewed code checkpoint
+
+Exact code head 98ffe3a9339e3287c0752f6e11568acdbeb363ac: independent static review PASS; working tree clean. All three required workflows completed successfully:
+
+- B1 run 37989452317/job 114019591625/artifact 11644496606: 11 AppKit methods, zero failures/skips, native executable build. The captured and visually inspected preview shows original source marked text, replacement inputs, genuine engine preview and separate Accept control. Added external-target Cancel regression passed.
+- A1 run 37989452278/job 114019591279: sanitizer ABI guards, pure Unicode/state, native engine, synthetic AppKit, native app and fixed benchmark all passed.
+- A2 run 37989452281/job 114019591282: pure lease checks, 28 native constraint cases and full-corpus paired benchmark, synthetic AppKit all passed. No benchmark failures were discarded.
+
+This evidence update changes documentation only after the reviewed code. Exact final PR and merged-main workflow IDs/checkpoint metadata are retained with the private recovery snapshot; their results must not be inferred from an older head.
+
+## First verified code checkpoint
+
+2b1475f4b4b159044c076196474d3e3c05728bad: B1 run 37989085318/job 114018354751/artifact 11645065163 PASSED. All 11 native methods passed with zero failures/skips; native executable built. Tests cover six spelling/script choices, literal supplementary-plane/combining/emoji input, punctuation, preview/marked acceptance/single commit, actual parameter edits, unfinished input, stale buttons/targets/candidates, source changes, nested foreign/nil focus and deactivation. Native synthetic-view pixels were inspected; source marked text and input controls were visible. Independent exact-head static review PASS. A1 run 37989085415 and A2 run 37989085363 passed.
+
+B1 generated research input revision: bbde8cf4ffdcc7270fd32b8f8eebe40106e3b584ef05dc013fb36e2cff003bc2. Source/resource pins, core-only full corpus, isolated no-learning state and licensing restrictions are inherited from A2; the twelve derived B1 schemas do not alter A2's comparator inputs.
+
+Evidence category: APPKIT_HOST with real ENGINE_NATIVE calls. No INSTALLED_IME, LIVE_CLIENT, HUMAN_STUDY or visible-response latency result. All failures below remain part of the record.
+
+## Retained failures
+
+- 477364a09bda44edf5c2c1bc489a6f135c474fbe: B1 run 37986391131/job 114009325222 FAILED. All six schema/output choices and literal/Chinese punctuation native control tests passed. Repair-inspector entry failed in four methods (16 assertions); it was not accepted as working UI. A1 regression run 37986391243 succeeded. Native failure logs are retained. Independent review additionally found deterministic Accept focus-restoration self-cancellation and stale-resume UI cleanup problems; both fixed in subsequent changes. Extra field-editor/marked-range diagnostics and retained-control tests were added without weakening assertions.
+
+No physical mouse/VoiceOver, installed input source, live-client or user-quality claim. Research data remains in a separate unbundled B1 cache, and A2 comparison schemas remain unchanged.
+
+- a46a02c00343c4f989cca0520d5c757378ea8d1e: run 37986745196/job 114010508632 FAILED at compile. A diagnostic used unqualified Swift type(of:) inside a test class that already defines type(_:_:), causing name resolution failure. Qualified the standard-library function; native tests on this head were SKIPPED. A1/A2 workflows failed at the same shared test compilation and are not counted as regression passes.
+
+- e474a741e3d70ad06f0219ac5c6f263d1d4ad618: run 37987020771/job 114011438177 FAILED (7 methods, 44 assertions). Native diagnostic traces identified the real transition: owned NSTextField → shared NSTextView field editor while its delegate is still nil. The initial validator rejected that intermediate responder and cleared the composition. The fix scopes that specific nested field-editor transition to the already-approved outer owned-control request, then validates the final active editor/target. It does not generally allow arbitrary nil-delegate responders or unrelated focus. Marked-range and selected-range invariants remain asserted.
+
+- cd65d393495d01a7f143dedcf0b6edb85f4515f9: run 37987393102/job 114012683087 FAILED before all eight methods could exercise their behaviors. A newly added target-row scroll view activated its width constraint before joining the root view hierarchy, raising AppKit's common-ancestor exception. Moved constraint activation after attachment; no screenshot or focus-validation pass is inferred from this run. Added adversarial nested foreign/nil focus and transition-state-reset assertions, plus literal-mode supplementary-plane, combining-mark and emoji coverage.
+
+- 2eebe3ced9f93fbb151fd8de4a5c1538768b6481: run 37987965390/job 114014594128 FAILED (9 methods, 25 assertions). Initial inspector entry, adversarial nested focus rejection, six schemas and literal Unicode/punctuation passed; switching between two NSTextFields still invalidated the source. Replaced shared-field-editor controls with two explicitly owned NSTextViews and removed all intermediate field-editor exceptions instead of weakening the source invariants. Added actual text-edit callback and Tab navigation tests. A1 run 37987965369 and A2 run 37987965389 passed. Prior cd65d39 A2 run 37987392675 passed all tests but FAILED artifact upload due GitHub storage DNS ENOTFOUND; that infrastructure failure is retained separately.
+
+- 7e0c8bfb82356b62e7c3cbfae3dc37a27d070e31: run 37988500181/job 114016402123 FAILED at the first native test with an NSTextView subclass initializer trap (signal 5). Replaced the superclass convenience initializer with its designated init(frame:textContainer:). No behavior pass inferred. Earlier view-only image capture also exposed transparent capture background and a visible-window transition after composition creation; the capture now fills the real root background and asserts source composition after making the window visible before typing.
+
+- e68491e23ae341c80aae4cde0995e0c819b0e9a0: run 37988765243/job 114017281239 FAILED (11 methods, 16 assertions). Exact-owned focus and marked-source preservation worked, but a nil text container left the dedicated inputs without a backing text system, so their values stayed empty and the engine correctly previewed segment deletion instead of replacement. Built and retained the native text-storage/layout/container graph, added explicit value/backing assertions, and rebuilt the keyboard loop to include dynamic target/Accept controls after independent review. Native view capture succeeded; its actual pixels were inspected, exposing the empty inputs. Failed previews were not counted as successful corrections.

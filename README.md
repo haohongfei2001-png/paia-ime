@@ -25,6 +25,10 @@ See [A1 build, tests, resource pins and evidence boundaries](docs/BATCH_A1.md). 
 
 [Constrained editing contract and reproducible full-corpus benchmark](docs/BATCH_A2.md) documents the actual version-pinned C++ capability extension, transactional whole-session replay, target/candidate identity guards and native AppKit proof. [A2 evidence](evidence/a2/VALIDATION.md) retains failures and exact source references. It is a bounded engine experiment, not a product-quality or installed-IME claim.
 
+## Batch B1 native research controls
+
+[B1 controls and focus contract](docs/BATCH_B1.md) adds an explicit research launch with Full/Flypy/Natural, Simplified/Traditional, literal text, a bounded punctuation mode and a real constrained-repair inspector. Preview is separate from marked-text acceptance and final engine commit. [B1 evidence](evidence/b1/VALIDATION.md) records native control tests, inspected synthetic-view capture and retained failures. This is one Batch B lab slice; user dictionaries, persistent settings, rare-character workflows and update/recovery remain later work.
+
 ## Batch A1 engineering contract
 
 Read **REPORT → VALIDATION → CODEX_HANDOFF**. Build the native Swift/AppKit/InputMethodKit project structure and a real, version-locked librime C API bridge; prove key → composition → candidate → engine selection → single commit in an isolated AppKit host before asserting system-IME compatibility. Never replace the input engine with the webpage's fixed examples.
