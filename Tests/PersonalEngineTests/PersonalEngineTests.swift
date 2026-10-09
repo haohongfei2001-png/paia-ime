@@ -61,6 +61,23 @@ final class PersonalEngineTests:XCTestCase {
             XCTAssertEqual(view.string,wanted);XCTAssertEqual(host.insertCount,1)
             XCTAssertNil(try s.refresh().commit)
         }
+        func choosePersonalPrefixWithoutDroppingSuffix()throws {
+            let s=try session();defer{s.end()};let view=NSTextView(frame:.zero),host=HostDispatcher(client:view,session:s)
+            try type("qionghaicelijianihao",host)
+            var selected=false
+            for _ in 0..<200 {
+                let snapshot=try XCTUnwrap(s.snapshot)
+                if let row=snapshot.rows.first(where:{$0.text==marker}) {
+                    let update=try s.select(row.ref);XCTAssertNil(update.commit);XCTAssertTrue(host.apply(update));selected=true;break
+                }
+                if !snapshot.hasMore{break};XCTAssertTrue(host.apply(try s.process(.code(0xff56))))
+            }
+            XCTAssertTrue(selected,"Authored personal prefix unavailable with a public suffix")
+            XCTAssertEqual(host.insertCount,0)
+            let suffix=try XCTUnwrap(s.snapshot?.rows.first(where:{$0.text=="你好"}))
+            XCTAssertTrue(host.apply(try s.select(suffix.ref)));XCTAssertEqual(view.string,marker+"你好");XCTAssertEqual(host.insertCount,1)
+            XCTAssertNil(try s.refresh().commit)
+        }
         func candidates(_ raw:String)throws->[String] {
             let s=try session();defer{s.end()};for b in raw.utf8{_ = try s.process(.code(Int32(b)))}
             var rows=[String](),complete=false
@@ -82,7 +99,7 @@ final class PersonalEngineTests:XCTestCase {
             let a=try XCTUnwrap(rows.firstIndex(of:"林小棠")),b=try XCTUnwrap(rows.firstIndex(of:"林小唐"))
             XCTAssertEqual(a<b,stage=="active")
             if stage=="deleted" {XCTAssertFalse(try candidates("qionghaicelijia").contains(marker))}
-            else {try choose("qionghaicelijia",marker);try choose("qiong'hai'ce'li'jia",marker);try choose("qionghaiceliyi",marker)}
+            else {try choosePersonalPrefixWithoutDroppingSuffix();try choose("qionghaicelijia",marker);try choose("qiong'hai'ce'li'jia",marker);try choose("qionghaiceliyi",marker)}
             XCTAssertFalse(try candidates("qionghaiceli").contains(marker))
             try choose("kuo",rare);try choose("linxiaoqiu","林小棠")
             let s=try session();defer{s.end()};_ = try s.process(.code(110));XCTAssertFalse(s.supportsRepair)

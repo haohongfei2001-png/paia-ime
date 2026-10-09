@@ -4,7 +4,7 @@ An independent **macOS Chinese input method** project. PAIA is an optional futur
 
 ## Status
 
-**Batch A1 native engine/host and Batch A2 bounded constrained-editing research implemented; system IME not installed.** The design/research package includes native AppKit test-probe code, a real librime engine experiment report, a browser prototype and bounded test evidence. An offline prototype and a synthetic AppKit host are **not** an installed macOS input source. Comparative user experience and accuracy versus WeChat/Sogou/Apple have not been established.
+**A1/A2 native engine research and B1 controls implemented; B2 explicit personal-lexicon lab in validation. System IME not installed.** The design/research package includes native AppKit test-probe code, a real librime engine experiment report, a browser prototype and bounded test evidence. An offline prototype and a synthetic AppKit host are **not** an installed macOS input source. Comparative user experience and accuracy versus WeChat/Sogou/Apple have not been established.
 
 ## Research / 研究资料
 
@@ -27,7 +27,11 @@ See [A1 build, tests, resource pins and evidence boundaries](docs/BATCH_A1.md). 
 
 ## Batch B1 native research controls
 
-[B1 controls and focus contract](docs/BATCH_B1.md) adds an explicit research launch with Full/Flypy/Natural, Simplified/Traditional, literal text, a bounded punctuation mode and a real constrained-repair inspector. Preview is separate from marked-text acceptance and final engine commit. [B1 evidence](evidence/b1/VALIDATION.md) records native control tests, inspected synthetic-view capture and retained failures. This is one Batch B lab slice; user dictionaries, persistent settings, rare-character workflows and update/recovery remain later work.
+[B1 controls and focus contract](docs/BATCH_B1.md) adds an explicit research launch with Full/Flypy/Natural, Simplified/Traditional, literal text, a bounded punctuation mode and a real constrained-repair inspector. Preview is separate from marked-text acceptance and final engine commit. [B1 evidence](evidence/b1/VALIDATION.md) records native control tests, inspected synthetic-view capture and retained failures. This is one Batch B lab slice; persistent settings, rare-character workflows and update/recovery remain later work.
+
+## Batch B2 explicit personal lexicon
+
+[B2 manual terms, protected deletions and reviewed imports](docs/BATCH_B2.md) connects an isolated explicit store to real read-only engine dictionaries and a native management window. Ordinary typing does not learn. Changes disable the personal overlay until a verified next launch; Full/Simplified overlays deliberately gate unsupported mixed-dictionary repair. [B2 evidence](evidence/b2/VALIDATION.md) distinguishes each code checkpoint and retains failures.
 
 ## Batch A1 engineering contract
 

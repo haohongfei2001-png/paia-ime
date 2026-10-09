@@ -112,4 +112,13 @@ final class LexiconCoreTests:XCTestCase {
         try store.setDeleted(id:nearLimit.terms[0].id,deleted:true,expectedRevision:1)
         XCTAssertTrue(try store.snapshot().terms[0].isDeleted)
     }
+    func testExplicitReadRefusesExternallyChangedAuthority()throws {
+        let path=try directory(),store=try LexiconStore(directory:path);defer{store.close()}
+        _ = try store.add(surface:"禁止旧缓存导出",reading:"jin zhi jiu huan cun dao chu",expectedRevision:0)
+        let before=try store.exportData()
+        try Data("changed authority".utf8).write(to:path.appendingPathComponent("lexicon.json"))
+        XCTAssertThrowsError(try store.snapshot());XCTAssertThrowsError(try store.exportData());XCTAssertThrowsError(try store.previewImport(before))
+        XCTAssertThrowsError(try store.add(surface:"拒绝写入",reading:"ju jue xie ru",expectedRevision:1))
+    }
+
 }

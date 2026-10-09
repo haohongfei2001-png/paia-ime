@@ -39,8 +39,8 @@ public final class LexiconStore {
         guard fstat(writerFD,&owned)==0,fstatat(rootFD,".writer.lock",&linked,AT_SYMLINK_NOFOLLOW)==0,
               owned.st_dev==linked.st_dev,owned.st_ino==linked.st_ino else{throw LexiconError.unsafePath}
     }
-    public func snapshot()throws->LexiconDocument {lock.lock();defer{lock.unlock()};try ready();return state}
-    public func exportData()throws->Data {lock.lock();defer{lock.unlock()};try ready();return try LexiconCodec.encode(state)}
+    public func snapshot()throws->LexiconDocument {lock.lock();defer{lock.unlock()};try verifyAuthority();return state}
+    public func exportData()throws->Data {lock.lock();defer{lock.unlock()};try verifyAuthority();return try LexiconCodec.encode(state)}
     private func readOwned(_ name:String)throws->Data? {
         let fd=openat(rootFD,name,O_RDWR|O_NOFOLLOW|O_NONBLOCK|O_CLOEXEC)
         if fd<0 {if errno==ENOENT{return nil};throw LexiconError.unsafePath};defer{Darwin.close(fd)}
@@ -80,8 +80,14 @@ public final class LexiconStore {
         guard written==bytes.count,fcntl(fd,F_FULLFSYNC)==0,fsync(rootFD)==0 else{throw LexiconError.io}
     }
     private func save(_ next:LexiconDocument)throws {try LexiconRules.validate(next);try publish(try LexiconCodec.encode(next));state=next}
+    // Explicit management operations revalidate authority. No engine/typing path calls this store.
+    private func verifyAuthority()throws {
+        try ready()
+        guard try readOwned(".initialized")==Data("paia.personal-lexicon.v1\n".utf8),
+              try readOwned("lexicon.json")==LexiconCodec.encode(state) else{throw LexiconError.stale}
+    }
     private func requireRevision(_ revision:UInt64)throws {
-        try ready();guard state.revision==revision,try readOwned("lexicon.json")==LexiconCodec.encode(state) else{throw LexiconError.stale}
+        try verifyAuthority();guard state.revision==revision else{throw LexiconError.stale}
     }
     @discardableResult public func add(surface:String,reading:String,aliases:[String]=[],pin:Bool=false,expectedRevision:UInt64)throws->UUID {
         lock.lock();defer{lock.unlock()};try requireRevision(expectedRevision)
@@ -107,7 +113,7 @@ public final class LexiconStore {
         next.terms[index].noRelearn=deleted;next.terms[index].revision=next.revision;try save(next)
     }
     public func previewImport(_ bytes:Data)throws->LexiconImportPreview {
-        lock.lock();defer{lock.unlock()};try ready();return try preview(bytes)
+        lock.lock();defer{lock.unlock()};try verifyAuthority();return try preview(bytes)
     }
     private func preview(_ bytes:Data)throws->LexiconImportPreview {
         let imported=try LexiconCodec.decode(bytes);var additions=[PersonalTerm](),protected=0,unchanged=0,conflicts=0,notices=[String]()
