@@ -12,3 +12,7 @@ xcuserdata/
 **/user_data/
 **/userdb/
 **/logs/private/
+
+__pycache__/
+*.pyc
+evidence/a1-run/

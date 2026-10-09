@@ -1,0 +1,26 @@
+# Artificial test data authored for this repository; no user history or public corpus.
+---
+name: paia_a1
+version: "1.0"
+sort: by_weight
+use_preset_vocabulary: false
+...
+你	ni	1000
+呢	ni	900
+泥	ni	800
+拟	ni	700
+逆	ni	600
+倪	ni	500
+腻	ni	400
+好	hao	1000
+号	hao	500
+吗	ma	1000
+你好	ni hao	10000
+拟好	ni hao	9000
+你号	ni hao	8000
+你好呀	ni hao ya	7000
+你好吗	ni hao ma	10000
+世界	shi jie	10000
+𠀀	kuo	10000
+👩🏽‍💻	emoji	10000
+é	accent	10000

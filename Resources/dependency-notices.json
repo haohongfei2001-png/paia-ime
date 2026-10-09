@@ -1,0 +1,136 @@
+[
+  {
+    "name": "glog",
+    "repository": "google/glog",
+    "ref": "7b134a5c82c0c0b5698bb6bf7a835b230c5638e4",
+    "sourceFile": "COPYING",
+    "sourceURL": "https://raw.githubusercontent.com/google/glog/7b134a5c82c0c0b5698bb6bf7a835b230c5638e4/COPYING",
+    "license": "BSD-3-Clause",
+    "noticeFile": "Licenses/third-party/glog.txt",
+    "sha256": "136d48dea7a681413691f3db3098f6cf5ffaa3119d96d97bb83b8cff3ce38c4a",
+    "scope": "core static dependency or embedded header; source notice retained, not a new shipped optional plugin"
+  },
+  {
+    "name": "leveldb",
+    "repository": "google/leveldb",
+    "ref": "99b3c03b3284f5886f9ef9a4ef703d57373e61be",
+    "sourceFile": "LICENSE",
+    "sourceURL": "https://raw.githubusercontent.com/google/leveldb/99b3c03b3284f5886f9ef9a4ef703d57373e61be/LICENSE",
+    "license": "BSD-3-Clause",
+    "noticeFile": "Licenses/third-party/leveldb.txt",
+    "sha256": "ccc19f1da0798ed666609b65a5b44dd8b3abe6fc08b9c0592eb76e82e174db19",
+    "scope": "core static dependency or embedded header; source notice retained, not a new shipped optional plugin"
+  },
+  {
+    "name": "yaml-cpp",
+    "repository": "jbeder/yaml-cpp",
+    "ref": "2f86d13775d119edbb69af52e5f566fd65c6953b",
+    "sourceFile": "LICENSE",
+    "sourceURL": "https://raw.githubusercontent.com/jbeder/yaml-cpp/2f86d13775d119edbb69af52e5f566fd65c6953b/LICENSE",
+    "license": "MIT",
+    "noticeFile": "Licenses/third-party/yaml-cpp.txt",
+    "sha256": "aa6fcc27be034e41e21dd832f9175bfe694a48491d9e14ff0fa278e19ad14f1b",
+    "scope": "core static dependency or embedded header; source notice retained, not a new shipped optional plugin"
+  },
+  {
+    "name": "marisa",
+    "repository": "s-yata/marisa-trie",
+    "ref": "3e87d53b78e15f2f43783d5e376561a8c9722051",
+    "sourceFile": "COPYING.md",
+    "sourceURL": "https://raw.githubusercontent.com/s-yata/marisa-trie/3e87d53b78e15f2f43783d5e376561a8c9722051/COPYING.md",
+    "license": "BSD-2-Clause",
+    "noticeFile": "Licenses/third-party/marisa.txt",
+    "sha256": "edf58dab34c3dc239ba4ba2d5d3d844d8c5b442aa4dd1149fac81b2d8c6cb8d1",
+    "scope": "core static dependency or embedded header; source notice retained, not a new shipped optional plugin"
+  },
+  {
+    "name": "OpenCC",
+    "repository": "BYVoid/OpenCC",
+    "ref": "556ed22496d650bd0b13b6c163be9814637970ae",
+    "sourceFile": "LICENSE",
+    "sourceURL": "https://raw.githubusercontent.com/BYVoid/OpenCC/556ed22496d650bd0b13b6c163be9814637970ae/LICENSE",
+    "license": "Apache-2.0",
+    "noticeFile": "Licenses/third-party/OpenCC.txt",
+    "sha256": "b534e465949558eec2597b04f5092b5e161236a68dfbfd04d547592ac3964308",
+    "scope": "core static dependency or embedded header; source notice retained, not a new shipped optional plugin"
+  },
+  {
+    "name": "OpenCC-marisa",
+    "repository": "BYVoid/OpenCC",
+    "ref": "556ed22496d650bd0b13b6c163be9814637970ae",
+    "sourceFile": "deps/marisa-0.2.6/COPYING.md",
+    "sourceURL": "https://raw.githubusercontent.com/BYVoid/OpenCC/556ed22496d650bd0b13b6c163be9814637970ae/deps/marisa-0.2.6/COPYING.md",
+    "license": "BSD-2-Clause",
+    "noticeFile": "Licenses/third-party/OpenCC-marisa.txt",
+    "sha256": "c0e214362b4dcf118371b02c87321f64a4d8317112d732b6d768167a635f383a",
+    "scope": "core static dependency or embedded header; source notice retained, not a new shipped optional plugin"
+  },
+  {
+    "name": "rapidjson",
+    "repository": "Tencent/rapidjson",
+    "ref": "v1.1.0",
+    "sourceFile": "license.txt",
+    "sourceURL": "https://raw.githubusercontent.com/Tencent/rapidjson/v1.1.0/license.txt",
+    "license": "MIT",
+    "noticeFile": "Licenses/third-party/rapidjson.txt",
+    "sha256": "a140e5d46fe734a1c78f1a3c3ef207871dd75648be71fdda8e309b23ab8b1f32",
+    "scope": "core static dependency or embedded header; source notice retained, not a new shipped optional plugin"
+  },
+  {
+    "name": "boost",
+    "repository": "boostorg/boost",
+    "ref": "boost-1.89.0",
+    "sourceFile": "LICENSE_1_0.txt",
+    "sourceURL": "https://raw.githubusercontent.com/boostorg/boost/boost-1.89.0/LICENSE_1_0.txt",
+    "license": "BSL-1.0",
+    "noticeFile": "Licenses/third-party/boost.txt",
+    "sha256": "c9bff75738922193e67fa726fa225535870d2aa1059f91452c411736284ad566",
+    "scope": "core static dependency or embedded header; source notice retained, not a new shipped optional plugin"
+  },
+  {
+    "name": "darts",
+    "repository": "rime/librime",
+    "ref": "a251145d3aafa33871824a40bbec04c966bd8b56",
+    "sourceFile": "include/COPYING.darts-clone",
+    "sourceURL": "https://raw.githubusercontent.com/rime/librime/a251145d3aafa33871824a40bbec04c966bd8b56/include/COPYING.darts-clone",
+    "license": "BSD-2-Clause",
+    "noticeFile": "Licenses/third-party/darts.txt",
+    "sha256": "11bf6ca180d01e60656cd3cbe65cff95b738afe4ca5a8a66b9dd1ec594a41d2f",
+    "scope": "core static dependency or embedded header; source notice retained, not a new shipped optional plugin"
+  },
+  {
+    "name": "utf8-cpp",
+    "repository": "rime/librime",
+    "ref": "a251145d3aafa33871824a40bbec04c966bd8b56",
+    "sourceFile": "include/utf8.h",
+    "sourceURL": "https://raw.githubusercontent.com/rime/librime/a251145d3aafa33871824a40bbec04c966bd8b56/include/utf8.h",
+    "license": "BSL-1.0",
+    "noticeFile": "Licenses/third-party/utf8-cpp.txt",
+    "sha256": "90643c1044a58020af389dc8eb73099fc8327a12d0731a1101acb277e03e6a3b",
+    "scope": "core static dependency or embedded header; source notice retained, not a new shipped optional plugin"
+  },
+  {
+    "name": "X11-keysym",
+    "repository": "rime/librime",
+    "ref": "a251145d3aafa33871824a40bbec04c966bd8b56",
+    "sourceFile": "include/X11/keysym.h",
+    "sourceURL": "https://raw.githubusercontent.com/rime/librime/a251145d3aafa33871824a40bbec04c966bd8b56/include/X11/keysym.h",
+    "license": "X11",
+    "noticeFile": "Licenses/third-party/X11-keysym.txt",
+    "sha256": "8b20fbcdfa52a6ce5bf8c0c1746e2e47fca02e2534561dde0e085893db2a57ca",
+    "scope": "core static dependency or embedded header; source notice retained, not a new shipped optional plugin"
+  },
+  {
+    "name": "X11-keysymdef",
+    "repository": "rime/librime",
+    "ref": "a251145d3aafa33871824a40bbec04c966bd8b56",
+    "sourceFile": "include/X11/keysymdef.h",
+    "sourceURL": "https://raw.githubusercontent.com/rime/librime/a251145d3aafa33871824a40bbec04c966bd8b56/include/X11/keysymdef.h",
+    "license": "X11",
+    "noticeFile": "Licenses/third-party/X11-keysymdef.txt",
+    "scope": "core static dependency or embedded header; source notice retained, not a new shipped optional plugin",
+    "sourceSha256": "ff31183de7751c1079b1179fbbcb096f155a3b82c0429dcc8e329be43fb93b72",
+    "sha256": "0e1703e6a5733a84ee09200be9289f68608332e56c95f2c909fea71527bf2c0f",
+    "noticeExtraction": "Complete two copyright/permission/disclaimer blocks from source header, preceding protocol definitions."
+  }
+]

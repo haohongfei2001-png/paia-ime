@@ -1,0 +1,66 @@
+name: Batch A1 native engine and synthetic host
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: a1-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  native:
+    # Standard hosted runner, free for this public repo. No larger/self-hosted/paid runner.
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Record machine and source
+        run: |
+          mkdir -p evidence/a1-run
+          echo "PAIA_SOURCE_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+          { git rev-parse HEAD; sw_vers; uname -a; swift --version; } | tee evidence/a1-run/environment.txt
+      - name: Verify pinned inputs
+        run: |
+          python3 Tools/audit-a1.py
+          python3 Tools/prepare-a1.py | tee evidence/a1-run/inputs.json
+          source .build/a1-env.sh
+          lipo -archs "$PAIA_RIME_LIBRARY" | tee evidence/a1-run/architectures.txt
+          otool -L "$PAIA_RIME_LIBRARY" | tee evidence/a1-run/linkage.txt
+      - name: ABI guard under Address and Undefined Behavior sanitizers (SIMULATED)
+        run: |
+          clang -std=gnu11 -Wall -Wextra -Werror -fsanitize=address,undefined -ISources/CRimeShim/include Tools/test-abi.c Sources/CRimeShim/paia_rime.c -o .build/test-abi
+          .build/test-abi | tee evidence/a1-run/abi.txt
+      - name: Compile native app and InputMethodKit skeleton
+        run: |
+          set -o pipefail
+          bash Tools/build-lab.sh 2>&1 | tee evidence/a1-run/build.txt
+      - name: Pure state and Unicode tests (SIMULATED)
+        run: |
+          set -o pipefail
+          swift test --filter SessionCoreTests 2>&1 | tee evidence/a1-run/session-tests.txt
+      - name: Real engine tests (ENGINE_NATIVE)
+        run: |
+          set -o pipefail
+          source .build/a1-env.sh
+          swift test --skip-build --filter EngineTests 2>&1 | tee evidence/a1-run/engine-tests.txt
+      - name: Synthetic NSTextView host (APPKIT_HOST)
+        run: |
+          set -o pipefail
+          source .build/a1-env.sh
+          swift test --skip-build --filter AppKitHostTests 2>&1 | tee evidence/a1-run/host-tests.txt
+      - name: Fixed workload benchmark (ENGINE_NATIVE; not visible latency)
+        run: |
+          source .build/a1-env.sh
+          swift run -c release paia-benchmark > evidence/a1-run/benchmark.json
+          python3 -c 'import json; d=json.load(open("evidence/a1-run/benchmark.json")); print(json.dumps({k:v for k,v in d.items() if "Latencies" not in k and k!="latenciesMilliseconds"},ensure_ascii=False,sort_keys=True))'
+      - name: Preserve evidence including failures
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: a1-evidence-${{ env.PAIA_SOURCE_SHA }}
+          path: evidence/a1-run/
+          retention-days: 14

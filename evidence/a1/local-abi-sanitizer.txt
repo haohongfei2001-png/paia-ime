@@ -1,0 +1,1 @@
+SIMULATED ABI guard: 8 checks passed; no real engine or AppKit host exercised.
