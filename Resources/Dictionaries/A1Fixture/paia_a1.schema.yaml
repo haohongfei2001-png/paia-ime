@@ -1,0 +1,23 @@
+# Artificial integration fixture, not a competitive language model.
+schema:
+  schema_id: paia_a1
+  name: PAIA A1 artificial fixture
+  version: "1.0"
+switches:
+  - name: ascii_mode
+    reset: 0
+engine:
+  processors: [speller, selector, navigator, express_editor]
+  segmentors: [abc_segmentor, fallback_segmentor]
+  translators: [script_translator]
+menu:
+  page_size: 5
+speller:
+  alphabet: abcdefghijklmnopqrstuvwxyz
+  delimiter: " '"
+translator:
+  dictionary: paia_a1
+  enable_user_dict: false
+  enable_sentence: true
+  enable_completion: true
+  initial_quality: 1
