@@ -2,6 +2,10 @@
 import AppKit
 import SessionCore
 
+@MainActor private final class CandidateContentView:NSView {
+    override var isOpaque:Bool {true}
+    override func draw(_ dirtyRect:NSRect){NSColor.windowBackgroundColor.setFill();dirtyRect.fill();super.draw(dirtyRect)}
+}
 @MainActor private final class CandidateButton:NSButton {
     let candidate:CandidateRef
     init(row:CandidateRow,title:String,target:AnyObject?,action:Selector?) {
@@ -43,7 +47,7 @@ import SessionCore
         page.setAccessibilityLabel(page.stringValue);stack.addArrangedSubview(page)
         let width=max(240,min(640,stack.fittingSize.width+24)), height=stack.fittingSize.height+20
         stack.frame=NSRect(x:12,y:10,width:width-24,height:height-20)
-        let container=NSView(frame:NSRect(x:0,y:0,width:width,height:height));container.addSubview(stack);contentView=container
+        let container=CandidateContentView(frame:NSRect(x:0,y:0,width:width,height:height));container.addSubview(stack);contentView=container
         let x=max(screen.minX,min(rect.minX,screen.maxX-width))
         let preferred=rect.minY-height-4
         let y=max(screen.minY,min(preferred>=screen.minY ? preferred : rect.maxY+4,screen.maxY-height))

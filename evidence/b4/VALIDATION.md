@@ -7,3 +7,9 @@ Initial implementation adds a visible non-color selected marker, semibold/accent
 Static A1/A2 privacy/resource audits and diff whitespace checks pass on the Linux authoring environment. Swift/AppKit tests and panel captures require the official macOS runner and are pending; no runtime or image-inspection pass is implied by source assertions. Exact current-head, independent review, final-head and merged-main results must be verified separately before completion.
 
 ENGINE_NATIVE means the existing real librime/strong-corpus engine produced candidates and selected text. APPKIT_HOST means actual AppKit objects received programmatic events/actions. SIMULATED labels the Unicode-only snapshot, not an engine decoder. No INSTALLED_IME, LIVE_CLIENT, physical-input, VoiceOver, human-efficiency or general-quality result is produced.
+
+## Initial native checkpoint and capture limitation
+
+Initial head 3ff47807a9174662ef6f8c2a1072ef3b4557fe1f passed B4 run 38004924861/job 114071400423: all six methods, zero failures/skips. The two PNG files were actually inspected and showed an unusable transparent/black rendering, so this checkpoint does not establish readable selected-row/page visual evidence. Those original PNGs and the full log are retained.
+
+The subsequent change gives the panel content its own opaque native background (rather than relying only on the separate window background during view capture), reads Space's expected row from the immediately current snapshot, and adds direct window-deactivation/post-cancel hidden-state checks. These require their own exact-head native run and inspected captures; the initial green test report is not substituted.

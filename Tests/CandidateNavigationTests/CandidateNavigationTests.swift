@@ -38,6 +38,7 @@ final class CandidateNavigationTests:XCTestCase {
     @MainActor func capture(_ panel:CandidatePanel,name:String)throws {
         let view=try XCTUnwrap(panel.contentView);view.layoutSubtreeIfNeeded();view.displayIfNeeded()
         let bitmap=try XCTUnwrap(view.bitmapImageRepForCachingDisplay(in:view.bounds));view.cacheDisplay(in:view.bounds,to:bitmap)
+        XCTAssertEqual(try XCTUnwrap(bitmap.colorAt(x:0,y:0)).alphaComponent,1,accuracy:0.001)
         let data=try XCTUnwrap(bitmap.representation(using:.png,properties:[:]))
         let directory=URL(fileURLWithPath:FileManager.default.currentDirectoryPath).appendingPathComponent("evidence/b4-run")
         try FileManager.default.createDirectory(at:directory,withIntermediateDirectories:true);try data.write(to:directory.appendingPathComponent(name+".png"))
@@ -52,7 +53,7 @@ final class CandidateNavigationTests:XCTestCase {
         XCTAssertEqual(down.highlighted,first.highlighted+1);XCTAssertEqual(host.insertCount,0);try assertPresentation(c,w)
         try capture(c.editor.candidates,name:"highlighted-second")
         try key("\u{F700}",c.editor,code:126);XCTAssertEqual(host.session.snapshot?.highlighted,first.highlighted);try assertPresentation(c,w)
-        try key("\u{F701}",c.editor,code:125);let chosen=try XCTUnwrap(host.session.snapshot).rows[down.highlighted].text
+        try key("\u{F701}",c.editor,code:125);let current=try XCTUnwrap(host.session.snapshot),chosen=current.rows[current.highlighted].text
         try key(" ",c.editor,code:49);XCTAssertEqual(c.editor.string,chosen);XCTAssertEqual(host.insertCount,1)
         XCTAssertFalse(c.editor.hasMarkedText());XCTAssertFalse(c.editor.candidates.isVisible)
         try key(" ",c.editor,code:49);XCTAssertEqual(host.insertCount,1);XCTAssertEqual(c.editor.string,chosen+" ")
@@ -83,12 +84,17 @@ final class CandidateNavigationTests:XCTestCase {
     @MainActor func testCancelFocusAndModeHidePanelAndInvalidateOldClicks()throws {
         let(c,w)=try make();defer{w.close()};try type("shi",c.editor)
         let cancelled=try XCTUnwrap(try rows(c.editor.candidates).first)
-        try key("\u{1b}",c.editor,code:53);XCTAssertFalse(c.editor.candidates.isVisible);cancelled.performClick(nil);XCTAssertEqual(c.editor.string,"")
+        try key("\u{1b}",c.editor,code:53);XCTAssertFalse(c.editor.candidates.isVisible);cancelled.performClick(nil);XCTAssertEqual(c.editor.string,"");XCTAssertFalse(c.editor.candidates.isVisible)
         try type("shi",c.editor);let unfocused=try XCTUnwrap(try rows(c.editor.candidates).first)
         XCTAssertTrue(w.makeFirstResponder(nil));XCTAssertFalse(c.editor.candidates.isVisible);unfocused.performClick(nil);XCTAssertEqual(c.editor.string,"")
         XCTAssertTrue(w.makeFirstResponder(c.editor));try type("shi",c.editor);let oldMode=try XCTUnwrap(try rows(c.editor.candidates).first)
         try key("\u{1b}",c.editor,code:53);var next=LabConfiguration();next.spelling = .flypy;try c.applyConfiguration(next)
         XCTAssertFalse(c.editor.candidates.isVisible);oldMode.performClick(nil);XCTAssertEqual(c.editor.string,"");XCTAssertEqual(c.editor.dispatcher?.insertCount,0)
+        try c.applyConfiguration(LabConfiguration());try type("shi",c.editor)
+        let deactivated=try XCTUnwrap(try rows(c.editor.candidates).first);XCTAssertTrue(c.editor.candidates.isVisible)
+        w.resignKey();XCTAssertFalse(c.editor.candidates.isVisible);deactivated.performClick(nil)
+        XCTAssertEqual(c.editor.string,"");XCTAssertEqual(c.editor.dispatcher?.insertCount,0);XCTAssertFalse(c.editor.candidates.isVisible)
+
     }
     @MainActor func testBoundedRepeatNavigationDoesNotCommitOrLoseFocus()throws {
         let(c,w)=try make();defer{w.close()};try type("shi",c.editor);let host=try XCTUnwrap(c.editor.dispatcher)
