@@ -8,3 +8,7 @@ Baseline: main 34c8d31e64f03032c8452f6467d8197158ab975e. Draft PR #2.
 - Same initial head: Linux C ABI guard 8 checks passed (SIMULATED only).
 
 No INSTALLED_IME, LIVE_CLIENT or HUMAN_STUDY evidence. A2 remains incomplete until native matrix, synthetic host, independent review and exact-main checks finish.
+
+- c2a4afa7fee476b67e19facd75cc93346fc05f93: run 37983267841/job 113998820500 passed extension link, 2 pure tests, native matrix CLI, and 2 AppKit constraint-host tests; artifact 11642515813. A1 regression run 37983267725/job 113998819784 also passed. This is an intermediate tree: independent review identified public stale-target and candidate-capability boundaries, fixed in subsequent changes; its green checks are not final-tree evidence.
+- Local Linux ASan/UBSan initially hit LeakSanitizer's ptrace limitation. Re-running with `ASAN_OPTIONS=detect_leaks=0` passes 8 C ABI checks; this is not a local leak-check pass. macOS CI keeps the default sanitizers.
+- Local optional resource preparation could not finish through the cloud shell network; native CI independently fetched and hash-verified the exact inputs. A direct connector-artifact signed download returned HTTP 403 in the shell; GitHub artifact remains preserved, and subsequent CI prints bounded synthetic JSON to the job log as well.

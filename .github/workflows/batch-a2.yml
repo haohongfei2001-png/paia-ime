@@ -25,6 +25,7 @@ jobs:
       - name: Verify and acquire pinned research inputs
         run: |
           set -o pipefail
+          python3 Tools/audit-a2.py
           python3 Tools/prepare-a1.py | tee evidence/a2-run/a1-inputs.json
           python3 Tools/prepare-a2.py | tee evidence/a2-run/a2-inputs.json
       - name: Compile typed extension against exact core
@@ -38,7 +39,8 @@ jobs:
       - name: Real constraints and full corpus comparator (ENGINE_NATIVE)
         run: |
           source .build/a2-env.sh
-          swift run -c release paia-constraints > evidence/a2-run/constraints.json
+          set -o pipefail
+          swift run -c release paia-constraints | tee evidence/a2-run/constraints.json
       - name: Synthetic AppKit constrained composition (APPKIT_HOST)
         if: success() || failure()
         run: |

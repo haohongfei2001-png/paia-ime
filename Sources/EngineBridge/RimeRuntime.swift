@@ -39,6 +39,7 @@ public final class InputSession {
     private let runtime: RimeRuntime
     private var id: UInt64
     private var repairRequest:UInt64=0
+    private var issuedChoices:[Int:RepairChoice]=[:]
     private let lock=NSRecursiveLock()
     private var core: SessionCore
     private var ended=false
@@ -90,31 +91,35 @@ public final class InputSession {
         try core.ensureReady()
         return RepairLease(snapshot:snapshot,revision:runtime.dictionaryRevision,request:repairRequest)
     }
-    public func repairAnchors() throws -> [RawAnchor] {
-        lock.lock();defer{lock.unlock()};_ = try lease()
+    public func repairAnchors() throws -> RepairAnchors {
+        lock.lock();defer{lock.unlock()};let identity=try lease()
         var list=PaiaG01List();let rc=paia_rime_g01_anchors(id,&list);defer{paia_rime_g01_free_list(&list)}
         guard rc==PG_OK else{throw ConstraintError.native(code:rc,examined:0)}
-        return try copyList(list).anchors
+        return RepairAnchors(lease:identity,rows:try copyList(list).anchors)
     }
-    public func repairChoices(limit:Int=256) throws -> [RepairChoice] {
+    public func repairChoices(limit:Int=256) throws -> RepairChoices {
         lock.lock();defer{lock.unlock()};let identity=try lease()
         guard (1...2048).contains(limit) else{throw ConstraintError.invalidSpan}
         var list=PaiaG01List();let rc=paia_rime_g01_candidates(id,limit,&list);defer{paia_rime_g01_free_list(&list)}
         guard rc==PG_OK else{throw ConstraintError.native(code:rc,examined:0)}
-        return try copyList(list).anchors.map {RepairChoice(lease:identity,anchor:$0)}
+        let rows=try copyList(list).anchors.map {RepairChoice(lease:identity,anchor:$0,token:UUID())}
+        issuedChoices=Dictionary(uniqueKeysWithValues:rows.map{($0.anchor.engineIndex,$0)})
+        return RepairChoices(rows:rows,complete:list.complete != 0)
     }
     public func selectForRepair(_ choice:RepairChoice) throws -> SessionUpdate {
         lock.lock();defer{lock.unlock()};_ = try lease()
         guard choice.lease.matches(core.snapshot,revision:runtime.dictionaryRevision,request:repairRequest),
-              (0..<2048).contains(choice.anchor.engineIndex) else{throw ConstraintError.stale}
+              (0..<2048).contains(choice.anchor.engineIndex),
+              issuedChoices[choice.anchor.engineIndex]?.token==choice.token else{throw ConstraintError.stale}
         return try step(4,Int32(choice.anchor.engineIndex))
     }
-    public func prepareRepair(target:Int,replacementRaw:String,surface:String,limit:Int=2048) throws -> RepairProposal {
+    public func prepareRepair(target:RepairTarget,replacementRaw:String,surface:String,limit:Int=2048) throws -> RepairProposal {
         lock.lock();defer{lock.unlock()};_ = try lease()
-        guard target>=0,(1...2048).contains(limit),!replacementRaw.utf8.contains(0),!surface.utf8.contains(0) else{throw ConstraintError.invalidSpan}
+        guard target.lease.matches(core.snapshot,revision:runtime.dictionaryRevision,request:repairRequest) else{throw ConstraintError.stale}
+        guard target.index>=0,(1...2048).contains(limit),!replacementRaw.utf8.contains(0),!surface.utf8.contains(0) else{throw ConstraintError.invalidSpan}
         repairRequest += 1;let identity=try lease()
         var trial=PaiaG01Trial()
-        let rc=paia_rime_g01_prepare(id,target,replacementRaw,surface,limit,&trial)
+        let rc=paia_rime_g01_prepare(id,target.index,replacementRaw,surface,limit,&trial)
         defer{paia_rime_g01_free_list(&trial.result)}
         guard rc==PG_OK,trial.session != 0 else{throw ConstraintError.native(code:rc,examined:Int(trial.examined))}
         do {
@@ -197,4 +202,21 @@ public final class RepairProposal {
         lock.lock();defer{lock.unlock()};guard id != 0 else{throw ConstraintError.consumed}
         let result=try apply(id);id=0;return result
     }
+}
+
+// Only engine-issued snapshots can construct these action identities.
+public struct RepairChoice {
+    public let lease:RepairLease,anchor:RawAnchor
+    fileprivate let token:UUID
+}
+public struct RepairChoices {
+    public let rows:[RepairChoice],complete:Bool
+}
+public struct RepairTarget {
+    public let lease:RepairLease,anchor:RawAnchor,index:Int
+    fileprivate init(lease:RepairLease,anchor:RawAnchor,index:Int){self.lease=lease;self.anchor=anchor;self.index=index}
+}
+public struct RepairAnchors {
+    public let lease:RepairLease,rows:[RawAnchor]
+    public var targets:[RepairTarget]{rows.enumerated().map{RepairTarget(lease:lease,anchor:$0.element,index:$0.offset)}}
 }

@@ -25,11 +25,11 @@ final class ConstraintHostTests:XCTestCase {
         let s=try Self.runtime.makeSession(deferredCommit:true),host=HostDispatcher(client:client,session:s);defer{host.invalidate()}
         for b in "nihaoshijieni".utf8 {XCTAssertTrue(host.apply(try s.process(.code(Int32(b)))))}
         for word in ["你好","世界","你"] {
-            let choice=try XCTUnwrap(s.repairChoices(limit:128).first(where:{$0.anchor.text==word}))
+            let choice=try XCTUnwrap(s.repairChoices(limit:128).rows.first(where:{$0.anchor.text==word}))
             XCTAssertTrue(host.apply(try s.selectForRepair(choice)))
         }
         XCTAssertTrue(client.hasMarkedText());XCTAssertEqual(host.insertCount,0)
-        let p=try s.prepareRepair(target:1,replacementRaw:"nihao",surface:"拟好")
+        let p=try s.prepareRepair(target:try s.repairAnchors().targets[1],replacementRaw:"nihao",surface:"拟好")
         XCTAssertEqual(host.insertCount,0)
         let preview=try s.applyRepair(p);XCTAssertNil(preview.commit);XCTAssertTrue(host.apply(preview))
         XCTAssertEqual(client.markedRange().location,prefix.utf16.count);XCTAssertTrue(client.string.hasPrefix(prefix))
@@ -43,9 +43,9 @@ final class ConstraintHostTests:XCTestCase {
         let s=try Self.runtime.makeSession(deferredCommit:true),host=HostDispatcher(client:client,session:s)
         for b in "nihaoshijieni".utf8 {_=host.apply(try s.process(.code(Int32(b))))}
         for word in ["你好","世界","你"] {
-            let c=try XCTUnwrap(s.repairChoices(limit:128).first(where:{$0.anchor.text==word}));_=host.apply(try s.selectForRepair(c))
+            let c=try XCTUnwrap(s.repairChoices(limit:128).rows.first(where:{$0.anchor.text==word}));_=host.apply(try s.selectForRepair(c))
         }
-        let proposal=try s.prepareRepair(target:0,replacementRaw:"nihao",surface:"拟好")
+        let proposal=try s.prepareRepair(target:try s.repairAnchors().targets[0],replacementRaw:"nihao",surface:"拟好")
         client.string="new target";let preview=try s.applyRepair(proposal)
         XCTAssertFalse(host.apply(preview));XCTAssertEqual(client.string,"new target");XCTAssertEqual(host.insertCount,0)
         XCTAssertThrowsError(try s.commitEngineComposition())

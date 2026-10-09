@@ -24,7 +24,3 @@ public struct RawAnchor: Equatable {
         _ = try TextBoundary.range(in:raw,startUTF8:bytes.lowerBound,endUTF8:bytes.upperBound)
     }
 }
-public struct RepairChoice {
-    public let lease:RepairLease, anchor:RawAnchor
-    public init(lease:RepairLease,anchor:RawAnchor){self.lease=lease;self.anchor=anchor}
-}
