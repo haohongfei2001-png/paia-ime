@@ -1,9 +1,14 @@
 import Foundation
+import SettingsCore
 public enum LabSpelling:String,CaseIterable {case full,flypy,natural}
 public struct LabConfiguration:Equatable {
     public var spelling:LabSpelling = .full
     public var traditional=false, literal=false, chinesePunctuation=false, deferredCommit=false
     public init(){}
+    public var preferences:SettingsValues {
+        var value=SettingsValues();value.spelling=SettingsSpelling(rawValue:spelling.rawValue)!;value.traditional=traditional;value.literal=literal;value.chinesePunctuation=chinesePunctuation;return value
+    }
+    public init(preferences:SettingsValues){spelling=LabSpelling(rawValue:preferences.spelling.rawValue)!;traditional=preferences.traditional;literal=preferences.literal;chinesePunctuation=preferences.chinesePunctuation}
     public var schema:String {"paia_b1_"+spelling.rawValue+(traditional ? "_traditional" : "")+(chinesePunctuation ? "_punct" : "_ascii")}
 }
 public struct ResearchLabEnvironment {

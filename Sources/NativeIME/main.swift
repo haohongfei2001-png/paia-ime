@@ -3,12 +3,14 @@ import AppKit
 import InputMethodKit
 import NativeHost
 import EngineBridge
+import SettingsCore
 
 // Compilation-only InputMethodKit lifecycle skeleton. Never instantiate an IMKServer or register a service in this lab.
 @objc(PAIAInputController) final class InputController: IMKInputController {}
 
 @MainActor final class AppDelegate:NSObject,NSApplicationDelegate,NSWindowDelegate {
     var lab:LabEnvironment?,research:ResearchLabEnvironment?,window:NSWindow?,view:LabTextView?,controls:NativeLabController?
+    var settingsStore:SettingsStore?,settingsControls:SettingsController?
     var personal:PersonalLabEnvironment?,personalManager:PersonalLexiconController?,managerWindow:NSWindow?
     func applicationDidFinishLaunching(_ notification:Notification) {
         do {
@@ -24,6 +26,7 @@ import EngineBridge
                     controls.root.addArrangedSubview(button);controls.registerIdleControl(button)
                 }
                 controls.status.stringValue=environment.status
+                try attachExplicitSettings(to:controls)
                 window.makeKeyAndOrderFront(nil);window.makeFirstResponder(controls.editor);NSApp.activate(ignoringOtherApps:true)
                 return
             }
@@ -34,6 +37,7 @@ import EngineBridge
                 window.isReleasedWhenClosed=false;window.delegate=self
                 window.title="PAIA B1 · Native research lab · Not installed"
                 try controls.attach(to:window);self.controls=controls;self.window=window;self.view=controls.editor
+                try attachExplicitSettings(to:controls)
                 window.makeKeyAndOrderFront(nil);window.makeFirstResponder(controls.editor);NSApp.activate(ignoringOtherApps:true)
                 return
             }
@@ -57,6 +61,14 @@ import EngineBridge
             window.makeKeyAndOrderFront(nil);window.makeFirstResponder(view);NSApp.activate(ignoringOtherApps:true)
         } catch { fputs("Native lab startup failed; verified resource configuration is required.\n",stderr);NSApp.terminate(nil) }
     }
+    private func attachExplicitSettings(to controls:NativeLabController)throws {
+        let variables=ProcessInfo.processInfo.environment
+        guard variables["PAIA_B3_SETTINGS"]=="1" else{return}
+        guard let path=variables["PAIA_B3_STORE"],!path.isEmpty else{throw SettingsError.unsafePath}
+        // An unavailable selected store never causes an automatic overwrite or profile search.
+        let store=try? SettingsStore(directory:URL(fileURLWithPath:path,isDirectory:true));settingsStore=store
+        let manager=SettingsController(lab:controls,store:store);settingsControls=manager;manager.restoreAtStartup()
+    }
     @objc func openPersonalTerms(_ sender:NSButton){
         guard let environment=personal,let store=environment.store,let controls=controls,!controls.hasComposition,!controls.inspectorVisible else{return}
         if let existing=managerWindow,personalManager?.isOpen==true{existing.makeKeyAndOrderFront(nil);return}
@@ -74,7 +86,7 @@ import EngineBridge
     func applicationDidResignActive(_ notification:Notification) {view?.dispatcher?.invalidate();view?.candidates.orderOut(nil)}
     func applicationShouldTerminateAfterLastWindowClosed(_ sender:NSApplication)->Bool {true}
     func applicationWillTerminate(_ notification:Notification) {
-        view?.dispatcher?.invalidate()
+        view?.dispatcher?.invalidate();settingsStore?.close()
         if let personal=personal {if !personal.runtime.close(){fputs("Personal derived-data cleanup was incomplete.\n",stderr)};personal.store?.close()}
     }
 }

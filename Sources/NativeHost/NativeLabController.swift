@@ -45,8 +45,8 @@ import ConstraintCore
     private var focusLease:UUID?,selectedTarget:RepairTarget?,proposal:RepairProposal?
     private var previewParameters:(raw:String,surface:String)?
     private var targetRenderID=UUID(),observers=[NSObjectProtocol]()
-    private var idleControls=[NSControl]()
-    public func registerIdleControl(_ control:NSControl){idleControls.append(control);updateControls()}
+    private var idleControls=[(control:NSControl,available:()->Bool)]()
+    public func registerIdleControl(_ control:NSControl,available:@escaping()->Bool={true}){idleControls.append((control,available));updateControls()}
     public init(runtime:RimeRuntime,configuredSession:((LabConfiguration)throws->InputSession)?=nil) {
         self.runtime=runtime;self.configuredSession=configuredSession;super.init()
         root.orientation = .vertical;root.alignment = .leading;root.spacing=10;root.edgeInsets=NSEdgeInsets(top:16,left:16,bottom:16,right:16)
@@ -121,17 +121,32 @@ import ConstraintCore
         }
         updateControls()
     }
-    private func newDispatcher()throws->HostDispatcher {
+    private func preparedSession(_ next:LabConfiguration)throws->InputSession {
         let session:InputSession
-        if let configuredSession=configuredSession{session=try configuredSession(configuration)}
-        else{session=try runtime.makeSession(schema:configuration.schema,deferredCommit:configuration.deferredCommit,chinesePunctuation:configuration.chinesePunctuation)}
-        return HostDispatcher(client:editor,session:session)
+        if let configuredSession=configuredSession{session=try configuredSession(next)}
+        else{session=try runtime.makeSession(schema:next.schema,deferredCommit:next.deferredCommit,chinesePunctuation:next.chinesePunctuation)}
+        do {
+            let update=try session.refresh()
+            guard update.commit==nil,let snapshot=update.snapshot,snapshot.rawASCII.isEmpty,snapshot.preedit.isEmpty else{throw EngineError.closed}
+            return session
+        }catch{session.end();throw error}
+    }
+    private func newDispatcher()throws->HostDispatcher {HostDispatcher(client:editor,session:try preparedSession(configuration))}
+    public func applyConfiguration(_ next:LabConfiguration)throws {
+        guard !hasComposition,!inspectorVisible else{throw EngineError.closed}
+        let prepared=try preparedSession(next)
+        do{guard window?.makeFirstResponder(editor)==true else{throw EngineError.closed}}
+        catch{prepared.end();throw error}
+        // Publish only after successful real-engine preparation and owned-focus restoration.
+        editor.dispatcher?.invalidate();editor.candidates.orderOut(nil)
+        configuration=next;editor.literalMode=next.literal;editor.dispatcher=HostDispatcher(client:editor,session:prepared)
+        reflectConfiguration();updateControls()
     }
     public var hasComposition:Bool {guard let s=editor.dispatcher?.session.snapshot else{return false};return !s.rawASCII.isEmpty || !s.preedit.isEmpty}
     private func updateControls(){
         let idle = !hasComposition && !inspectorVisible
         for control:NSControl in [spelling,script,literal,punctuation,hold]{control.isEnabled=idle}
-        for control in idleControls{control.isEnabled=idle}
+        for item in idleControls{item.control.isEnabled=idle && item.available()}
         commitButton.isEnabled=hasComposition && !inspectorVisible
         cancelCompositionButton.isEnabled=hasComposition && !inspectorVisible
         repairButton.isEnabled=hasComposition && configuration.deferredCommit && !inspectorVisible && editor.dispatcher?.session.supportsRepair==true
@@ -142,9 +157,8 @@ import ConstraintCore
         var next=configuration
         next.spelling=LabSpelling.allCases[spelling.indexOfSelectedItem];next.traditional=script.indexOfSelectedItem==1
         next.literal=literal.state == .on;next.chinesePunctuation=punctuation.state == .on;next.deferredCommit=hold.state == .on
-        editor.dispatcher?.invalidate();configuration=next;editor.literalMode=next.literal
-        do {guard window?.makeFirstResponder(editor)==true else{throw EngineError.closed};editor.dispatcher=try newDispatcher();status.stringValue="Mode changed in the isolated native session."}
-        catch {status.stringValue="Engine configuration failed; no fallback dictionary loaded."}
+        do {try applyConfiguration(next);status.stringValue="Mode applied for this session. Preferences are not saved automatically."}
+        catch {reflectConfiguration();status.stringValue="Mode change failed. Previous configuration retained; no preference was saved."}
         updateControls()
     }
     private func reflectConfiguration(){
