@@ -7,6 +7,7 @@ let package = Package(name: "PAIAIME", platforms: [.macOS(.v13)], products: [
 ], targets: [
     .target(name: "CRimeShim", publicHeadersPath: "include", linkerSettings: [.linkedLibrary("dl"), .linkedLibrary("pthread")]),
     .target(name: "TextBoundary"),
+    .target(name: "LexiconCore"),
     .target(name: "SessionCore", dependencies: ["TextBoundary"]),
     .target(name: "ConstraintCore", dependencies: ["SessionCore", "TextBoundary"]),
     .target(name: "EngineBridge", dependencies: ["CRimeShim", "SessionCore", "TextBoundary", "ConstraintCore"]),
@@ -15,6 +16,7 @@ let package = Package(name: "PAIAIME", platforms: [.macOS(.v13)], products: [
     .executableTarget(name: "BenchmarkCLI", dependencies: ["EngineBridge", "SessionCore"]),
     .executableTarget(name: "ConstraintCLI", dependencies: ["EngineBridge", "SessionCore", "ConstraintCore"]),
     .testTarget(name: "NativeControlTests", dependencies: ["NativeHost", "EngineBridge", "SessionCore", "ConstraintCore"]),
+    .testTarget(name: "LexiconCoreTests", dependencies: ["LexiconCore"]),
     .testTarget(name: "ConstraintCoreTests", dependencies: ["ConstraintCore", "SessionCore"]),
     .testTarget(name: "ConstraintHostTests", dependencies: ["ConstraintCore", "EngineBridge", "NativeHost"]),
     .testTarget(name: "SessionCoreTests", dependencies: ["SessionCore", "TextBoundary"]),

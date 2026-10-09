@@ -1,0 +1,35 @@
+name: Batch B2 explicit personal lexicon
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: b2-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  lexicon:
+    runs-on: macos-15
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Record machine and source
+        run: |
+          mkdir -p evidence/b2-run
+          echo "PAIA_SOURCE_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+          { git rev-parse HEAD; sw_vers; uname -a; swift --version; } | tee evidence/b2-run/environment.txt
+      - name: Explicit-store governance and failure injection (SIMULATED)
+        run: |
+          set -o pipefail
+          swift test --filter LexiconCoreTests 2>&1 | tee evidence/b2-run/store-tests.txt
+      - name: Preserve evidence only, never personal stores
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: b2-evidence-${{ env.PAIA_SOURCE_SHA }}
+          path: evidence/b2-run/
+          retention-days: 14
