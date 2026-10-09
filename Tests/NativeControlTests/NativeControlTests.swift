@@ -41,6 +41,8 @@ final class NativeControlTests:XCTestCase {
         let target=try XCTUnwrap(targets.first(where:{$0.title.hasPrefix("输入法 ")}));target.performClick(nil)
         XCTAssertTrue(w.makeFirstResponder(c.rawField));c.rawField.stringValue="daimashencha"
         XCTAssertTrue(w.makeFirstResponder(c.surfaceField));c.surfaceField.stringValue="代码审查"
+        XCTAssertEqual(c.rawField.stringValue,"daimashencha");XCTAssertEqual(c.surfaceField.stringValue,"代码审查")
+        XCTAssertNotNil(c.rawField.textStorage);XCTAssertNotNil(c.surfaceField.layoutManager)
         XCTAssertEqual(c.editor.markedRange(),mark);XCTAssertEqual(c.editor.selectedRange(),selection);XCTAssertEqual(c.editor.string,document)
         c.textDidChange(Notification(name:NSText.didChangeNotification,object:c.surfaceField))
         c.previewButton.performClick(nil)
@@ -137,11 +139,15 @@ final class NativeControlTests:XCTestCase {
     @MainActor func testInspectorTypingCancelsPreviewAndTabKeepsOwnedFocus()throws {
         let(c,w)=try make();defer{w.close()};try heldSentence(c)
         let accept=try preview(c,w),original=c.editor.string
+        XCTAssertTrue(c.previewButton.nextKeyView===accept);XCTAssertTrue(accept.nextKeyView===c.cancelRepairButton)
+        XCTAssertTrue(c.cancelRepairButton.nextKeyView===c.targetStack.arrangedSubviews.first)
+        XCTAssertTrue(c.targetStack.arrangedSubviews.last?.nextKeyView===c.rawField)
         XCTAssertTrue(w.makeFirstResponder(c.rawField));try key("\t",c.rawField,keyCode:48)
         XCTAssertTrue(w.firstResponder===c.surfaceField);XCTAssertTrue(c.inspectorVisible)
         c.surfaceField.setSelectedRange(NSRange(location:c.surfaceField.string.utf16.count,length:0))
         try key("x",c.surfaceField)
         XCTAssertTrue(c.acceptStack.arrangedSubviews.isEmpty);XCTAssertEqual(c.previewLabel.stringValue,"")
+        XCTAssertTrue(c.previewButton.nextKeyView===c.cancelRepairButton)
         accept.performClick(nil);XCTAssertEqual(c.editor.string,original);XCTAssertEqual(c.editor.dispatcher?.insertCount,0)
         c.cancelRepairButton.performClick(nil);XCTAssertEqual(c.editor.string,original)
     }

@@ -79,8 +79,6 @@ import ConstraintCore
         inspector.addArrangedSubview(NSStackView(views:[rawColumn,surfaceColumn]))
         configure(previewButton,"Preview without committing",#selector(preparePreview(_:)))
         configure(cancelRepairButton,"Cancel repair",#selector(cancelRepair(_:)))
-        rawField.nextKeyView=surfaceField;surfaceField.nextKeyView=previewButton
-        previewButton.nextKeyView=cancelRepairButton;cancelRepairButton.nextKeyView=rawField
         inspector.addArrangedSubview(NSStackView(views:[previewButton,cancelRepairButton]))
         previewLabel.setAccessibilityLabel("Verified engine preview");inspector.addArrangedSubview(previewLabel);inspector.addArrangedSubview(acceptStack)
         root.addArrangedSubview(inspector);root.addArrangedSubview(status)
@@ -165,12 +163,17 @@ import ConstraintCore
         } catch {dismissInspector(resume:true);status.stringValue=message(error)}
     }
     private func ownedInspectorViews()->[NSView] {[rawField,surfaceField,previewButton,cancelRepairButton]+targetStack.arrangedSubviews+acceptStack.arrangedSubviews}
+    private func rebuildInspectorKeyLoop(){
+        let views=targetStack.arrangedSubviews+[rawField,surfaceField,previewButton]+acceptStack.arrangedSubviews+[cancelRepairButton]
+        for (index,view) in views.enumerated(){view.nextKeyView=views[(index+1)%views.count]}
+    }
     private func refreshTargets(preserving old:RawAnchor?)throws {
         guard let host=editor.dispatcher else{throw ConstraintError.stale}
         let targets=try host.session.repairAnchors().targets
         selectedTarget=old == nil ? targets.first : targets.first(where:{$0.anchor==old})
         targetRenderID=UUID();for view in targetStack.arrangedSubviews {targetStack.removeArrangedSubview(view);view.removeFromSuperview()}
         for target in targets {targetStack.addArrangedSubview(TargetButton(target,renderID:targetRenderID,target:self,action:#selector(selectTarget(_:))))}
+        rebuildInspectorKeyLoop()
         targetStack.layoutSubtreeIfNeeded();targetStack.setFrameSize(NSSize(width:max(1,targetStack.fittingSize.width),height:32))
         if old==nil,let target=selectedTarget,let raw=host.session.snapshot?.rawASCII {
             rawField.stringValue=String(decoding:Array(raw.utf8)[target.anchor.bytes],as:UTF8.self);surfaceField.stringValue=target.anchor.text
@@ -189,7 +192,7 @@ import ConstraintCore
         }
     }
     public func textDidChange(_ notification:Notification){discardProposal();status.stringValue="Edit changed. Preview again before accepting."}
-    private func discardProposal(){proposal?.cancel();proposal=nil;previewParameters=nil;previewLabel.stringValue="";for view in acceptStack.arrangedSubviews {acceptStack.removeArrangedSubview(view);view.removeFromSuperview()}}
+    private func discardProposal(){proposal?.cancel();proposal=nil;previewParameters=nil;previewLabel.stringValue="";for view in acceptStack.arrangedSubviews {acceptStack.removeArrangedSubview(view);view.removeFromSuperview()};rebuildInspectorKeyLoop()}
     @objc private func preparePreview(_ sender:NSButton){
         guard let host=editor.dispatcher,let token=focusLease,let target=selectedTarget,host.permitsInspectorFocus(window?.firstResponder) else{editor.dispatcher?.invalidate();dismissInspector(resume:false);return}
         discardProposal()
