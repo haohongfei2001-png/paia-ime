@@ -22,10 +22,10 @@ public final class RimeRuntime {
         } catch {paia_rime_close();throw error}
     }
     deinit { paia_rime_close() }
-    public func makeSession(schema:String = "paia_a1",deferredCommit:Bool = false) throws -> InputSession {
+    public func makeSession(schema:String = "paia_a1",deferredCommit:Bool = false,chinesePunctuation:Bool = false) throws -> InputSession {
         let id=paia_rime_start_named(schema,deferredCommit ? 1 : 0)
         guard id != 0 else { throw EngineError.code(Int32(PAIA_SESSION)) }
-        return InputSession(runtime:self,id:id)
+        return InputSession(runtime:self,id:id,chinesePunctuation:chinesePunctuation)
     }
 }
 
@@ -40,13 +40,14 @@ public final class InputSession {
     private var id: UInt64
     private var repairRequest:UInt64=0
     private var issuedChoices:[Int:RepairChoice]=[:]
+    private let chinesePunctuation:Bool
     private let lock=NSRecursiveLock()
     private var core: SessionCore
     private var ended=false
     private var timing=EngineTiming(engineNanoseconds:0,copyNanoseconds:0)
     public var lastTiming:EngineTiming {lock.lock();defer{lock.unlock()};return timing}
-    internal init(runtime: RimeRuntime,id: UInt64) {
-        self.runtime=runtime; self.id=id; core=SessionCore(dictionaryRevision:runtime.dictionaryRevision)
+    internal init(runtime: RimeRuntime,id: UInt64,chinesePunctuation:Bool) {
+        self.runtime=runtime; self.id=id; self.chinesePunctuation=chinesePunctuation; core=SessionCore(dictionaryRevision:runtime.dictionaryRevision)
     }
     deinit { end() }
     public var snapshot: CandidateSnapshot? { lock.lock(); defer {lock.unlock()}; return core.snapshot }
@@ -167,7 +168,7 @@ public final class InputSession {
             return try select(s.rows[number-1].ref)
         case .code(let code, let modifiers):
             // Non-text keys belong to the host when idle. Command/Option are handled by the host adapter.
-            if !composing && !(97...122).contains(code) {return passthrough()}
+            if !composing && !(97...122).contains(code) && !(chinesePunctuation && [44,63,33,59].contains(code)) {return passthrough()}
             if composing && (core.snapshot?.rawASCII.utf8.count ?? 0)>=4096 && ((97...122).contains(code) || code==39) {
                 return SessionUpdate(handled:true,snapshot:core.snapshot)
             }
