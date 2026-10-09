@@ -46,7 +46,7 @@ import EngineBridge
             _=dispatcher.apply(update);renderCandidates()
             if !update.handled {super.keyDown(with:event)}
         } catch {
-            candidates.orderOut(nil);dispatcher.invalidate();NSBeep()
+            candidates.orderOut(nil);dispatcher.invalidate();NSSound.beep()
         }
     }
     func renderCandidates() {
@@ -80,8 +80,10 @@ import EngineBridge
     func applicationShouldTerminateAfterLastWindowClosed(_ sender:NSApplication)->Bool {true}
     func applicationWillTerminate(_ notification:Notification) {view?.dispatcher.invalidate()}
 }
-let app=NSApplication.shared
-let delegate=AppDelegate();app.delegate=delegate;app.setActivationPolicy(.regular);app.run()
+MainActor.assumeIsolated {
+    let app=NSApplication.shared
+    let delegate=AppDelegate();app.delegate=delegate;app.setActivationPolicy(.regular);app.run()
+}
 #else
 print("PAIANativeLab requires macOS/AppKit; no host evidence was produced.")
 #endif

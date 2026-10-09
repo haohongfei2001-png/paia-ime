@@ -10,3 +10,7 @@ Environment: Debian GNU/Linux 13 x86_64; gcc available; Swift/AppKit unavailable
 - Local ENGINE_NATIVE / APPKIT_HOST: NOT RUN; macOS required. See exact-commit CI results; never infer native success from these checks.
 
 All native test inputs are repository-authored artificial fixtures. No private profiles, system installation, input preferences, network hot path, PAIA connection or models were used.
+
+## First macOS CI attempt
+
+[Run 37977881640](https://github.com/haohongfei2001-png/paia-ime/actions/runs/37977881640), head ed71f2b: official archive/header checks and native C sanitizer guards passed. Swift app build failed on main-actor initialization and unavailable NSBeep symbol. Engine/host/benchmark skipped. Fixed by explicit MainActor entry and NSSound.beep; later exact-head CI must validate the correction.

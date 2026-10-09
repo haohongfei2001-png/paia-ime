@@ -33,7 +33,7 @@ let sorted=samples.sorted()
 func percentile(_ p:Double)->Double {sorted.isEmpty ? 0 : sorted[max(0,Int(ceil(Double(sorted.count)*p))-1)]}
 let result:[String:Any] = ["evidence":"ENGINE_NATIVE","engine":"librime \(env.runtime.version)",
     "dictionaryRevision":env.runtime.dictionaryRevision,"os":ProcessInfo.processInfo.operatingSystemVersionString,
-    "sourceSHA":ProcessInfo.processInfo.environment["GITHUB_SHA"] ?? "local-uncommitted",
+    "sourceSHA":ProcessInfo.processInfo.environment["PAIA_SOURCE_SHA"] ?? "local-uncommitted",
     "fixtureInputs":tasks,"rounds":rounds,"warmupRounds":1,"samples":samples.count,
     "boundary":"Swift session policy + serialized C API process_key + commit/context copy/free + pure state; no UI or visible rendering",
     "learning":"disabled; fresh isolated user directory","milliseconds":["p50":percentile(0.5),"p95":percentile(0.95),"p99":percentile(0.99),"max":sorted.last ?? 0],

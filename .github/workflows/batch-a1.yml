@@ -2,7 +2,7 @@ name: Batch A1 native engine and synthetic host
 on:
   pull_request:
   push:
-    branches: [main, 'batch-a1/**']
+    branches: [main]
 permissions:
   contents: read
 concurrency:
@@ -15,9 +15,13 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
       - name: Record machine and source
         run: |
           mkdir -p evidence/a1-run
+          echo "PAIA_SOURCE_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
           { git rev-parse HEAD; sw_vers; uname -a; swift --version; } | tee evidence/a1-run/environment.txt
       - name: Verify pinned inputs
         run: |
@@ -31,7 +35,9 @@ jobs:
           clang -std=gnu11 -Wall -Wextra -Werror -fsanitize=address,undefined -ISources/CRimeShim/include Tools/test-abi.c Sources/CRimeShim/paia_rime.c -o .build/test-abi
           .build/test-abi | tee evidence/a1-run/abi.txt
       - name: Compile native app and InputMethodKit skeleton
-        run: bash Tools/build-lab.sh
+        run: |
+          set -o pipefail
+          bash Tools/build-lab.sh 2>&1 | tee evidence/a1-run/build.txt
       - name: Pure state and Unicode tests (SIMULATED)
         run: |
           set -o pipefail
