@@ -160,9 +160,11 @@ final class NativeControlTests:XCTestCase {
     }
     @MainActor func testNativeLayoutCapture()throws {
         guard ProcessInfo.processInfo.environment["PAIA_CAPTURE_LAYOUT"]=="1" else{throw XCTSkip("Optional synthetic-view capture not requested")}
-        let(c,w)=try make();defer{w.close()};try heldSentence(c);c.repairButton.performClick(nil)
+        let(c,w)=try make();defer{w.close()};w.orderFront(nil);w.makeKey();XCTAssertTrue(w.makeFirstResponder(c.editor))
+        try heldSentence(c);c.repairButton.performClick(nil)
         XCTAssertTrue(c.inspectorVisible,c.status.stringValue)
-        w.orderFront(nil);c.root.layoutSubtreeIfNeeded();c.root.displayIfNeeded()
+        c.root.layoutSubtreeIfNeeded();c.root.displayIfNeeded()
+        XCTAssertEqual(c.editor.string,"你好输入法世界");XCTAssertTrue(c.editor.hasMarkedText());XCTAssertTrue(c.inspectorVisible)
         let bitmap=try XCTUnwrap(c.root.bitmapImageRepForCachingDisplay(in:c.root.bounds))
         c.root.cacheDisplay(in:c.root.bounds,to:bitmap)
         let data=try XCTUnwrap(bitmap.representation(using:.png,properties:[:]))

@@ -3,6 +3,10 @@ import AppKit
 import EngineBridge
 import ConstraintCore
 
+@MainActor private final class LabStackView:NSStackView {
+    override var isOpaque:Bool {true}
+    override func draw(_ dirtyRect:NSRect){NSColor.windowBackgroundColor.setFill();dirtyRect.fill();super.draw(dirtyRect)}
+}
 @MainActor private final class TargetButton:NSButton {
     let binding:RepairTarget,renderID:UUID
     init(_ binding:RepairTarget,renderID:UUID,target:AnyObject,action:Selector){
@@ -23,7 +27,8 @@ import ConstraintCore
 }
 @MainActor public final class NativeLabController:NSObject,NSTextViewDelegate {
     public let editor=LabTextView(frame:.zero)
-    public let root=NSStackView(),spelling=NSPopUpButton(frame:.zero,pullsDown:false),script=NSPopUpButton(frame:.zero,pullsDown:false)
+    public let root:NSStackView=LabStackView()
+    public let spelling=NSPopUpButton(frame:.zero,pullsDown:false),script=NSPopUpButton(frame:.zero,pullsDown:false)
     public let literal=NSButton(checkboxWithTitle:"Literal text",target:nil,action:nil)
     public let punctuation=NSButton(checkboxWithTitle:"Chinese , ? ! ;",target:nil,action:nil)
     public let hold=NSButton(checkboxWithTitle:"Keep composition for repair",target:nil,action:nil)

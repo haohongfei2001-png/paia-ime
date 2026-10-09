@@ -5,7 +5,7 @@ import AppKit
 @MainActor public final class RepairInputView:NSTextView {
     public var stringValue:String {get{string} set{string=newValue}}
     public init(){
-        super.init(frame:NSRect(x:0,y:0,width:300,height:30))
+        super.init(frame:NSRect(x:0,y:0,width:300,height:30),textContainer:nil)
         isRichText=false;isFieldEditor=false;isVerticallyResizable=false;isHorizontallyResizable=false
         font = .systemFont(ofSize:14);drawsBackground=true;backgroundColor = .textBackgroundColor
         textContainerInset=NSSize(width:6,height:5);textContainer?.widthTracksTextView=true
