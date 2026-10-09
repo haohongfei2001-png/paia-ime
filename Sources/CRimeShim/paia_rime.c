@@ -13,6 +13,8 @@ static uint64_t monotonic_ns(void) {
 }
 static pthread_mutex_t owner = PTHREAD_MUTEX_INITIALIZER;
 static RimeApi *api;
+static PaiaG01API *g01;
+static size_t live_sessions;
 static void *library_handle;
 static char *shared_path, *user_path;
 // Require the whole function pointer, not only its first byte. data_size excludes itself.
@@ -25,7 +27,8 @@ int paia_rime_api_compatible(const void *table) {
       HAS(a, process_key) && HAS(a, clear_composition) && HAS(a, get_input) &&
       HAS(a, get_caret_pos) && HAS(a, get_context) && HAS(a, free_context) &&
       HAS(a, get_commit) && HAS(a, free_commit) && HAS(a, set_option) &&
-      HAS(a, get_version) && HAS(a, select_candidate_on_current_page);
+      HAS(a, get_version) && HAS(a, select_candidate_on_current_page) &&
+      HAS(a, select_candidate) && HAS(a, commit_composition);
 }
 static int copy_text(char **dest, const char *src, size_t limit) {
     if (!src) src = "";
@@ -83,18 +86,18 @@ void paia_rime_close(void) {
     if (api) { api->cleanup_all_sessions(); api->finalize(); api=NULL; }
     // Keep loaded code resident: some upstream dependency static destructors may outlive finalize.
     // A process may initialize only one runtime in the Swift owner; no runtime hot reload in A1.
-    free(shared_path); free(user_path); shared_path=NULL; user_path=NULL;
+    free(shared_path); free(user_path); shared_path=NULL; user_path=NULL; g01=NULL; live_sessions=0;
     pthread_mutex_unlock(&owner);
 }
 uint64_t paia_rime_start_session(void) {
     pthread_mutex_lock(&owner);
     RimeSessionId id=api ? api->create_session() : 0;
     if (id && !api->select_schema(id, "paia_a1")) { api->destroy_session(id); id=0; }
-    if (id) { api->set_option(id, "ascii_mode", False); api->set_option(id, "_no_learning", True); }
+    if (id) { api->set_option(id, "ascii_mode", False); api->set_option(id, "_no_learning", True); live_sessions++; }
     pthread_mutex_unlock(&owner); return id;
 }
 void paia_rime_end_session(uint64_t id) {
-    pthread_mutex_lock(&owner); if (api && api->find_session(id)) api->destroy_session(id); pthread_mutex_unlock(&owner);
+    pthread_mutex_lock(&owner); if (api && api->find_session(id)) {api->destroy_session(id);if(live_sessions)live_sessions--;} pthread_mutex_unlock(&owner);
 }
 static int snapshot(RimeSessionId id, PaiaRimeSnapshot *out) {
     int rc=copy_text(&out->raw, api->get_input(id), PAIA_RAW_LIMIT);
@@ -143,6 +146,10 @@ int paia_rime_step(uint64_t id, int action, int key, int modifiers, PaiaRimeSnap
         if (!in_page) { rc=PAIA_BOUNDS; goto done; }
         out->handled=api->select_candidate_on_current_page(id,(size_t)key);
     } else if (action==3) { api->clear_composition(id); out->handled=1; }
+    else if (action==4) {
+        if(key<0 || key>=PAIA_G01_MAX_SEARCH) {rc=PAIA_BOUNDS;goto done;}
+        out->handled=api->select_candidate(id,(size_t)key);
+    } else if(action==5) out->handled=api->commit_composition(id);
     else if (action!=0) { rc=PAIA_BOUNDS; goto done; }
     out->engine_nanoseconds=monotonic_ns()-engine_begin;
     uint64_t copy_begin=monotonic_ns();
@@ -152,4 +159,60 @@ done:
     pthread_mutex_unlock(&owner);
     if (rc) paia_rime_free_snapshot(out);
     return rc;
+}
+
+static int valid_schema(const char *s) {
+    if(!s || !*s || strlen(s)>80)return 0;
+    for(const char *p=s;*p;p++)if(!((*p>='a'&&*p<='z')||(*p>='0'&&*p<='9')||*p=='_'))return 0;
+    return 1;
+}
+int paia_rime_deploy_named(const char *schema) {
+    pthread_mutex_lock(&owner);int rc=PAIA_DEPLOY;
+    if(api && !live_sessions && valid_schema(schema)) {
+        size_t n=strlen(shared_path)+strlen(schema)+sizeof("/.schema.yaml");char *path=malloc(n);
+        if(path) {snprintf(path,n,"%s/%s.schema.yaml",shared_path,schema);rc=api->deploy_schema(path)?PAIA_OK:PAIA_DEPLOY;free(path);}
+    }
+    pthread_mutex_unlock(&owner);return rc;
+}
+uint64_t paia_rime_start_named(const char *schema,int deferred) {
+    pthread_mutex_lock(&owner);RimeSessionId id=0;
+    if(api && valid_schema(schema)) {
+        id=api->create_session();
+        if(id && !api->select_schema(id,schema)){api->destroy_session(id);id=0;}
+        if(id){api->set_option(id,"ascii_mode",False);api->set_option(id,"_no_learning",True);api->set_option(id,"_auto_commit",!deferred);live_sessions++;}
+    }
+    pthread_mutex_unlock(&owner);return id;
+}
+int paia_rime_enable_g01(const char *path) {
+    pthread_mutex_lock(&owner);int rc=PAIA_UNAVAILABLE;
+    if(api && !live_sessions && path && !g01) {
+        void *handle=dlopen(path,RTLD_NOW|RTLD_LOCAL);
+        if(handle) {
+            PaiaG01API *(*get_api)(void)=(PaiaG01API *(*)(void))dlsym(handle,"paia_g01_get_api");
+            PaiaG01API *v=get_api?get_api():NULL;
+            if(v && v->abi==PAIA_G01_ABI && v->data_size==sizeof(*v) && v->initialize && v->anchors && v->candidates && v->prepare && v->free_list && v->initialize(api)==PG_OK){g01=v;rc=PAIA_OK;}
+            else dlclose(handle);
+        }
+    }
+    pthread_mutex_unlock(&owner);return rc;
+}
+int paia_rime_g01_anchors(uint64_t id,PaiaG01List *out) {
+    if(!out)return PG_INVALID;
+    memset(out,0,sizeof(*out));
+    pthread_mutex_lock(&owner);int rc=g01?g01->anchors(id,out):PAIA_UNAVAILABLE;pthread_mutex_unlock(&owner);return rc;
+}
+int paia_rime_g01_candidates(uint64_t id,size_t limit,PaiaG01List *out) {
+    if(!out)return PG_INVALID;
+    memset(out,0,sizeof(*out));
+    pthread_mutex_lock(&owner);int rc=g01?g01->candidates(id,limit,out):PAIA_UNAVAILABLE;pthread_mutex_unlock(&owner);return rc;
+}
+int paia_rime_g01_prepare(uint64_t id,size_t target,const char *replacement,const char *surface,size_t limit,PaiaG01Trial *out) {
+    if(!out)return PG_INVALID;
+    memset(out,0,sizeof(*out));
+    pthread_mutex_lock(&owner);int rc=g01?g01->prepare(id,target,replacement,surface,limit,out):PAIA_UNAVAILABLE;
+    if(rc==PG_OK && out->session)live_sessions++;
+    pthread_mutex_unlock(&owner);return rc;
+}
+void paia_rime_g01_free_list(PaiaG01List *list) {
+    pthread_mutex_lock(&owner);if(g01)g01->free_list(list);pthread_mutex_unlock(&owner);
 }

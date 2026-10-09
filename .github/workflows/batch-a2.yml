@@ -1,0 +1,48 @@
+name: Batch A2 constrained native research
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: a2-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  constraints:
+    runs-on: macos-15
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Machine and source
+        run: |
+          mkdir -p evidence/a2-run
+          echo "PAIA_SOURCE_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+          { git rev-parse HEAD; sw_vers; uname -a; swift --version; clang++ --version; } | tee evidence/a2-run/environment.txt
+      - name: Verify and acquire pinned research inputs
+        run: |
+          set -o pipefail
+          python3 Tools/prepare-a1.py | tee evidence/a2-run/a1-inputs.json
+          python3 Tools/prepare-a2.py | tee evidence/a2-run/a2-inputs.json
+      - name: Compile typed extension against exact core
+        run: |
+          set -o pipefail
+          bash Tools/build-g01.sh 2>&1 | tee evidence/a2-run/extension-build.txt
+      - name: Compile Swift and pure lease tests (SIMULATED)
+        run: |
+          set -o pipefail
+          swift test --filter ConstraintCoreTests 2>&1 | tee evidence/a2-run/pure-tests.txt
+      - name: Real constraints and full corpus comparator (ENGINE_NATIVE)
+        run: |
+          source .build/a2-env.sh
+          swift run -c release paia-constraints > evidence/a2-run/constraints.json
+      - name: Preserve measurements and failures, never corpus/user directories
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: a2-evidence-${{ env.PAIA_SOURCE_SHA }}
+          path: evidence/a2-run/
+          retention-days: 14

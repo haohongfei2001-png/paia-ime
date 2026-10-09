@@ -2,6 +2,7 @@
 #define PAIA_RIME_H
 #include <stddef.h>
 #include <stdint.h>
+#include "paia_g01.h"
 // All engine calls, including initialization and lifetime, use one process-wide mutex.
 // Return codes carry no input text. No callbacks, network or body logging.
 #define PAIA_MAX_CANDIDATES 64
@@ -21,7 +22,8 @@ int paia_rime_open(const char *library, const char *shared, const char *isolated
 void paia_rime_close(void);
 uint64_t paia_rime_start_session(void);
 void paia_rime_end_session(uint64_t session);
-// Actions: 0 read/consume, 1 process key, 2 select current-page index, 3 clear.
+// Actions: 0 read/consume, 1 process key, 2 select current-page index, 3 clear,
+// 4 select absolute engine index (validated by caller snapshot), 5 explicit engine commit.
 int paia_rime_step(uint64_t session, int action, int key, int modifiers, PaiaRimeSnapshot *out);
 void paia_rime_free_snapshot(PaiaRimeSnapshot *snapshot);
 // ABI guard is also directly exercised with short/missing function tables.
