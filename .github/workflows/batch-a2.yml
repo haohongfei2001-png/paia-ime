@@ -39,6 +39,12 @@ jobs:
         run: |
           source .build/a2-env.sh
           swift run -c release paia-constraints > evidence/a2-run/constraints.json
+      - name: Synthetic AppKit constrained composition (APPKIT_HOST)
+        if: success() || failure()
+        run: |
+          set -o pipefail
+          source .build/a2-env.sh
+          swift test --skip-build --filter ConstraintHostTests 2>&1 | tee evidence/a2-run/host-tests.txt
       - name: Preserve measurements and failures, never corpus/user directories
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02

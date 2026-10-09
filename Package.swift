@@ -15,6 +15,7 @@ let package = Package(name: "PAIAIME", platforms: [.macOS(.v13)], products: [
     .executableTarget(name: "BenchmarkCLI", dependencies: ["EngineBridge", "SessionCore"]),
     .executableTarget(name: "ConstraintCLI", dependencies: ["EngineBridge", "SessionCore", "ConstraintCore"]),
     .testTarget(name: "ConstraintCoreTests", dependencies: ["ConstraintCore", "SessionCore"]),
+    .testTarget(name: "ConstraintHostTests", dependencies: ["ConstraintCore", "EngineBridge", "NativeHost"]),
     .testTarget(name: "SessionCoreTests", dependencies: ["SessionCore", "TextBoundary"]),
     .testTarget(name: "EngineTests", dependencies: ["EngineBridge", "SessionCore"]),
     .testTarget(name: "AppKitHostTests", dependencies: ["NativeHost", "EngineBridge", "SessionCore"])
