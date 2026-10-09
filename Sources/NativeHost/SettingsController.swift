@@ -21,7 +21,7 @@ import SettingsCore
     }
     public func restoreAtStartup(){
         guard !restored else{return};restored=true
-        guard !lab.hasComposition,!lab.inspectorVisible else{status.stringValue="Settings restore refused during composition.";return}
+        guard !lab.isClosed,!lab.hasComposition,!lab.inspectorVisible else{status.stringValue="Settings restore refused during composition.";return}
         guard let store=store else{suspend("Saved settings unavailable. Verified session defaults remain; file unchanged.");return}
         do {
             guard let saved=try store.snapshot() else{status.stringValue="Session defaults. No settings have been saved; closing does not save.";return}
@@ -32,13 +32,13 @@ import SettingsCore
     }
     private func suspend(_ message:String){persistenceSuspended=true;saveButton.isEnabled=false;status.stringValue=message}
     @objc private func save(_ sender:NSButton){
-        guard !lab.hasComposition,!lab.inspectorVisible else{status.stringValue="Commit or cancel composition before saving settings.";return}
+        guard !lab.isClosed,!lab.hasComposition,!lab.inspectorVisible else{status.stringValue="Commit or cancel composition before saving settings.";return}
         guard !persistenceSuspended,let store=store else{return}
         do{let saved=try store.save(lab.configuration.preferences,expectedRevision:savedRevision);savedRevision=saved.revision;status.stringValue="Current settings saved. Ordinary input and repair contents were not saved."}
         catch{suspend("Settings save not confirmed. Current session remains usable. Reopen to verify; no automatic retry.")}
     }
     @objc private func defaults(_ sender:NSButton){
-        guard !lab.hasComposition,!lab.inspectorVisible else{status.stringValue="Commit or cancel composition before restoring defaults.";return}
+        guard !lab.isClosed,!lab.hasComposition,!lab.inspectorVisible else{status.stringValue="Commit or cancel composition before restoring defaults.";return}
         do{try lab.applyConfiguration(LabConfiguration());status.stringValue="Session defaults applied. Saved settings unchanged until an explicit Save."}
         catch{status.stringValue="Defaults could not be prepared. Previous configuration and saved file retained."}
     }

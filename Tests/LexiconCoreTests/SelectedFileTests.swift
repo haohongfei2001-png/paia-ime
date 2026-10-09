@@ -49,4 +49,13 @@ final class SelectedFileTests:XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath:orphan.path));try next.remove();try first.remove()
     }
 
+    func testScratchPathReplacementNeverDeletesReplacement()throws {
+        let root=FileManager.default.temporaryDirectory.appendingPathComponent("paia-b3-scratch-identity-"+UUID().uuidString)
+        let scratch=try PersonalScratch(storeDirectory:root);defer{try? FileManager.default.removeItem(at:root)}
+        let moved=scratch.directory.deletingLastPathComponent().appendingPathComponent("moved-owned-generation")
+        try FileManager.default.moveItem(at:scratch.directory,to:moved);try FileManager.default.createDirectory(at:scratch.directory,withIntermediateDirectories:false)
+        let sentinel=scratch.directory.appendingPathComponent("replacement.txt");try Data("untouched replacement".utf8).write(to:sentinel)
+        XCTAssertThrowsError(try scratch.remove());XCTAssertEqual(try Data(contentsOf:sentinel),Data("untouched replacement".utf8));XCTAssertTrue(FileManager.default.fileExists(atPath:moved.path))
+    }
+
 }

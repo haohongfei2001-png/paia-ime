@@ -37,6 +37,7 @@ import ConstraintCore
     public let status=NSTextField(wrappingLabelWithString:""),previewLabel=NSTextField(wrappingLabelWithString:"")
     public let targetStack=NSStackView(),acceptStack=NSStackView()
     public private(set) var configuration=LabConfiguration()
+    public private(set) var isClosed=false
     public var inspectorVisible:Bool {focusLease != nil}
     private let runtime:RimeRuntime
     private let configuredSession:((LabConfiguration)throws->InputSession)?
@@ -103,6 +104,7 @@ import ConstraintCore
         button.title=title;button.target=self;button.action=action;button.bezelStyle = .rounded;button.refusesFirstResponder=refusesFocus;button.setAccessibilityLabel(title)
     }
     public func attach(to window:LabWindow)throws {
+        guard self.window==nil,!isClosed else{throw EngineError.closed}
         self.window=window;window.contentView=root
         guard window.makeFirstResponder(editor) else{throw EngineError.closed}
         editor.dispatcher=try newDispatcher()
@@ -117,7 +119,7 @@ import ConstraintCore
             if !host.permitsInspectorFocus(window?.firstResponder){host.invalidate();self.dismissInspector(resume:false)}
         }
         for (name,object) in [(NSWindow.didResignKeyNotification,window as AnyObject?),(NSWindow.willCloseNotification,window as AnyObject?),(NSApplication.didResignActiveNotification,nil)] {
-            observers.append(NotificationCenter.default.addObserver(forName:name,object:object,queue:.main){[weak self] _ in MainActor.assumeIsolated {self?.dismissInspector(resume:false);self?.editor.dispatcher?.invalidate();self?.editor.candidates.orderOut(nil)}})
+            observers.append(NotificationCenter.default.addObserver(forName:name,object:object,queue:.main){[weak self] _ in MainActor.assumeIsolated {if name==NSWindow.willCloseNotification{self?.isClosed=true};self?.dismissInspector(resume:false);self?.editor.dispatcher?.invalidate();self?.editor.candidates.orderOut(nil);self?.updateControls()}})
         }
         updateControls()
     }
@@ -131,20 +133,20 @@ import ConstraintCore
             return session
         }catch{session.end();throw error}
     }
-    private func newDispatcher()throws->HostDispatcher {HostDispatcher(client:editor,session:try preparedSession(configuration))}
+    private func newDispatcher()throws->HostDispatcher {guard !isClosed else{throw EngineError.closed};return HostDispatcher(client:editor,session:try preparedSession(configuration))}
     public func applyConfiguration(_ next:LabConfiguration)throws {
-        guard !hasComposition,!inspectorVisible else{throw EngineError.closed}
+        guard !isClosed,!hasComposition,!inspectorVisible else{throw EngineError.closed}
         let prepared=try preparedSession(next)
         do{guard window?.makeFirstResponder(editor)==true else{throw EngineError.closed}}
         catch{prepared.end();throw error}
         // Publish only after successful real-engine preparation and owned-focus restoration.
         editor.dispatcher?.invalidate();editor.candidates.orderOut(nil)
         configuration=next;editor.literalMode=next.literal;editor.dispatcher=HostDispatcher(client:editor,session:prepared)
-        reflectConfiguration();updateControls()
+        reflectConfiguration();status.stringValue="Mode applied for this session. Preferences are not saved automatically.";updateControls()
     }
     public var hasComposition:Bool {guard let s=editor.dispatcher?.session.snapshot else{return false};return !s.rawASCII.isEmpty || !s.preedit.isEmpty}
     private func updateControls(){
-        let idle = !hasComposition && !inspectorVisible
+        let idle = !isClosed && !hasComposition && !inspectorVisible
         for control:NSControl in [spelling,script,literal,punctuation,hold]{control.isEnabled=idle}
         for item in idleControls{item.control.isEnabled=idle && item.available()}
         commitButton.isEnabled=hasComposition && !inspectorVisible

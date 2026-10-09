@@ -1,7 +1,7 @@
 import Foundation
 import Darwin
 
-public enum SettingsTestFault {case beforePublication,afterPublication}
+public enum SettingsTestFault {case beforePublication,afterInitialization,publicationFailure,afterPublication}
 // Explicit chosen directory only. Creating a lock is not an implicit preference save.
 public final class SettingsStore {
     public let directory:URL
@@ -36,6 +36,8 @@ public final class SettingsStore {
     }
     private func verify()throws {
         guard !closed else{throw SettingsError.closed};guard !uncertain else{throw SettingsError.durabilityUnknown}
+        var ownedRoot=stat(),linkedRoot=stat()
+        guard fstat(rootFD,&ownedRoot)==0,lstat(directory.path,&linkedRoot)==0,(linkedRoot.st_mode & S_IFMT)==S_IFDIR,ownedRoot.st_dev==linkedRoot.st_dev,ownedRoot.st_ino==linkedRoot.st_ino else{throw SettingsError.unsafePath}
         var a=stat(),b=stat();guard fstat(writerFD,&a)==0,fstatat(rootFD,".writer.lock",&b,AT_SYMLINK_NOFOLLOW)==0,a.st_ino==b.st_ino,a.st_dev==b.st_dev else{throw SettingsError.unsafePath}
         guard try read("settings.json")==expected,try read(".initialized")==((expected==nil) ? nil:marker) else{throw SettingsError.stale}
     }
@@ -58,9 +60,11 @@ public final class SettingsStore {
             guard initialized>=0 else{throw SettingsError.unsafePath};defer{Darwin.close(initialized)}
             // Once initialization starts, any failure is uncertain; no implicit retry or replacement.
             uncertain=true;try writeAll(marker,initialized);guard fsync(rootFD)==0 else{throw SettingsError.durabilityUnknown}
+            if fault == .afterInitialization{throw SettingsError.durabilityUnknown}
         }
-        guard renameat(rootFD,name,rootFD,"settings.json")==0 else{throw SettingsError.io}
-        uncertain=true
+        uncertain=true // Conservative quarantine even if a publication syscall reports failure.
+        if fault == .publicationFailure{throw SettingsError.durabilityUnknown}
+        guard renameat(rootFD,name,rootFD,"settings.json")==0 else{throw SettingsError.durabilityUnknown}
         guard fault != .afterPublication,fsync(rootFD)==0 else{throw SettingsError.durabilityUnknown}
         expected=bytes;document=next;uncertain=false;return next
     }

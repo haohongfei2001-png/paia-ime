@@ -20,7 +20,12 @@ final class SettingsCoreTests:XCTestCase {
     }
     func testUnknownTypeVersionDigestDepthAndOversizeFailClosed()throws {
         let valid=try SettingsCodec.encode(SettingsDocument(revision:1,values:SettingsValues())),text=String(decoding:valid,as:UTF8.self)
-        let bad=[Data(),Data([255]),Data(valid.dropLast()),Data(repeating:32,count:SettingsCodec.maximumBytes+1),Data((String(repeating:"[",count:9)+String(repeating:"]",count:9)).utf8),Data((" "+text).utf8),Data(text.replacingOccurrences(of:"paia.settings.v1",with:"paia.settings.v2").utf8),Data(text.replacingOccurrences(of:"full",with:"untrusted-schema").utf8),Data(text.replacingOccurrences(of:"false",with:"0").utf8),Data(text.replacingOccurrences(of:"\"document\":",with:"\"body\":\"never record\",\"document\":").utf8)]
+        var bad=[Data(),Data([255]),Data(valid.dropLast()),Data(repeating:32,count:SettingsCodec.maximumBytes+1),Data((String(repeating:"[",count:9)+String(repeating:"]",count:9)).utf8),Data((" "+text).utf8),Data(text.replacingOccurrences(of:"paia.settings.v1",with:"paia.settings.v2").utf8),Data(text.replacingOccurrences(of:"full",with:"untrusted-schema").utf8),Data(text.replacingOccurrences(of:"false",with:"0").utf8),Data(text.replacingOccurrences(of:"\"document\":",with:"\"body\":\"never record\",\"document\":").utf8)]
+        let prefix="\"sha256\":\"",start=try XCTUnwrap(text.range(of:prefix)?.upperBound)
+        var tampered=text;tampered.replaceSubrange(start...start,with:text[start]=="a" ? "b":"a")
+        bad += [Data(tampered.utf8),Data(text.replacingOccurrences(of:"\"traditional\":false",with:"\"traditional\":true").utf8),Data(text.replacingOccurrences(of:"\"literal\":false",with:"\"literal\":false,\"literal\":false").utf8)]
+        XCTAssertThrowsError(try SettingsCodec.encode(SettingsDocument(revision:0,values:SettingsValues())))
+        XCTAssertThrowsError(try SettingsCodec.encode(SettingsDocument(revision:SettingsCodec.maximumRevision+1,values:SettingsValues())))
         for bytes in bad{XCTAssertThrowsError(try SettingsCodec.decode(bytes))}
     }
     func testExplicitSaveReopenAndNoImplicitInitializationRecord()throws {
@@ -60,4 +65,40 @@ final class SettingsCoreTests:XCTestCase {
         XCTAssertThrowsError(try post.save(value,expectedRevision:1));XCTAssertThrowsError(try post.snapshot());XCTAssertThrowsError(try post.save(value,expectedRevision:1));post.close()
         let verified=try SettingsStore(directory:path);defer{verified.close()};XCTAssertEqual(try verified.snapshot()?.revision,2);XCTAssertEqual(try verified.snapshot()?.values,value)
     }
+    func testSelectedDirectoryReplacementAndLockReplacementFailClosed()throws {
+        let parent=try directory(),path=parent.appendingPathComponent("selected"),moved=parent.appendingPathComponent("moved")
+        let store=try SettingsStore(directory:path);defer{store.close()};_ = try store.save(SettingsValues(),expectedRevision:0)
+        let original=try Data(contentsOf:path.appendingPathComponent("settings.json"))
+        try FileManager.default.moveItem(at:path,to:moved);try FileManager.default.createDirectory(at:path,withIntermediateDirectories:false)
+        XCTAssertThrowsError(try store.snapshot());XCTAssertThrowsError(try store.save(SettingsValues(),expectedRevision:1))
+        XCTAssertEqual(try Data(contentsOf:moved.appendingPathComponent("settings.json")),original);XCTAssertTrue(try FileManager.default.contentsOfDirectory(atPath:path.path).isEmpty)
+        let root=try directory(),other=try SettingsStore(directory:root);defer{other.close()}
+        try FileManager.default.moveItem(at:root.appendingPathComponent(".writer.lock"),to:root.appendingPathComponent("moved-lock"));try Data().write(to:root.appendingPathComponent(".writer.lock"))
+        XCTAssertThrowsError(try other.snapshot());XCTAssertThrowsError(try other.save(SettingsValues(),expectedRevision:0))
+    }
+    func testFirstSaveAndPublicationFailureBoundaries()throws {
+        let before=try directory(),early=try SettingsStore(directory:before,fault:.beforePublication)
+        XCTAssertThrowsError(try early.save(SettingsValues(),expectedRevision:0));XCTAssertNil(try early.snapshot());early.close()
+        let reopen=try SettingsStore(directory:before);XCTAssertNil(try reopen.snapshot());reopen.close()
+        let initialized=try directory(),middle=try SettingsStore(directory:initialized,fault:.afterInitialization)
+        XCTAssertThrowsError(try middle.save(SettingsValues(),expectedRevision:0));XCTAssertThrowsError(try middle.snapshot());middle.close()
+        XCTAssertThrowsError(try SettingsStore(directory:initialized));XCTAssertFalse(FileManager.default.fileExists(atPath:initialized.appendingPathComponent("settings.json").path))
+        let published=try directory(),late=try SettingsStore(directory:published,fault:.afterPublication)
+        XCTAssertThrowsError(try late.save(SettingsValues(),expectedRevision:0));XCTAssertThrowsError(try late.snapshot());late.close()
+        let recovered=try SettingsStore(directory:published);XCTAssertEqual(try recovered.snapshot()?.revision,1);recovered.close()
+        let old=try Data(contentsOf:published.appendingPathComponent("settings.json")),failed=try SettingsStore(directory:published,fault:.publicationFailure)
+        XCTAssertThrowsError(try failed.save(SettingsValues(),expectedRevision:1));XCTAssertThrowsError(try failed.snapshot());failed.close()
+        XCTAssertEqual(try Data(contentsOf:published.appendingPathComponent("settings.json")),old)
+    }
+
+    func testMissingOrWrongMarkerCannotAcknowledgeValidAuthority()throws {
+        for remove in [false,true] {
+            let path=try directory(),store=try SettingsStore(directory:path);_ = try store.save(SettingsValues(),expectedRevision:0)
+            let original=try Data(contentsOf:path.appendingPathComponent("settings.json")),marker=path.appendingPathComponent(".initialized")
+            if remove{try FileManager.default.removeItem(at:marker)}else{try Data("wrong marker".utf8).write(to:marker)}
+            XCTAssertThrowsError(try store.snapshot());XCTAssertThrowsError(try store.save(SettingsValues(),expectedRevision:1));store.close()
+            XCTAssertThrowsError(try SettingsStore(directory:path));XCTAssertEqual(try Data(contentsOf:path.appendingPathComponent("settings.json")),original)
+        }
+    }
+
 }

@@ -23,13 +23,16 @@ final class SettingsNativeTests:XCTestCase {
         if stage=="personal_corrupt"{try Data("synthetic-corrupt-personal-authority".utf8).write(to:personalURL.appendingPathComponent("lexicon.json"));let saved=try SettingsStore(directory:directory);_ = try saved.save(SettingsValues(),expectedRevision:0);saved.close()}
         let environment=try PersonalLabEnvironment(environment:variables);defer{_ = environment.runtime.close();environment.store?.close()}
         if stage=="overlay_disabled"{environment.disableOverlayUntilRestart()}
-        var rejectFlypy=stage=="restore_failed"
+        var rejectFlypy=stage=="restore_failed",dirtyFlypy=false
+        var rejected:InputSession?
         let lab=NativeLabController(runtime:environment.runtime,configuredSession:{configuration in
             if rejectFlypy && configuration.spelling == .flypy {throw EngineError.closed}
-            return try environment.makeSession(configuration:configuration)
+            let session=try environment.makeSession(configuration:configuration)
+            if dirtyFlypy && configuration.spelling == .flypy {_ = try session.process(.code(110));rejected=session}
+            return session
         })
         let window=LabWindow(contentRect:NSRect(x:0,y:0,width:1100,height:830),styleMask:[.titled,.closable,.resizable],backing:.buffered,defer:false);window.isReleasedWhenClosed=false
-        try lab.attach(to:window);window.makeKey();XCTAssertTrue(window.makeFirstResponder(lab.editor));defer{window.close()}
+        try lab.attach(to:window);window.orderFront(nil);window.makeKey();XCTAssertTrue(window.makeFirstResponder(lab.editor));defer{window.close()}
         let store=try? SettingsStore(directory:directory,fault:stage=="save_unknown" ? .afterPublication:nil);defer{store?.close()}
         let settings=SettingsController(lab:lab,store:store);settings.restoreAtStartup()
         let before=try? Data(contentsOf:file)
@@ -46,6 +49,9 @@ final class SettingsNativeTests:XCTestCase {
             lab.editor.string="";try lab.applyConfiguration(LabConfiguration());let old=try XCTUnwrap(lab.editor.dispatcher)
             rejectFlypy=true;lab.spelling.selectItem(at:1);XCTAssertTrue(NSApp.sendAction(lab.spelling.action!,to:lab.spelling.target,from:lab.spelling))
             XCTAssertEqual(lab.configuration.spelling,.full);XCTAssertEqual(lab.spelling.indexOfSelectedItem,0);XCTAssertTrue(lab.editor.dispatcher===old);XCTAssertNoThrow(try old.session.refresh())
+            rejectFlypy=false;dirtyFlypy=true;lab.spelling.selectItem(at:1)
+            XCTAssertTrue(NSApp.sendAction(lab.spelling.action!,to:lab.spelling.target,from:lab.spelling))
+            XCTAssertNotNil(rejected);XCTAssertThrowsError(try rejected!.refresh());XCTAssertTrue(lab.editor.dispatcher===old);XCTAssertEqual(lab.configuration.spelling,.full);dirtyFlypy=false
             try type("nihao",lab.editor);XCTAssertTrue(lab.hasComposition);XCTAssertFalse(settings.saveButton.isEnabled)
             let marked=lab.editor.string,range=lab.editor.markedRange(),generation=old.session.snapshot?.inputGeneration
             send(settings.saveButton);send(settings.defaultsButton)
@@ -58,11 +64,16 @@ final class SettingsNativeTests:XCTestCase {
             send(settings.saveButton);XCTAssertNotNil(try store?.snapshot());let savedBytes=try Data(contentsOf:file)
             try type("nihao",lab.editor);try key(" ",lab.editor,code:49);XCTAssertEqual(try Data(contentsOf:file),savedBytes)
             if variables["PAIA_CAPTURE_B3_LAYOUT"]=="1" {
-                window.orderFront(nil);lab.root.layoutSubtreeIfNeeded();lab.root.displayIfNeeded()
+                XCTAssertTrue(lab.editor.string.hasSuffix("你好"));lab.editor.scrollRangeToVisible(NSRange(location:lab.editor.string.utf16.count,length:0))
+                lab.root.layoutSubtreeIfNeeded();lab.editor.needsDisplay=true;lab.root.displayIfNeeded()
                 let bitmap=try XCTUnwrap(lab.root.bitmapImageRepForCachingDisplay(in:lab.root.bounds));lab.root.cacheDisplay(in:lab.root.bounds,to:bitmap)
                 let png=try XCTUnwrap(bitmap.representation(using:.png,properties:[:])),encoded=png.base64EncodedString();var offset=encoded.startIndex,index=0
+                let output=URL(fileURLWithPath:FileManager.default.currentDirectoryPath).appendingPathComponent("evidence/b3-run");try FileManager.default.createDirectory(at:output,withIntermediateDirectories:true);try png.write(to:output.appendingPathComponent("settings-controls.png"))
                 while offset<encoded.endIndex{let end=encoded.index(offset,offsetBy:3000,limitedBy:encoded.endIndex) ?? encoded.endIndex;FileHandle.standardError.write(Data(("PAIA_B3_IMAGE_\(index):"+encoded[offset..<end]+"\n").utf8));offset=end;index+=1}
             }
+            let beforeClose=try Data(contentsOf:file);window.close();XCTAssertTrue(lab.isClosed)
+            send(settings.saveButton);send(settings.defaultsButton);XCTAssertThrowsError(try lab.applyConfiguration(LabConfiguration()));XCTAssertNil(lab.editor.makeSession?())
+            XCTAssertEqual(try Data(contentsOf:file),beforeClose)
         } else if stage=="save" {
             var next=LabConfiguration();next.spelling = .flypy;next.traditional=true;next.chinesePunctuation=true;next.deferredCommit=true
             try lab.applyConfiguration(next);send(settings.saveButton);XCTAssertEqual(try store?.snapshot()?.values,next.preferences)

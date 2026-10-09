@@ -14,6 +14,8 @@ import SettingsCore
     var personal:PersonalLabEnvironment?,personalManager:PersonalLexiconController?,managerWindow:NSWindow?
     func applicationDidFinishLaunching(_ notification:Notification) {
         do {
+            let variables=ProcessInfo.processInfo.environment
+            if variables["PAIA_B3_SETTINGS"]=="1",variables["PAIA_B1_RESEARCH"] != "1",variables["PAIA_B2_RESEARCH"] != "1" {throw SettingsError.unsafePath}
             if ProcessInfo.processInfo.environment["PAIA_B2_RESEARCH"]=="1" {
                 let environment=try PersonalLabEnvironment();personal=environment
                 let controls=NativeLabController(runtime:environment.runtime,configuredSession:{configuration in try environment.makeSession(configuration:configuration)})
