@@ -110,12 +110,12 @@ public final class LexiconStore {
         lock.lock();defer{lock.unlock()};try ready();return try preview(bytes)
     }
     private func preview(_ bytes:Data)throws->LexiconImportPreview {
-        let imported=try LexiconCodec.decode(bytes);var additions=[PersonalTerm](),protected=0,unchanged=0,conflicts=0
+        let imported=try LexiconCodec.decode(bytes);var additions=[PersonalTerm](),protected=0,unchanged=0,conflicts=0,notices=[String]()
         for term in imported.terms {
             if let local=state.terms.first(where:{$0.id==term.id || $0.comparisonKey==term.comparisonKey}) {
-                if local.isDeleted && !term.isDeleted{protected+=1}
+                if local.isDeleted && !term.isDeleted{protected+=1;notices.append("Protected deletion: "+term.surface+" ["+term.reading+"]")}
                 else if local.sameContent(as:term){unchanged+=1}
-                else{conflicts+=1} // Imported revision numbers never authorize replacing local decisions.
+                else{conflicts+=1;notices.append("Conflict, local retained: "+term.surface+" ["+term.reading+"]")} // Imported revisions never authorize replacement.
             } else {additions.append(term)}
         }
         if !additions.isEmpty {
@@ -123,9 +123,9 @@ public final class LexiconStore {
                 var candidate=state;candidate.revision=try LexiconRules.nextRevision(state)
                 for var term in additions{term.revision=candidate.revision;candidate.terms.append(term)}
                 _ = try LexiconCodec.encode(candidate) // Exact prospective byte limit and revision, not just row count.
-            } catch {conflicts+=1}
+            } catch {conflicts+=1;notices.append("Merged state exceeds a limit or has conflicting effective aliases/pins.")}
         }
-        return LexiconImportPreview(baseRevision:state.revision,sha256:LexiconCodec.digest(bytes),additions:additions,protectedDeletions:protected,unchanged:unchanged,conflicts:conflicts,store:identity,bytes:bytes)
+        return LexiconImportPreview(baseRevision:state.revision,sha256:LexiconCodec.digest(bytes),additions:additions,protectedDeletions:protected,unchanged:unchanged,conflicts:conflicts,notices:notices,store:identity,bytes:bytes)
     }
     public func applyImport(_ plan:LexiconImportPreview)throws {
         lock.lock();defer{lock.unlock()};try requireRevision(plan.baseRevision)

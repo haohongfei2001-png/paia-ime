@@ -26,6 +26,9 @@ jobs:
         run: |
           set -o pipefail
           swift test --filter LexiconCoreTests 2>&1 | tee evidence/b2-run/store-tests.txt
+          swift test --skip-build --filter SelectedFileTests 2>&1 | tee evidence/b2-run/files-tests.txt
+          swift test --skip-build --filter PersonalControlTests 2>&1 | tee evidence/b2-run/control-tests.txt
+          swift build --product PAIANativeLab 2>&1 | tee evidence/b2-run/app-build.txt
       - name: Prepare exact research resources before native startup
         run: |
           set -o pipefail

@@ -98,6 +98,7 @@ public enum LexiconCodec {
 
 public struct LexiconImportPreview {
     public let baseRevision:UInt64,sha256:String,additions:[PersonalTerm],protectedDeletions:Int,unchanged:Int,conflicts:Int
+    public let notices:[String]
     let store:UUID,bytes:Data
     public var canApply:Bool {conflicts==0 && !additions.isEmpty}
 }

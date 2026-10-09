@@ -89,6 +89,7 @@ final class PersonalEngineTests:XCTestCase {
             XCTAssertThrowsError(try s.repairChoices());XCTAssertThrowsError(try s.repairAnchors())
             for _ in 0..<20 {try choose("nihao","你好")}
             environment.disableOverlayUntilRestart()
+            XCTAssertThrowsError(try s.refresh()) // Existing overlay capabilities die too, not just future sessions.
             XCTAssertTrue(try session().supportsRepair);XCTAssertFalse(try candidates("qionghaicelijia").contains(marker))
             try choose("shurufa","输入法")
         }
@@ -96,6 +97,8 @@ final class PersonalEngineTests:XCTestCase {
         let user=environment.temporaryDirectory.appendingPathComponent("engine-user")
         let files=FileManager.default.enumerator(at:user,includingPropertiesForKeys:nil)!.allObjects.compactMap{$0 as? URL}
         XCTAssertFalse(files.contains{$0.lastPathComponent.contains("userdb")},"Implicit learning database created")
+        XCTAssertTrue(environment.runtime.close());XCTAssertFalse(FileManager.default.fileExists(atPath:environment.temporaryDirectory.path))
+        XCTAssertThrowsError(try environment.makeSession(configuration:LabConfiguration()))
         print("B2_ENGINE_NATIVE stage=\(stage) activeTerms=\(environment.resources.activeTerms) revision=\(environment.resources.revision); no private input in this fixture")
     }
 }

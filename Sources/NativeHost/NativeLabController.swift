@@ -45,6 +45,8 @@ import ConstraintCore
     private var focusLease:UUID?,selectedTarget:RepairTarget?,proposal:RepairProposal?
     private var previewParameters:(raw:String,surface:String)?
     private var targetRenderID=UUID(),observers=[NSObjectProtocol]()
+    private var idleControls=[NSControl]()
+    public func registerIdleControl(_ control:NSControl){idleControls.append(control);updateControls()}
     public init(runtime:RimeRuntime,configuredSession:((LabConfiguration)throws->InputSession)?=nil) {
         self.runtime=runtime;self.configuredSession=configuredSession;super.init()
         root.orientation = .vertical;root.alignment = .leading;root.spacing=10;root.edgeInsets=NSEdgeInsets(top:16,left:16,bottom:16,right:16)
@@ -129,6 +131,7 @@ import ConstraintCore
     private func updateControls(){
         let idle = !hasComposition && !inspectorVisible
         for control:NSControl in [spelling,script,literal,punctuation,hold]{control.isEnabled=idle}
+        for control in idleControls{control.isEnabled=idle}
         commitButton.isEnabled=hasComposition && !inspectorVisible
         cancelCompositionButton.isEnabled=hasComposition && !inspectorVisible
         repairButton.isEnabled=hasComposition && configuration.deferredCommit && !inspectorVisible && editor.dispatcher?.session.supportsRepair==true
