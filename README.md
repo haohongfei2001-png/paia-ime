@@ -4,7 +4,7 @@ An independent **macOS Chinese input method** project. PAIA is an optional futur
 
 ## Status
 
-**Batch A1 native engine / synthetic AppKit lab implemented; system IME not installed.** The design/research package includes native AppKit test-probe code, a real librime engine experiment report, a browser prototype and bounded test evidence. An offline prototype and a synthetic AppKit host are **not** an installed macOS input source. Comparative user experience and accuracy versus WeChat/Sogou/Apple have not been established.
+**Batch A1 native engine/host and Batch A2 bounded constrained-editing research implemented; system IME not installed.** The design/research package includes native AppKit test-probe code, a real librime engine experiment report, a browser prototype and bounded test evidence. An offline prototype and a synthetic AppKit host are **not** an installed macOS input source. Comparative user experience and accuracy versus WeChat/Sogou/Apple have not been established.
 
 ## Research / 研究资料
 
@@ -20,6 +20,10 @@ An independent **macOS Chinese input method** project. PAIA is an optional futur
 ## Native Batch A1 lab
 
 See [A1 build, tests, resource pins and evidence boundaries](docs/BATCH_A1.md). The Swift package contains a pure session core, Unicode boundary checks, real serialized librime C ABI, synthetic NSTextView host, native candidate panel and reproducible benchmark. It does not register an input source. [Native CI](https://github.com/haohongfei2001-png/paia-ime/actions/workflows/batch-a1.yml) separates state, engine and AppKit results; read the run for the exact commit.
+
+## Native Batch A2 constrained-editing research
+
+[Constrained editing contract and reproducible full-corpus benchmark](docs/BATCH_A2.md) documents the actual version-pinned C++ capability extension, transactional whole-session replay, target/candidate identity guards and native AppKit proof. [A2 evidence](evidence/a2/VALIDATION.md) retains failures and exact source references. It is a bounded engine experiment, not a product-quality or installed-IME claim.
 
 ## Batch A1 engineering contract
 

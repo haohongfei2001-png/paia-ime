@@ -1,6 +1,7 @@
 import Foundation
 import CRimeShim
 import SessionCore
+import ConstraintCore
 
 public enum EngineError: Error { case code(Int32), invalidUTF8, closed }
 public final class RimeRuntime {
@@ -9,16 +10,20 @@ public final class RimeRuntime {
     private static let lifetime = NSLock()
     private static var created = false
     // Explicit directories only: callers must create a fresh isolated user directory.
-    public init(library: String, shared: String, isolatedUser: String, dictionaryRevision: String) throws {
+    public init(library: String, shared: String, isolatedUser: String, dictionaryRevision: String, schemas:[String] = [], g01Library:String? = nil) throws {
         Self.lifetime.lock(); defer { Self.lifetime.unlock() }
         guard !Self.created else { throw EngineError.code(Int32(PAIA_BUSY)) }
         let rc=paia_rime_open(library,shared,isolatedUser)
         guard rc==PAIA_OK else { throw EngineError.code(rc) }
         Self.created=true; self.dictionaryRevision=dictionaryRevision
+        do {
+            for schema in schemas {let code=paia_rime_deploy_named(schema);guard code==PAIA_OK else{throw EngineError.code(code)}}
+            if let path=g01Library {let code=paia_rime_enable_g01(path);guard code==PAIA_OK else{throw EngineError.code(code)}}
+        } catch {paia_rime_close();throw error}
     }
     deinit { paia_rime_close() }
-    public func makeSession() throws -> InputSession {
-        let id=paia_rime_start_session()
+    public func makeSession(schema:String = "paia_a1",deferredCommit:Bool = false) throws -> InputSession {
+        let id=paia_rime_start_named(schema,deferredCommit ? 1 : 0)
         guard id != 0 else { throw EngineError.code(Int32(PAIA_SESSION)) }
         return InputSession(runtime:self,id:id)
     }
@@ -31,7 +36,10 @@ public enum InputKey {
     case code(Int32, modifiers: Int32 = 0), returnKey, space, number(Int), escape, command
 }
 public final class InputSession {
-    private let runtime: RimeRuntime, id: UInt64
+    private let runtime: RimeRuntime
+    private var id: UInt64
+    private var repairRequest:UInt64=0
+    private var issuedChoices:[Int:RepairChoice]=[:]
     private let lock=NSRecursiveLock()
     private var core: SessionCore
     private var ended=false
@@ -58,25 +66,85 @@ public final class InputSession {
         defer {paia_rime_free_snapshot(&c)}
         guard rc==PAIA_OK else { core.invalidate(); throw EngineError.code(rc) }
         timing=EngineTiming(engineNanoseconds:c.engine_nanoseconds,copyNanoseconds:c.copy_nanoseconds)
-        func string(_ p: UnsafeMutablePointer<CChar>?) throws -> String {
-            guard let p=p else { return "" }
-            guard let s=String(validatingUTF8:p) else { throw EngineError.invalidUTF8 }
-            return s
+        do { return try core.receive(Self.decode(c),literal:literal) }
+        catch { core.invalidate(); throw error }
+    }
+    private static func decode(_ c:PaiaRimeSnapshot) throws -> EngineValue {
+        func string(_ p:UnsafeMutablePointer<CChar>?) throws -> String {
+            guard let p=p else{return ""}
+            guard let s=String(validatingUTF8:p) else{throw EngineError.invalidUTF8};return s
         }
-        do {
-            let rows=try (0..<Int(c.count)).map { i in try string(c.candidates?[i]) }
-            let value=try EngineValue(raw:string(c.raw),preedit:string(c.preedit),caretUTF8:Int(c.caret_utf8),
-                preeditCaretUTF8:Int(c.preedit_caret_utf8),selectionStartUTF8:Int(c.selection_start_utf8),
-                selectionEndUTF8:Int(c.selection_end_utf8),candidates:rows,page:Int(c.page),highlighted:Int(c.highlighted),
-                hasMore:c.has_more != 0,commit:c.commit == nil ? nil : string(c.commit),handled:c.handled != 0)
-            return try core.receive(value,literal:literal)
-        } catch { core.invalidate(); throw error }
+        let rows=try (0..<Int(c.count)).map {i in try string(c.candidates?[i])}
+        return try EngineValue(raw:string(c.raw),preedit:string(c.preedit),caretUTF8:Int(c.caret_utf8),
+            preeditCaretUTF8:Int(c.preedit_caret_utf8),selectionStartUTF8:Int(c.selection_start_utf8),
+            selectionEndUTF8:Int(c.selection_end_utf8),candidates:rows,page:Int(c.page),highlighted:Int(c.highlighted),
+            hasMore:c.has_more != 0,commit:c.commit == nil ? nil : string(c.commit),handled:c.handled != 0)
     }
     public func refresh() throws -> SessionUpdate { lock.lock(); defer {lock.unlock()}; return try step(0) }
     public func select(_ ref: CandidateRef) throws -> SessionUpdate {
         lock.lock(); defer {lock.unlock()}
         try core.validate(ref)
         return try step(2,Int32(ref.engineIndexOnPage))
+    }
+    private func lease() throws -> RepairLease {
+        guard !ended,let snapshot=core.snapshot else{throw EngineError.closed}
+        try core.ensureReady()
+        return RepairLease(snapshot:snapshot,revision:runtime.dictionaryRevision,request:repairRequest)
+    }
+    public func repairAnchors() throws -> RepairAnchors {
+        lock.lock();defer{lock.unlock()};let identity=try lease()
+        var list=PaiaG01List();let rc=paia_rime_g01_anchors(id,&list);defer{paia_rime_g01_free_list(&list)}
+        guard rc==PG_OK else{throw ConstraintError.native(code:rc,examined:0)}
+        return RepairAnchors(lease:identity,rows:try copyList(list).anchors)
+    }
+    public func repairChoices(limit:Int=256) throws -> RepairChoices {
+        lock.lock();defer{lock.unlock()};let identity=try lease()
+        guard (1...2048).contains(limit) else{throw ConstraintError.invalidSpan}
+        var list=PaiaG01List();let rc=paia_rime_g01_candidates(id,limit,&list);defer{paia_rime_g01_free_list(&list)}
+        guard rc==PG_OK else{throw ConstraintError.native(code:rc,examined:0)}
+        let rows=try copyList(list).anchors.map {RepairChoice(lease:identity,anchor:$0,token:UUID())}
+        issuedChoices=Dictionary(uniqueKeysWithValues:rows.map{($0.anchor.engineIndex,$0)})
+        return RepairChoices(rows:rows,complete:list.complete != 0)
+    }
+    public func selectForRepair(_ choice:RepairChoice) throws -> SessionUpdate {
+        lock.lock();defer{lock.unlock()};_ = try lease()
+        guard choice.lease.matches(core.snapshot,revision:runtime.dictionaryRevision,request:repairRequest),
+              (0..<2048).contains(choice.anchor.engineIndex),
+              issuedChoices[choice.anchor.engineIndex]?.token==choice.token else{throw ConstraintError.stale}
+        return try step(4,Int32(choice.anchor.engineIndex))
+    }
+    public func prepareRepair(target:RepairTarget,replacementRaw:String,surface:String,limit:Int=2048) throws -> RepairProposal {
+        lock.lock();defer{lock.unlock()};_ = try lease()
+        guard target.lease.matches(core.snapshot,revision:runtime.dictionaryRevision,request:repairRequest) else{throw ConstraintError.stale}
+        guard target.index>=0,(1...2048).contains(limit),!replacementRaw.utf8.contains(0),!surface.utf8.contains(0) else{throw ConstraintError.invalidSpan}
+        let currentAnchors=try repairAnchors().rows
+        guard currentAnchors.indices.contains(target.index),currentAnchors[target.index]==target.anchor else{throw ConstraintError.stale}
+        repairRequest += 1;let identity=try lease()
+        var trial=PaiaG01Trial()
+        let rc=paia_rime_g01_prepare(id,target.index,replacementRaw,surface,limit,&trial)
+        defer{paia_rime_g01_free_list(&trial.result)}
+        guard rc==PG_OK,trial.session != 0 else{throw ConstraintError.native(code:rc,examined:Int(trial.examined))}
+        do {
+            let copied=try copyList(trial.result)
+            return RepairProposal(runtime:runtime,id:trial.session,lease:identity,raw:copied.raw,preview:copied.preview,
+                                  anchors:copied.anchors,examined:Int(trial.examined))
+        } catch {paia_rime_end_session(trial.session);throw error}
+    }
+    public func applyRepair(_ proposal:RepairProposal) throws -> SessionUpdate {
+        lock.lock();defer{lock.unlock()};_ = try lease()
+        guard proposal.lease.matches(core.snapshot,revision:runtime.dictionaryRevision,request:repairRequest) else{throw ConstraintError.stale}
+        return try proposal.transfer {trialID in
+            var c=PaiaRimeSnapshot();let rc=paia_rime_step(trialID,0,0,0,&c);defer{paia_rime_free_snapshot(&c)}
+            guard rc==PAIA_OK,c.commit==nil else{throw ConstraintError.native(code:rc,examined:0)}
+            var next=core;let value=try Self.decode(c)
+            guard value.raw==proposal.raw else{throw ConstraintError.invalidSpan}
+            let update=try next.receive(value)
+            let old=id;id=trialID;core=next;repairRequest += 1;paia_rime_end_session(old)
+            return update
+        }
+    }
+    public func commitEngineComposition() throws -> SessionUpdate {
+        lock.lock();defer{lock.unlock()};return try step(5)
     }
     public func process(_ key: InputKey) throws -> SessionUpdate {
         lock.lock(); defer {lock.unlock()}
@@ -109,4 +177,48 @@ public final class InputSession {
             return try step(1,engineCode,modifiers)
         }
     }
+}
+
+private func copyList(_ list:PaiaG01List) throws -> (raw:String,preview:String,anchors:[RawAnchor]) {
+    func text(_ p:UnsafeMutablePointer<CChar>?) throws -> String {
+        guard let p=p,let value=String(validatingUTF8:p) else{throw EngineError.invalidUTF8};return value
+    }
+    let raw=try text(list.raw),preview=try text(list.preview)
+    guard list.count<=2048,list.count==0 || list.items != nil else{throw ConstraintError.invalidSpan}
+    let anchors=try (0..<Int(list.count)).map {i -> RawAnchor in
+        let item=list.items![i];guard item.start_utf8<item.end_utf8,item.end_utf8<=raw.utf8.count else{throw ConstraintError.invalidSpan};let anchor=RawAnchor(bytes:Int(item.start_utf8)..<Int(item.end_utf8),text:try text(item.text),engineIndex:Int(item.index))
+        try anchor.validate(in:raw);return anchor
+    }
+    return (raw,preview,anchors)
+}
+public final class RepairProposal {
+    private let runtime:RimeRuntime,lock=NSLock()
+    private var id:UInt64
+    public let lease:RepairLease,raw:String,preview:String,anchors:[RawAnchor],examined:Int
+    fileprivate init(runtime:RimeRuntime,id:UInt64,lease:RepairLease,raw:String,preview:String,anchors:[RawAnchor],examined:Int) {
+        self.runtime=runtime;self.id=id;self.lease=lease;self.raw=raw;self.preview=preview;self.anchors=anchors;self.examined=examined
+    }
+    deinit{cancel()}
+    public func cancel(){lock.lock();defer{lock.unlock()};if id != 0 {paia_rime_end_session(id);id=0}}
+    fileprivate func transfer(_ apply:(UInt64)throws->SessionUpdate) throws -> SessionUpdate {
+        lock.lock();defer{lock.unlock()};guard id != 0 else{throw ConstraintError.consumed}
+        let result=try apply(id);id=0;return result
+    }
+}
+
+// Only engine-issued snapshots can construct these action identities.
+public struct RepairChoice {
+    public let lease:RepairLease,anchor:RawAnchor
+    fileprivate let token:UUID
+}
+public struct RepairChoices {
+    public let rows:[RepairChoice],complete:Bool
+}
+public struct RepairTarget {
+    public let lease:RepairLease,anchor:RawAnchor,index:Int
+    fileprivate init(lease:RepairLease,anchor:RawAnchor,index:Int){self.lease=lease;self.anchor=anchor;self.index=index}
+}
+public struct RepairAnchors {
+    public let lease:RepairLease,rows:[RawAnchor]
+    public var targets:[RepairTarget]{rows.enumerated().map{RepairTarget(lease:lease,anchor:$0.element,index:$0.offset)}}
 }
