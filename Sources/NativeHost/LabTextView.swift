@@ -9,8 +9,10 @@ import EngineBridge
     public let candidates=CandidatePanel()
     public var makeSession:(()->HostDispatcher?)?
     public func renew() {dispatcher?.invalidate();candidates.orderOut(nil);dispatcher=makeSession?()}
-    public override func resignFirstResponder()->Bool {if dispatcher?.isInspectorSuspended != true {dispatcher?.invalidate();candidates.orderOut(nil)};return super.resignFirstResponder()}
-    public override func mouseDown(with event:NSEvent) {willEdit?();dispatcher?.invalidate();candidates.orderOut(nil);super.mouseDown(with:event)}
+    public override func resignFirstResponder()->Bool {defer{didChangeState?()};if dispatcher?.isInspectorSuspended != true {dispatcher?.invalidate();candidates.orderOut(nil)};return super.resignFirstResponder()}
+    // Shared mouse-edit policy; tests invoke this boundary without pretending to exercise pointer tracking.
+    public func cancelCompositionForHostEdit(){willEdit?();dispatcher?.invalidate();candidates.orderOut(nil);didChangeState?()}
+    public override func mouseDown(with event:NSEvent) {cancelCompositionForHostEdit();super.mouseDown(with:event);didChangeState?()}
     public override func keyDown(with event:NSEvent) {
         willEdit?()
         if literalMode {dispatcher?.invalidate();candidates.orderOut(nil);super.keyDown(with:event);didChangeState?();return}

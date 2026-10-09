@@ -49,6 +49,15 @@ final class NativeControlTests:XCTestCase {
         XCTAssertEqual(c.previewLabel.stringValue,"你好代码审查世界",c.status.stringValue)
         return try XCTUnwrap(c.acceptStack.arrangedSubviews.first as? NSButton)
     }
+    @MainActor func testIdleControlsRefreshAfterHostEditAndFocusInvalidation()throws {
+        let(c,w)=try make();defer{w.close()}
+        let manage=NSButton(title:"Manage",target:nil,action:nil);c.root.addArrangedSubview(manage);c.registerIdleControl(manage)
+        try type("nihao",c.editor);XCTAssertTrue(c.hasComposition);XCTAssertFalse(manage.isEnabled)
+        c.editor.cancelCompositionForHostEdit() // SIMULATED policy boundary, not physical pointer tracking.
+        XCTAssertFalse(c.hasComposition);XCTAssertTrue(manage.isEnabled)
+        try type("nihao",c.editor);XCTAssertFalse(manage.isEnabled)
+        XCTAssertTrue(w.makeFirstResponder(nil));XCTAssertFalse(c.hasComposition);XCTAssertTrue(manage.isEnabled)
+    }
     @MainActor func testSixSchemaControlsProduceNativeCandidatesAndCommits()throws {
         for (index,raw) in [(0,"shurufa"),(1,"uurufa"),(2,"uurufa")] {
             for traditional in [false,true] {

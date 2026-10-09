@@ -1,0 +1,48 @@
+import Foundation
+import LexiconCore
+
+// Explicit B2 launch only. No profile discovery, background import, or per-keystroke store access.
+@MainActor public final class PersonalLabEnvironment {
+    public let runtime:RimeRuntime,temporaryDirectory:URL,resources:PersonalResources
+    public let store:LexiconStore?
+    public let authorityUnavailable:Bool
+    public let cleanupFailures:Int
+    public private(set) var pendingRestart=false
+    private final class WeakSession {weak var value:InputSession?;init(_ value:InputSession){self.value=value}}
+    private var sessions=[WeakSession]()
+    public init(environment:[String:String]=ProcessInfo.processInfo.environment)throws {
+        func required(_ key:String)throws->String {
+            guard let value=environment[key],!value.isEmpty else{throw EngineError.closed};return value
+        }
+        guard environment["PAIA_B2_RESEARCH"]=="1" else{throw EngineError.closed}
+        let storeURL=URL(fileURLWithPath:try required("PAIA_B2_STORE"),isDirectory:true)
+        var authority:LexiconStore?,document=LexiconDocument(),unavailable=false
+        do {authority=try LexiconStore(directory:storeURL);document=try authority!.snapshot()}
+        catch {authority?.close();authority=nil;unavailable=true} // Never revive a stale personal dictionary on corrupt authority.
+        store=authority;authorityUnavailable=unavailable
+        let scratchRoot=authority == nil ? FileManager.default.temporaryDirectory.appendingPathComponent("paia-b2-public-v1"):storeURL
+        let scratch=try PersonalScratch(storeDirectory:scratchRoot),temp=scratch.directory;temporaryDirectory=temp;cleanupFailures=scratch.cleanupFailures
+        var started:RimeRuntime?
+        do {
+            resources=try PersonalSchemaBuilder.prepare(baseline:URL(fileURLWithPath:required("PAIA_B1_SHARED")),destination:temp.appendingPathComponent("shared"),document:document,baseRevision:required("PAIA_B1_REVISION"))
+            let user=temp.appendingPathComponent("engine-user");try FileManager.default.createDirectory(at:user,withIntermediateDirectories:false)
+            let engine=try RimeRuntime(library:required("PAIA_RIME_LIBRARY"),shared:resources.shared.path,isolatedUser:user.path,dictionaryRevision:resources.revision,
+                schemas:resources.schemas,g01Library:required("PAIA_G01_LIBRARY"),repairDisabledSchemas:resources.overlaySchemas,cleanup:{try scratch.remove()})
+            started=engine;runtime=engine
+            try PersonalSchemaBuilder.verifyCompiled(resources,userDirectory:user)
+        } catch {if let engine=started{_ = engine.close()}else{try? scratch.remove()};authority?.close();throw error}
+    }
+    public func disableOverlayUntilRestart(){pendingRestart=true;for session in sessions{session.value?.end()};sessions=[]}
+    public func makeSession(configuration:LabConfiguration)throws->InputSession {
+        var schema=configuration.schema
+        if pendingRestart && configuration.spelling == .full && !configuration.traditional {schema=PersonalResources.baselineSchema(punctuation:configuration.chinesePunctuation)}
+        let session=try runtime.makeSession(schema:schema,deferredCommit:configuration.deferredCommit,chinesePunctuation:configuration.chinesePunctuation)
+        sessions.removeAll{$0.value==nil};sessions.append(WeakSession(session));return session
+    }
+    public var status:String {
+        let cleanup=cleanupFailures>0 ? " Some inactive derived data could not be removed." : ""
+        if authorityUnavailable{return "Personal authority unavailable. Public baseline only; no older personal data restored."+cleanup}
+        if pendingRestart{return "Saved changes. Personal overlay disabled until next launch; baseline input remains available."+cleanup}
+        return "Personal entries active only in Full/Simplified. Other modes use the baseline; personal-overlay repair is unsupported."+cleanup
+    }
+}

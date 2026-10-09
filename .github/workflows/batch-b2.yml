@@ -1,0 +1,56 @@
+name: Batch B2 explicit personal lexicon
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: b2-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  lexicon:
+    runs-on: macos-15
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Record machine and source
+        run: |
+          mkdir -p evidence/b2-run
+          echo "PAIA_SOURCE_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+          { git rev-parse HEAD; sw_vers; uname -a; swift --version; } | tee evidence/b2-run/environment.txt
+      - name: Explicit-store governance and failure injection (SIMULATED)
+        run: |
+          set -o pipefail
+          swift test --filter LexiconCoreTests 2>&1 | tee evidence/b2-run/store-tests.txt
+          swift test --skip-build --filter SelectedFileTests 2>&1 | tee evidence/b2-run/files-tests.txt
+          PAIA_CAPTURE_B2_LAYOUT=1 swift test --skip-build --filter PersonalControlTests 2>&1 | tee evidence/b2-run/control-tests.txt
+          swift build --product PAIANativeLab 2>&1 | tee evidence/b2-run/app-build.txt
+      - name: Prepare exact research resources before native startup
+        run: |
+          set -o pipefail
+          python3 Tools/audit-a1.py
+          python3 Tools/audit-a2.py
+          python3 Tools/prepare-a1.py | tee evidence/b2-run/a1-inputs.json
+          python3 Tools/prepare-a2.py | tee evidence/b2-run/a2-inputs.json
+          bash Tools/build-g01.sh 2>&1 | tee evidence/b2-run/extension-build.txt
+          python3 Tools/prepare-b1.py | tee evidence/b2-run/b1-inputs.json
+      - name: Fresh-process personal dictionary generations (ENGINE_NATIVE and APPKIT_HOST)
+        run: |
+          set -o pipefail
+          source .build/b1-env.sh
+          export PAIA_B2_RESEARCH=1
+          export PAIA_B2_STORE="$PWD/.build/b2-synthetic-store"
+          for stage in active swapped deleted restored corrupt missing empty; do
+            PAIA_B2_TEST_STAGE="$stage" swift test --skip-build --filter PersonalEngineTests 2>&1 | tee "evidence/b2-run/engine-$stage.txt"
+          done
+      - name: Preserve evidence only, never personal stores
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: b2-evidence-${{ env.PAIA_SOURCE_SHA }}
+          path: evidence/b2-run/
+          retention-days: 14

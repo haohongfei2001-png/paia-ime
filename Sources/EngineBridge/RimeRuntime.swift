@@ -9,8 +9,14 @@ public final class RimeRuntime {
     public let version = "1.16.0"
     private static let lifetime = NSLock()
     private static var created = false
+    private let repairDisabledSchemas:Set<String>
+    private final class WeakSession {weak var value:InputSession?;init(_ value:InputSession){self.value=value}}
+    private let lifecycle=NSRecursiveLock()
+    private var sessions=[WeakSession](),closed=false,cleanupSucceeded=true
+    private let cleanup:(()throws->Void)?
     // Explicit directories only: callers must create a fresh isolated user directory.
-    public init(library: String, shared: String, isolatedUser: String, dictionaryRevision: String, schemas:[String] = [], g01Library:String? = nil) throws {
+    public init(library: String, shared: String, isolatedUser: String, dictionaryRevision: String, schemas:[String] = [], g01Library:String? = nil,repairDisabledSchemas:Set<String> = [],cleanup:(()throws->Void)?=nil) throws {
+        self.repairDisabledSchemas=repairDisabledSchemas;self.cleanup=cleanup
         Self.lifetime.lock(); defer { Self.lifetime.unlock() }
         guard !Self.created else { throw EngineError.code(Int32(PAIA_BUSY)) }
         let rc=paia_rime_open(library,shared,isolatedUser)
@@ -21,11 +27,21 @@ public final class RimeRuntime {
             if let path=g01Library {let code=paia_rime_enable_g01(path);guard code==PAIA_OK else{throw EngineError.code(code)}}
         } catch {paia_rime_close();throw error}
     }
-    deinit { paia_rime_close() }
+    deinit {_ = close()}
+    @discardableResult public func close()->Bool {
+        lifecycle.lock();defer{lifecycle.unlock()}
+        guard !closed else{return cleanupSucceeded};closed=true
+        for session in sessions{session.value?.end()};sessions=[]
+        paia_rime_close()
+        do{try cleanup?()}catch{cleanupSucceeded=false}
+        return cleanupSucceeded
+    }
     public func makeSession(schema:String = "paia_a1",deferredCommit:Bool = false,chinesePunctuation:Bool = false) throws -> InputSession {
+        lifecycle.lock();defer{lifecycle.unlock()};guard !closed else{throw EngineError.closed}
         let id=paia_rime_start_named(schema,deferredCommit ? 1 : 0)
         guard id != 0 else { throw EngineError.code(Int32(PAIA_SESSION)) }
-        return InputSession(runtime:self,id:id,chinesePunctuation:chinesePunctuation)
+        let session=InputSession(runtime:self,id:id,chinesePunctuation:chinesePunctuation,supportsRepair:!repairDisabledSchemas.contains(schema))
+        sessions.removeAll{$0.value==nil};sessions.append(WeakSession(session));return session
     }
 }
 
@@ -41,13 +57,14 @@ public final class InputSession {
     private var repairRequest:UInt64=0
     private var issuedChoices:[Int:RepairChoice]=[:]
     private let chinesePunctuation:Bool
+    public let supportsRepair:Bool
     private let lock=NSRecursiveLock()
     private var core: SessionCore
     private var ended=false
     private var timing=EngineTiming(engineNanoseconds:0,copyNanoseconds:0)
     public var lastTiming:EngineTiming {lock.lock();defer{lock.unlock()};return timing}
-    internal init(runtime: RimeRuntime,id: UInt64,chinesePunctuation:Bool) {
-        self.runtime=runtime; self.id=id; self.chinesePunctuation=chinesePunctuation; core=SessionCore(dictionaryRevision:runtime.dictionaryRevision)
+    internal init(runtime: RimeRuntime,id: UInt64,chinesePunctuation:Bool,supportsRepair:Bool) {
+        self.runtime=runtime; self.id=id; self.chinesePunctuation=chinesePunctuation;self.supportsRepair=supportsRepair;core=SessionCore(dictionaryRevision:runtime.dictionaryRevision)
     }
     deinit { end() }
     public var snapshot: CandidateSnapshot? { lock.lock(); defer {lock.unlock()}; return core.snapshot }
@@ -89,6 +106,7 @@ public final class InputSession {
     }
     private func lease() throws -> RepairLease {
         guard !ended,let snapshot=core.snapshot else{throw EngineError.closed}
+        guard supportsRepair else{throw ConstraintError.native(code:Int32(PG_UNSUPPORTED),examined:0)}
         try core.ensureReady()
         return RepairLease(snapshot:snapshot,revision:runtime.dictionaryRevision,request:repairRequest)
     }

@@ -9,8 +9,24 @@ import EngineBridge
 
 @MainActor final class AppDelegate:NSObject,NSApplicationDelegate,NSWindowDelegate {
     var lab:LabEnvironment?,research:ResearchLabEnvironment?,window:NSWindow?,view:LabTextView?,controls:NativeLabController?
+    var personal:PersonalLabEnvironment?,personalManager:PersonalLexiconController?,managerWindow:NSWindow?
     func applicationDidFinishLaunching(_ notification:Notification) {
         do {
+            if ProcessInfo.processInfo.environment["PAIA_B2_RESEARCH"]=="1" {
+                let environment=try PersonalLabEnvironment();personal=environment
+                let controls=NativeLabController(runtime:environment.runtime,configuredSession:{configuration in try environment.makeSession(configuration:configuration)})
+                let window=LabWindow(contentRect:NSRect(x:100,y:100,width:1040,height:760),styleMask:[.titled,.closable,.resizable],backing:.buffered,defer:false)
+                window.isReleasedWhenClosed=false;window.delegate=self;window.title="PAIA B2 · Explicit personal lexicon · Not installed"
+                try controls.attach(to:window);self.controls=controls;self.window=window;self.view=controls.editor
+                if environment.store != nil {
+                    let button=NSButton(title:"Manage explicit personal terms…",target:self,action:#selector(openPersonalTerms(_:)))
+                    button.bezelStyle = .rounded;button.refusesFirstResponder=true;button.setAccessibilityLabel(button.title)
+                    controls.root.addArrangedSubview(button);controls.registerIdleControl(button)
+                }
+                controls.status.stringValue=environment.status
+                window.makeKeyAndOrderFront(nil);window.makeFirstResponder(controls.editor);NSApp.activate(ignoringOtherApps:true)
+                return
+            }
             if ProcessInfo.processInfo.environment["PAIA_B1_RESEARCH"]=="1" {
                 let environment=try ResearchLabEnvironment();research=environment
                 let controls=NativeLabController(runtime:environment.runtime)
@@ -41,10 +57,26 @@ import EngineBridge
             window.makeKeyAndOrderFront(nil);window.makeFirstResponder(view);NSApp.activate(ignoringOtherApps:true)
         } catch { fputs("Native lab startup failed; verified resource configuration is required.\n",stderr);NSApp.terminate(nil) }
     }
+    @objc func openPersonalTerms(_ sender:NSButton){
+        guard let environment=personal,let store=environment.store,let controls=controls,!controls.hasComposition,!controls.inspectorVisible else{return}
+        if let existing=managerWindow,personalManager?.isOpen==true{existing.makeKeyAndOrderFront(nil);return}
+        let invalidatePersonal:()->Void = {[weak self] in
+            environment.disableOverlayUntilRestart();self?.view?.dispatcher?.invalidate();self?.view?.candidates.orderOut(nil);self?.controls?.status.stringValue=environment.status
+        }
+        do {
+            let manager=PersonalLexiconController(store:store,onChange:invalidatePersonal)
+            let window=NSWindow(contentRect:NSRect(x:150,y:100,width:900,height:850),styleMask:[.titled,.closable,.resizable],backing:.buffered,defer:false)
+            window.isReleasedWhenClosed=false;window.title="Explicit personal terms · No automatic learning"
+            try manager.attach(to:window);personalManager=manager;managerWindow=window;window.makeKeyAndOrderFront(nil)
+        }catch{invalidatePersonal();controls.status.stringValue="Personal authority unavailable. Overlay disabled; restart the lab to verify."}
+    }
     func windowDidResignKey(_ notification:Notification) {view?.dispatcher?.invalidate();view?.candidates.orderOut(nil)}
     func applicationDidResignActive(_ notification:Notification) {view?.dispatcher?.invalidate();view?.candidates.orderOut(nil)}
     func applicationShouldTerminateAfterLastWindowClosed(_ sender:NSApplication)->Bool {true}
-    func applicationWillTerminate(_ notification:Notification) {view?.dispatcher?.invalidate()}
+    func applicationWillTerminate(_ notification:Notification) {
+        view?.dispatcher?.invalidate()
+        if let personal=personal {if !personal.runtime.close(){fputs("Personal derived-data cleanup was incomplete.\n",stderr)};personal.store?.close()}
+    }
 }
 MainActor.assumeIsolated {
     let app=NSApplication.shared
