@@ -26,12 +26,21 @@ import SessionCore
         guard !rows.isEmpty else {orderOut(nil);return}
         let stack=NSStackView(); stack.orientation = .vertical; stack.alignment = .leading; stack.spacing=4
         for (i,row) in rows.enumerated() {
-            let button=CandidateButton(row:row,title:"\(i+1). \(row.text)",target:self,action:#selector(pick(_:)))
-            button.tag=i; button.bezelStyle = .inline; button.font = .systemFont(ofSize:16)
+            let selected=i==snapshot.highlighted
+            // The marker remains visible without color; it reflects the same engine row Space selects.
+            let button=CandidateButton(row:row,title:"\(selected ? "▶" : "  ") \(i+1). \(row.text)",target:self,action:#selector(pick(_:)))
+            button.tag=i;button.bezelStyle = .inline;button.font = .systemFont(ofSize:16,weight:selected ? .semibold:.regular)
+            button.contentTintColor=selected ? .controlAccentColor:.labelColor
+            button.refusesFirstResponder=true
             button.setAccessibilityLabel("Candidate \(i+1), \(row.text)")
-            button.setAccessibilityValue(i==snapshot.highlighted ? "selected" : "")
+            button.setAccessibilityValue(selected ? "selected" : "")
             stack.addArrangedSubview(button)
         }
+        // Rime gives the current page and whether another page exists, not a total page count.
+        let page=NSTextField(labelWithString:"Page \(snapshot.pageIndex+1) · \(snapshot.hasMore ? "More candidates":"End of candidates")")
+        page.font = .systemFont(ofSize:12);page.textColor = .secondaryLabelColor
+        page.setAccessibilityIdentifier("candidate-page-status")
+        page.setAccessibilityLabel(page.stringValue);stack.addArrangedSubview(page)
         let width=max(240,min(640,stack.fittingSize.width+24)), height=stack.fittingSize.height+20
         stack.frame=NSRect(x:12,y:10,width:width-24,height:height-20)
         let container=NSView(frame:NSRect(x:0,y:0,width:width,height:height));container.addSubview(stack);contentView=container
