@@ -4,7 +4,7 @@ An independent **macOS Chinese input method** project. PAIA is an optional futur
 
 ## Status
 
-**A1/A2 native engine research and B1 controls implemented; B2 explicit personal-lexicon lab implemented. System IME not installed.** The design/research package includes native AppKit test-probe code, a real librime engine experiment report, a browser prototype and bounded test evidence. An offline prototype and a synthetic AppKit host are **not** an installed macOS input source. Comparative user experience and accuracy versus WeChat/Sogou/Apple have not been established.
+**A1/A2 native engine research and B1 controls implemented; B2 explicit personal-lexicon and B3 explicit-settings labs implemented. System IME not installed.** The design/research package includes native AppKit test-probe code, a real librime engine experiment report, a browser prototype and bounded test evidence. An offline prototype and a synthetic AppKit host are **not** an installed macOS input source. Comparative user experience and accuracy versus WeChat/Sogou/Apple have not been established.
 
 ## Research / 研究资料
 
@@ -32,6 +32,10 @@ See [A1 build, tests, resource pins and evidence boundaries](docs/BATCH_A1.md). 
 ## Batch B2 explicit personal lexicon
 
 [B2 manual terms, protected deletions and reviewed imports](docs/BATCH_B2.md) connects an isolated explicit store to real read-only engine dictionaries and a native management window. Ordinary typing does not learn. Changes disable the personal overlay until a verified next launch; Full/Simplified overlays deliberately gate unsupported mixed-dictionary repair. [B2 evidence](evidence/b2/VALIDATION.md) distinguishes each code checkpoint and retains failures.
+
+## Batch B3 explicit settings and mode recovery
+
+[B3 preference and recovery boundaries](docs/BATCH_B3.md) saves only four ordinary settings through a separate explicit Save control. New engine modes are prepared before replacing the current session; corrupt preferences and unconfirmed writes preserve usable input without silent overwrite or retry. [B3 evidence](evidence/b3/VALIDATION.md) records real native mode/restore stages, shared storage-identity hardening and the inspected synthetic view. Full signed update/install/recovery and physical-client validation remain open.
 
 ## Batch A1 engineering contract
 

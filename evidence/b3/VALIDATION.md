@@ -10,8 +10,20 @@ A1/A2/B1/B2 regression runs 37998967002/37998967030/37998967009/37998966990 succ
 
 The initial settings root-view PNG was inspected. Save/defaults buttons and persistence status were visible; the editor was blank in that capture. A subsequent capture assertion/order change verifies and displays committed synthetic text before accepting improved visual evidence. It does not retroactively change this checkpoint.
 
-## Review-led additions awaiting new-head evidence
+## Reviewed code checkpoint
 
-Selected-root replacement guards for settings and B2 lexicon authority; identity-bound B2 scratch cleanup; first-save and marker/integrity/duplicate-key/revision fault cases; a returned dirty real session rejected and ended without harming the old dispatcher; closed-window settings action invalidation. These require their own macOS run. Review findings and any failures/skips remain in the private recovery logs rather than being hidden by earlier green checks.
+0c8cd9cc39f0461a97d83fd0ecaa01aaebd10179 passed both independent static reviews and all five exact-head workflows:
+
+- B3 run 37999781104/job 114054754564/artifact 11648074702: nine settings-store methods and all nine fresh-process native stages passed with zero failures/skips. The dirty returned engine session is rejected and ended, the prior configuration can still commit once, and closed-window stale actions cannot write or rebuild a session. The improved synthetic view was visually inspected: committed “你好”, mode controls, separate Save/defaults controls and persistence status are visible. PNG SHA-256: 72fdfdd50d0c8251c0aac5707c7c054401ae702e0e1e67cf140087ad274cbfd7.
+- A1 run 37999781085/job 114054754326/artifact 11647859327: sanitizer ABI, state, ten engine and six AppKit host tests, native app and full 3,800-sample benchmark passed. Its broad engine filter retains the one unrelated B2-configuration skip.
+- A2 run 37999781111/job 114054754311/artifact 11648603696: lease, all 28 native constraint cases, both full-corpus paired benchmark arms and AppKit host passed.
+- B1 run 37999781123/job 114054754390/artifact 11648039409: all twelve native control methods passed, including focus/repair and idle controls.
+- B2 run 37999781087/job 114054754218/artifact 11648890960: ten lexicon governance, four file/cleanup and five manager methods plus seven native stages passed. The new selected-root and scratch-replacement sentinel cases passed. The four file methods are executed twice by current filters and counted once here.
+
+The later final evidence update changes documentation only. Exact final-head and merged-main results must still be checked separately and are retained in the private recovery snapshot. No product test failures occurred on the two code checkpoints; the initial blank-editor capture limitation remains below rather than being relabeled as successful text presentation.
+
+## Review-led additions verified at 0c8cd9c
+
+Selected-root replacement guards for settings and B2 lexicon authority; identity-bound B2 scratch cleanup; first-save and marker/integrity/duplicate-key/revision fault cases; a returned dirty real session rejected and ended without harming the old dispatcher; closed-window settings action invalidation. These passed their own new-head macOS run listed above. Review findings and any failures/skips remain in the private recovery logs rather than being hidden by earlier green checks.
 
 SIMULATED covers codec/filesystem fault injection and failed-session setup. ENGINE_NATIVE/APPKIT_HOST cover real sessions, candidate/commit output and actual AppKit objects. No INSTALLED_IME, LIVE_CLIENT, physical-input, VoiceOver, HUMAN_STUDY or general quality evidence is produced. The Linux editor does not run Swift/AppKit; only static source/resource checks run there. No real personal preferences, input, dictionary corpus or compiled personal state is uploaded.
