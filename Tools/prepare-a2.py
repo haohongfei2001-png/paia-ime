@@ -32,6 +32,10 @@ for item in lock['resources']:
         if path.suffix=='.json':dest.write_text(path.read_text().replace('"ocd2"','"text"').replace('.ocd2','.txt'))
         else:shutil.copyfile(path,dest)
 for p in (ROOT/'Resources/Dictionaries/A1Fixture').glob('*'):shutil.copyfile(p,shared/p.name)
+for item in lock['localFiles']:
+    p=ROOT/item['path']
+    if hashlib.sha256(p.read_bytes()).hexdigest()!=item['sha256']:raise SystemExit('local fixture digest mismatch')
+    shutil.copyfile(p,shared/p.name)
 def block(text,key):
     match=re.search(r'^'+re.escape(key)+r':\n(.*?)(?=^[a-zA-Z_][\w]*:|\Z)',text,re.M|re.S)
     if not match:raise SystemExit('missing schema block '+key)
@@ -71,6 +75,7 @@ translator:
   tips: none
 '''+speller
         (shared/(name+'.schema.yaml')).write_text(config)
-revision=hashlib.sha256((ROOT/'Resources/A2/upstream-lock.json').read_bytes()).hexdigest()
+runtime_inputs={p.relative_to(shared).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(shared.rglob('*')) if p.is_file()}
+revision=hashlib.sha256(json.dumps(runtime_inputs,sort_keys=True).encode()).hexdigest()
 (ROOT/'.build/a2-env.sh').write_text('source '+shlex.quote(str(ROOT/'.build/a1-env.sh'))+'\n'+''.join('export '+k+'='+shlex.quote(v)+'\n' for k,v in {'PAIA_A2_SHARED':str(shared),'PAIA_G01_LIBRARY':str(ROOT/'.build/a2-g01.dylib'),'PAIA_A2_REVISION':revision}.items()))
-print(json.dumps({'dictionaryRevision':revision,'corpusRows':lock['totalDefaultChineseDictionaryRows'],'privateHeaders':len(lock['privateHeaders']),'corpusBundled':False}))
+print(json.dumps({'dictionaryRevision':revision,'corpusRows':lock['totalDefaultChineseDictionaryRows'],'privateHeaders':len(lock['privateHeaders']),'corpusBundled':False,'runtimeInputFiles':runtime_inputs}))

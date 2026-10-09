@@ -14,7 +14,7 @@ func check(_ value:Bool,_ message:String) throws {if !value{throw TestFailure.as
 let env=ProcessInfo.processInfo.environment
 let startupBegin=DispatchTime.now().uptimeNanoseconds
 let temp=FileManager.default.temporaryDirectory.appendingPathComponent("paia-a2-"+UUID().uuidString)
-let schemas=["full","flypy","natural"].flatMap {kind in ["paia_a2_"+kind,"paia_a2_"+kind+"_traditional"]}
+let schemas=["full","flypy","natural"].flatMap {kind in ["paia_a2_"+kind,"paia_a2_"+kind+"_traditional"]}+["paia_a2_filter"]
 let runtime:RimeRuntime
 func required(_ key:String)throws->String{guard let value=env[key],!value.isEmpty else{throw TestFailure.assertion("missing environment "+key)};return value}
 do {
@@ -115,6 +115,15 @@ run("G01.sentence.native.decomposition"){
     let target=try anchors.enumerated().first(where:{$0.element.text=="世界"}).map{$0.offset}.unwrap("world anchor")
     let p=try s.prepareRepair(target:try s.repairAnchors().targets[target],replacementRaw:"nihao",surface:"拟好");_ = try s.applyRepair(p);try commit(s,"你好拟好你")
     return "actual Sentence components and word_lengths validated by full-raw replay"
+}
+run("G01.cross-boundary-filter.unsupported.preserve"){
+    let s=try runtime.makeSession(schema:"paia_a2_filter",deferredCommit:true);defer{s.end()};try type("toufa",s)
+    let first=try s.repairChoices(limit:32).rows.first(where:{$0.anchor.text=="頭髮"}).unwrap("cross-boundary conversion missing")
+    _ = try s.selectForRepair(first)
+    do{_ = try s.repairAnchors();throw TestFailure.assertion("non-replayable filtered split falsely accepted")}
+    catch ConstraintError.native(let code,_){try check(code==22,"wrong failure for unsupported filter boundary")}
+    try check(s.snapshot?.rawASCII=="toufa","mapping failure modified original");try commit(s,"頭髮")
+    return "observed unsupported split: whole 頭髮 cannot replay as separately filtered 頭+發; original retained"
 }
 run("G01.traditional.whole-sentence.mapping"){
     let s=try runtime.makeSession(schema:"paia_a2_full_traditional",deferredCommit:true);defer{s.end()}

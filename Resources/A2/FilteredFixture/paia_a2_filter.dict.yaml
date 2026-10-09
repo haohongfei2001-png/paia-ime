@@ -1,0 +1,10 @@
+# Artificial cross-segment conversion fixture authored for this repository, not language-quality data.
+---
+name: paia_a2_filter
+version: "1.0"
+sort: by_weight
+use_preset_vocabulary: false
+...
+头	tou	1000
+发	fa	1000
+你	ni	1000

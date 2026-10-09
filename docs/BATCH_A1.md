@@ -1,6 +1,6 @@
 # Batch A1: native engine / synthetic host
 
-This branch implements only A1 from `research/2026-10/CODEX_HANDOFF.md`. It is an isolated native lab, not an installed system input method. The InputMethodKit controller is a compilation-only lifecycle skeleton; no IMKServer is launched. No live-client, VoiceOver, physical mouse, system input source or end-to-end visible latency claim is made.
+This document describes the A1 portion of `research/2026-10/CODEX_HANDOFF.md`. It is an isolated native lab, not an installed system input method. The InputMethodKit controller is a compilation-only lifecycle skeleton; no IMKServer is launched. No live-client, VoiceOver, physical mouse, system input source or end-to-end visible latency claim is made.
 
 ## Reproduce on macOS 13+ (CI uses standard macos-15)
 
@@ -19,7 +19,7 @@ Engine and host suites run in separate processes because librime has one process
 
 ## Boundaries
 
-- SessionCore is pure Swift value state. Each displayed row binds session, target epoch, input generation, dictionary revision and page-local engine index. Every selection returns to `select_candidate_on_current_page`, never inserts displayed candidate text itself. The C API cannot report exact per-candidate raw spans; the value is explicitly unavailable. A2 constrained decoding is not claimed.
+- SessionCore is pure Swift value state. Each displayed row binds session, target epoch, input generation, dictionary revision and page-local engine index. Every selection returns to `select_candidate_on_current_page`, never inserts displayed candidate text itself. The C API cannot report exact per-candidate raw spans; the value is explicitly unavailable. A1 alone does not claim A2 constrained decoding; the separately enabled typed extension is documented in BATCH_A2.md.
 - One global C mutex serializes the entire runtime, session lifetime, key/selection and borrowed-buffer copy. All required API fields must fully fit data_size and be nonnull. The official full 1.16.0 header is vendored with its license. Every successful get_context/get_commit is freed after copying. Invalid data suspends the session; no guessed output or retry.
 - Return preserves raw letters and consumes the key; Space/digits use visible engine mappings. Backspace/Delete/caret/page changes go through the engine. Idle navigation/Tab/Return and Command are passed to the host. No CGEvent, network, model, PAIA or clipboard path exists.
 - A commit must be reserved once before the main-thread NSTextView insertText call. The reservation is non-replayable even if a future real client's outcome is uncertain. Stale target/generation effects are rejected. No whole-document identity is inferred from UUIDs.

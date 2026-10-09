@@ -475,5 +475,17 @@
     "url": "https://archives.boost.io/release/1.89.0/source/boost_1_89_0.tar.gz",
     "sha256": "9de758db755e8330a01d995b0a24d09798048400ac25c03fc5ea9be364b13c93",
     "license": "BSL-1.0"
-  }
+  },
+  "localFiles": [
+    {
+      "path": "Resources/A2/FilteredFixture/paia_a2_filter.dict.yaml",
+      "sha256": "384d12e39efc54ce623d9766ac822d4982bf366225d269ea6dc7bb7f9a7a8ec1",
+      "license": "Repository-authored artificial test data"
+    },
+    {
+      "path": "Resources/A2/FilteredFixture/paia_a2_filter.schema.yaml",
+      "sha256": "c7ddff113e022fc60e7a70e8e94ef0593882a752a9207a4142f6da935c4923df",
+      "license": "Repository-authored artificial test data"
+    }
+  ]
 }
