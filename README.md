@@ -27,7 +27,7 @@ See [A1 build, tests, resource pins and evidence boundaries](docs/BATCH_A1.md). 
 
 ## Batch B1 native research controls
 
-[B1 controls and focus contract](docs/BATCH_B1.md) adds an explicit research launch with Full/Flypy/Natural, Simplified/Traditional, literal text, a bounded punctuation mode and a real constrained-repair inspector. Preview is separate from marked-text acceptance and final engine commit. [B1 evidence](evidence/b1/VALIDATION.md) records native control tests, inspected synthetic-view capture and retained failures. This is one Batch B lab slice; persistent settings, rare-character workflows and update/recovery remain later work.
+[B1 controls and focus contract](docs/BATCH_B1.md) adds an explicit research launch with Full/Flypy/Natural, Simplified/Traditional, literal text, a bounded punctuation mode and a real constrained-repair inspector. Preview is separate from marked-text acceptance and final engine commit. [B1 evidence](evidence/b1/VALIDATION.md) records native control tests, inspected synthetic-view capture and retained failures. This is one Batch B lab slice; subsequent B2/B3 sections cover explicit local persistence, while rare-character workflows and complete update/recovery remain open.
 
 ## Batch B2 explicit personal lexicon
 

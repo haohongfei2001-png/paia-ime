@@ -133,25 +133,26 @@ import ConstraintCore
             return session
         }catch{session.end();throw error}
     }
-    private func newDispatcher()throws->HostDispatcher {guard !isClosed else{throw EngineError.closed};return HostDispatcher(client:editor,session:try preparedSession(configuration))}
+    private func newDispatcher()throws->HostDispatcher {guard !isClosed,!editor.hasMarkedText() else{throw EngineError.closed};return HostDispatcher(client:editor,session:try preparedSession(configuration))}
     public func applyConfiguration(_ next:LabConfiguration)throws {
         guard !isClosed,!hasComposition,!inspectorVisible else{throw EngineError.closed}
         let prepared=try preparedSession(next)
-        do{guard window?.makeFirstResponder(editor)==true else{throw EngineError.closed}}
+        do{guard window?.makeFirstResponder(editor)==true,!hasComposition else{throw EngineError.closed}}
         catch{prepared.end();throw error}
         // Publish only after successful real-engine preparation and owned-focus restoration.
         editor.dispatcher?.invalidate();editor.candidates.orderOut(nil)
         configuration=next;editor.literalMode=next.literal;editor.dispatcher=HostDispatcher(client:editor,session:prepared)
         reflectConfiguration();status.stringValue="Mode applied for this session. Preferences are not saved automatically.";updateControls()
     }
-    public var hasComposition:Bool {guard let s=editor.dispatcher?.session.snapshot else{return false};return !s.rawASCII.isEmpty || !s.preedit.isEmpty}
+    private var hasEngineComposition:Bool {guard let s=editor.dispatcher?.session.snapshot else{return false};return !s.rawASCII.isEmpty || !s.preedit.isEmpty}
+    public var hasComposition:Bool {editor.hasMarkedText() || hasEngineComposition}
     private func updateControls(){
         let idle = !isClosed && !hasComposition && !inspectorVisible
         for control:NSControl in [spelling,script,literal,punctuation,hold]{control.isEnabled=idle}
         for item in idleControls{item.control.isEnabled=idle && item.available()}
-        commitButton.isEnabled=hasComposition && !inspectorVisible
-        cancelCompositionButton.isEnabled=hasComposition && !inspectorVisible
-        repairButton.isEnabled=hasComposition && configuration.deferredCommit && !inspectorVisible && editor.dispatcher?.session.supportsRepair==true
+        commitButton.isEnabled=hasEngineComposition && editor.dispatcher?.isCurrentTarget==true && !inspectorVisible
+        cancelCompositionButton.isEnabled=hasEngineComposition && editor.dispatcher?.isCurrentTarget==true && !inspectorVisible
+        repairButton.isEnabled=hasEngineComposition && editor.dispatcher?.isCurrentTarget==true && configuration.deferredCommit && !inspectorVisible && editor.dispatcher?.session.supportsRepair==true
     }
     @objc private func changeConfiguration(_ sender:NSControl){
         guard !hasComposition,!inspectorVisible else{reflectConfiguration();status.stringValue="Commit or cancel composition before changing modes.";return}

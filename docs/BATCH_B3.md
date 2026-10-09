@@ -21,6 +21,8 @@ The mode controls apply only to the current session. “Save current settings”
 
 A new mode is resolved through the current environment's closed configuration, then a real engine session is created and refreshed. Its initial raw/preedit must be empty and no commit may be pending. Only after successful engine validation and owned-focus restoration is the configuration/dispatcher published and the old session ended. Factory errors, dirty/ended returned sessions and focus failure never publish the new configuration. A still-valid old session remains usable. If focus had already invalidated it, subsequent input creates a new session under the retained old configuration; old identities are not revived. Successful changes invalidate prior candidate/repair actions.
 
+Existing marked text owned by the AppKit text system also makes mode/Save/defaults actions busy, even when the engine is empty (for example in literal mode). A dispatcher never adopts a mark already present at construction. Session renewal refuses a remaining unowned mark and leaves subsequent keys to AppKit; only the original owner resolves it. Engine Commit/Cancel/Repair controls do not become available for that foreign mark. The regression uses actual NSTextView marked-text APIs with synthetic text; it does not establish interoperability with a live third-party input method.
+
 ## Persistence and recovery boundaries
 
 A dedicated SettingsCore stores a closed canonical JSON envelope, limited to 4 KiB, nesting eight and a bounded monotonic revision. A SHA-256 digest detects corruption, not an author's authenticity. Unknown keys/version/enums/types, duplicate/noncanonical encodings and bad integrity fail closed. No arbitrary strings can become engine paths or permissions.

@@ -86,12 +86,24 @@ final class AppKitHostTests:XCTestCase {
             client.setMarkedText("外部e\u{301}",selectedRange:NSRange(location:2,length:0),replacementRange:NSRange(location:NSNotFound,length:0))
             let text=client.string,marked=client.markedRange(),selection=client.selectedRange()
             let session=try Self.lab.runtime.makeSession(),update=try session.refresh(),host=HostDispatcher(client:client,session:session)
-            XCTAssertFalse(host.isCurrentTarget)
+            XCTAssertFalse(host.isCurrentTarget);XCTAssertThrowsError(try session.refresh())
             if attemptApply{XCTAssertFalse(host.apply(update))}
             host.invalidate()
             XCTAssertEqual(client.string,text);XCTAssertEqual(client.markedRange(),marked);XCTAssertEqual(client.selectedRange(),selection)
             XCTAssertTrue(client.hasMarkedText());XCTAssertEqual(host.insertCount,0)
         }
+    }
+    @MainActor func testRenewDoesNotInvokeFactoryForUnownedMark() throws {
+        _=NSApplication.shared
+        let client=LabTextView();var calls=0
+        client.makeSession={calls+=1;return try? HostDispatcher(client:client,session:Self.lab.runtime.makeSession())}
+        defer{client.makeSession=nil;client.dispatcher?.invalidate()}
+        client.setMarkedText("外部👩🏽‍💻",selectedRange:NSRange(location:2,length:0),replacementRange:NSRange(location:NSNotFound,length:0))
+        let text=client.string,marked=client.markedRange(),selection=client.selectedRange()
+        client.renew();XCTAssertEqual(calls,0);XCTAssertNil(client.dispatcher)
+        XCTAssertEqual(client.string,text);XCTAssertEqual(client.markedRange(),marked);XCTAssertEqual(client.selectedRange(),selection)
+        client.unmarkText();client.renew();XCTAssertEqual(calls,1);XCTAssertTrue(client.dispatcher?.isCurrentTarget==true)
+        client.dispatcher?.invalidate();XCTAssertEqual(client.string,text)
     }
     @MainActor func testReturnConsumesOnceAndReplacesSelectedGrapheme() throws {
         _=NSApplication.shared

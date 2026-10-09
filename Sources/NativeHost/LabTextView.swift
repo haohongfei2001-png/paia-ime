@@ -8,7 +8,13 @@ import EngineBridge
     public var didChangeState:(()->Void)?
     public let candidates=CandidatePanel()
     public var makeSession:(()->HostDispatcher?)?
-    public func renew() {dispatcher?.invalidate();candidates.orderOut(nil);dispatcher=makeSession?()}
+    public func renew() {
+        dispatcher?.invalidate();candidates.orderOut(nil);dispatcher=nil
+        // If invalidation could not clear the mark, it is not ours to replace.
+        // A nil dispatcher lets keyDown continue through AppKit's text system.
+        guard !hasMarkedText() else{return}
+        dispatcher=makeSession?()
+    }
     public override func resignFirstResponder()->Bool {defer{didChangeState?()};if dispatcher?.isInspectorSuspended != true {dispatcher?.invalidate();candidates.orderOut(nil)};return super.resignFirstResponder()}
     // Shared mouse-edit policy; tests invoke this boundary without pretending to exercise pointer tracking.
     public func cancelCompositionForHostEdit(){willEdit?();dispatcher?.invalidate();candidates.orderOut(nil);didChangeState?()}

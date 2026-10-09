@@ -20,7 +20,16 @@ The initial settings root-view PNG was inspected. Save/defaults buttons and pers
 - B1 run 37999781123/job 114054754390/artifact 11648039409: all twelve native control methods passed, including focus/repair and idle controls.
 - B2 run 37999781087/job 114054754218/artifact 11648890960: ten lexicon governance, four file/cleanup and five manager methods plus seven native stages passed. The new selected-root and scratch-replacement sentinel cases passed. The four file methods are executed twice by current filters and counted once here.
 
-The later final evidence update changes documentation only. Exact final-head and merged-main results must still be checked separately and are retained in the private recovery snapshot. No product test failures occurred on the two code checkpoints; the initial blank-editor capture limitation remains below rather than being relabeled as successful text presentation.
+The documentation-only checkpoint 4b32a6499f6e565d598a2cb45a1de956dac61538 also passed all five exact-head workflows (A1 38000550276, A2 38000550267, B1 38000550277, B2 38000550271, B3 38000550278). That checkpoint did not contain the previously missing foreign-mark regression below; its green checks do not cover the later fix.
+
+## Foreign marked-text regression found before merge
+
+Tests-only head 0960769065ca689265fcbc6bbd183067b3c0bf64 reproduced a real AppKit API-boundary defect: HostDispatcher adopted a mark already present at construction, then cleared it on empty update/invalidation; literal-mode settings guards saw an empty engine and allowed mode/default/Save actions during that unowned mark.
+
+- A1 run 38001026306/job 114058837077 failed the new host method with 11 assertion failures (seven total methods, the existing six passed). The following benchmark step was skipped because of this failure, not counted as passed.
+- B3 run 38001026316/job 114058836963 passed all nine store methods but failed controls with 12 assertions, including cascading checks after the unintended Save. The later eight fresh-process stages did not execute. Both complete failing logs are retained.
+
+The fix refuses existing marks at dispatcher construction (ending the rejected engine session), refuses renewal while an unowned mark remains, and routes the existing nil-dispatcher path back to AppKit. Mode/Save/defaults consider host marked text busy; engine actions require their own current target. Added factory-count tests verify no new session while marked and successful renewal after the original owner unmarks. Exact fixed-head and merged-main native checks are required separately; earlier successes are not inherited. This uses synthetic text via actual NSTextView APIs, not a live third-party IME compatibility test.
 
 ## Review-led additions verified at 0c8cd9c
 

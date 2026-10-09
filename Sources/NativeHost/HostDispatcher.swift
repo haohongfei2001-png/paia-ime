@@ -26,6 +26,9 @@ import SessionCore
     public init(client: NSTextView, session: InputSession) {
         self.client=client; self.session=session
         expectedText=client.string;expectedSelection=client.selectedRange();expectedMarked=client.markedRange()
+        // Never adopt a composition that another text-input owner already placed here.
+        // Every mark later cleared by this dispatcher must originate in its own apply.
+        guard !client.hasMarkedText() else{active=false;session.end();return}
         if let window=client.window {
             observers.append(NotificationCenter.default.addObserver(forName:NSWindow.didResignKeyNotification,object:window,queue:.main) { [weak self] _ in
                 MainActor.assumeIsolated {self?.invalidate()}
