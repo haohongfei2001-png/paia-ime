@@ -35,6 +35,8 @@ public final class LexiconStore {
     public func close(){lock.lock();defer{lock.unlock()};if !closed{closed=true;Darwin.close(writerFD);Darwin.close(rootFD);writerFD = -1;rootFD = -1}}
     private func ready()throws {
         guard !closed else{throw LexiconError.io};guard !uncertain else{throw LexiconError.durabilityUnknown}
+        var ownedRoot=stat(),linkedRoot=stat()
+        guard fstat(rootFD,&ownedRoot)==0,lstat(directory.path,&linkedRoot)==0,(linkedRoot.st_mode & S_IFMT)==S_IFDIR,ownedRoot.st_dev==linkedRoot.st_dev,ownedRoot.st_ino==linkedRoot.st_ino else{throw LexiconError.unsafePath}
         var owned=stat(),linked=stat()
         guard fstat(writerFD,&owned)==0,fstatat(rootFD,".writer.lock",&linked,AT_SYMLINK_NOFOLLOW)==0,
               owned.st_dev==linked.st_dev,owned.st_ino==linked.st_ino else{throw LexiconError.unsafePath}

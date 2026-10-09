@@ -121,4 +121,12 @@ final class LexiconCoreTests:XCTestCase {
         XCTAssertThrowsError(try store.add(surface:"拒绝写入",reading:"ju jue xie ru",expectedRevision:1))
     }
 
+    func testSelectedDirectoryReplacementDoesNotRetargetAuthority()throws {
+        let parent=try directory(),path=parent.appendingPathComponent("selected"),moved=parent.appendingPathComponent("moved")
+        let store=try LexiconStore(directory:path);defer{store.close()};let before=try store.exportData()
+        try FileManager.default.moveItem(at:path,to:moved);try FileManager.default.createDirectory(at:path,withIntermediateDirectories:false)
+        XCTAssertThrowsError(try store.snapshot());XCTAssertThrowsError(try store.add(surface:"拒绝迁移写入",reading:"ju jue qian yi xie ru",expectedRevision:0))
+        XCTAssertEqual(try Data(contentsOf:moved.appendingPathComponent("lexicon.json")),before);XCTAssertTrue(try FileManager.default.contentsOfDirectory(atPath:path.path).isEmpty)
+    }
+
 }

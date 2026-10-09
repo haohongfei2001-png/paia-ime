@@ -5,6 +5,7 @@ import Darwin
 public final class PersonalScratch {
     public let directory:URL
     public let cleanupFailures:Int
+    private var identity=stat()
     private struct Marker:Codable {let format:Int,id:String,pid:Int32}
     public init(storeDirectory:URL)throws {
         let root=storeDirectory.appendingPathComponent(".paia-b2-derived-v1",isDirectory:true)
@@ -28,6 +29,7 @@ public final class PersonalScratch {
         cleanupFailures=failures
         let id=UUID().uuidString;directory=root.appendingPathComponent(id,isDirectory:true)
         try FileManager.default.createDirectory(at:directory,withIntermediateDirectories:false,attributes:[.posixPermissions:0o700])
+        guard lstat(directory.path,&identity)==0,(identity.st_mode & S_IFMT)==S_IFDIR else{throw LexiconError.unsafePath}
         do {
             let marker=directory.appendingPathComponent(".owner.json")
             try JSONEncoder().encode(Marker(format:1,id:id,pid:getpid())).write(to:marker,options:.atomic)
@@ -35,7 +37,12 @@ public final class PersonalScratch {
             defer{if fd>=0{Darwin.close(fd)};if dir>=0{Darwin.close(dir)};if parent>=0{Darwin.close(parent)}}
             guard fd>=0,dir>=0,parent>=0,fcntl(fd,F_FULLFSYNC)==0,fsync(dir)==0,fsync(parent)==0 else{throw LexiconError.io}
         }
-        catch{try? FileManager.default.removeItem(at:directory);throw error}
+        catch{try? remove();throw error}
     }
-    public func remove()throws {if FileManager.default.fileExists(atPath:directory.path){try FileManager.default.removeItem(at:directory)}}
+    public func remove()throws {
+        var current=stat()
+        if lstat(directory.path,&current) != 0 {if errno==ENOENT{return};throw LexiconError.io}
+        guard (current.st_mode & S_IFMT)==S_IFDIR,current.st_dev==identity.st_dev,current.st_ino==identity.st_ino else{throw LexiconError.unsafePath}
+        try FileManager.default.removeItem(at:directory)
+    }
 }
