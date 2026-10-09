@@ -79,6 +79,20 @@ final class AppKitHostTests:XCTestCase {
         window.resignKey();XCTAssertFalse(host.isCurrentTarget)
         XCTAssertThrowsError(try s.process(.code(97)))
     }
+    @MainActor func testExistingHostMarkedTextIsNeverAdoptedOrCleared() throws {
+        _=NSApplication.shared
+        for attemptApply in [false,true] {
+            let client=NSTextView();client.string="prefix👩🏽‍💻";client.setSelectedRange(NSRange(location:client.string.utf16.count,length:0))
+            client.setMarkedText("外部e\u{301}",selectedRange:NSRange(location:2,length:0),replacementRange:NSRange(location:NSNotFound,length:0))
+            let text=client.string,marked=client.markedRange(),selection=client.selectedRange()
+            let session=try Self.lab.runtime.makeSession(),update=try session.refresh(),host=HostDispatcher(client:client,session:session)
+            XCTAssertFalse(host.isCurrentTarget)
+            if attemptApply{XCTAssertFalse(host.apply(update))}
+            host.invalidate()
+            XCTAssertEqual(client.string,text);XCTAssertEqual(client.markedRange(),marked);XCTAssertEqual(client.selectedRange(),selection)
+            XCTAssertTrue(client.hasMarkedText());XCTAssertEqual(host.insertCount,0)
+        }
+    }
     @MainActor func testReturnConsumesOnceAndReplacesSelectedGrapheme() throws {
         _=NSApplication.shared
         let client=NSTextView();client.string="A👩🏽‍💻B";client.setSelectedRange(NSRange(location:1,length:"👩🏽‍💻".utf16.count))

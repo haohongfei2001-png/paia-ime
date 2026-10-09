@@ -46,6 +46,21 @@ final class SettingsNativeTests:XCTestCase {
                 else{try type(spelling == .full ? "shurufa":"uurufa",lab.editor);try key(" ",lab.editor,code:49);try key(",",lab.editor);XCTAssertEqual(lab.editor.string,(traditional ? "輸入法":"输入法")+(punctuation ? "，":","))}
                 XCTAssertEqual(try? Data(contentsOf:file),before);count+=1
             }}}};XCTAssertEqual(count,24)
+            // An AppKit text-system composition in literal mode belongs to its original owner.
+            var literalConfiguration=LabConfiguration();literalConfiguration.literal=true
+            lab.editor.string="";try lab.applyConfiguration(literalConfiguration)
+            lab.editor.setMarkedText("外部👩🏽‍💻e\u{301}",selectedRange:NSRange(location:2,length:0),replacementRange:NSRange(location:NSNotFound,length:0))
+            let foreignText=lab.editor.string,foreignMark=lab.editor.markedRange(),foreignSelection=lab.editor.selectedRange()
+            lab.editor.didChangeState?();XCTAssertTrue(lab.hasComposition)
+            XCTAssertFalse(settings.saveButton.isEnabled);XCTAssertFalse(settings.defaultsButton.isEnabled)
+            XCTAssertFalse(lab.commitButton.isEnabled);XCTAssertFalse(lab.cancelCompositionButton.isEnabled);XCTAssertFalse(lab.repairButton.isEnabled)
+            XCTAssertThrowsError(try lab.applyConfiguration(LabConfiguration()))
+            send(settings.saveButton);send(settings.defaultsButton);XCTAssertEqual(lab.configuration,literalConfiguration)
+            lab.editor.renew();XCTAssertNil(lab.editor.dispatcher)
+            XCTAssertEqual(lab.editor.string,foreignText);XCTAssertEqual(lab.editor.markedRange(),foreignMark);XCTAssertEqual(lab.editor.selectedRange(),foreignSelection)
+            XCTAssertEqual(try? Data(contentsOf:file),before)
+            // The original text system resolves its own mark before PAIA resumes.
+            lab.editor.unmarkText();lab.editor.string=""
             lab.editor.string="";try lab.applyConfiguration(LabConfiguration());let old=try XCTUnwrap(lab.editor.dispatcher)
             rejectFlypy=true;lab.spelling.selectItem(at:1);XCTAssertTrue(NSApp.sendAction(lab.spelling.action!,to:lab.spelling.target,from:lab.spelling))
             XCTAssertEqual(lab.configuration.spelling,.full);XCTAssertEqual(lab.spelling.indexOfSelectedItem,0);XCTAssertTrue(lab.editor.dispatcher===old);XCTAssertNoThrow(try old.session.refresh())
