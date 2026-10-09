@@ -113,6 +113,7 @@ import ConstraintCore
     }
     @objc private func changeConfiguration(_ sender:NSControl){
         guard !hasComposition,!inspectorVisible else{reflectConfiguration();status.stringValue="Commit or cancel composition before changing modes.";return}
+        guard LabSpelling.allCases.indices.contains(spelling.indexOfSelectedItem),(0...1).contains(script.indexOfSelectedItem) else{reflectConfiguration();return}
         var next=configuration
         next.spelling=LabSpelling.allCases[spelling.indexOfSelectedItem];next.traditional=script.indexOfSelectedItem==1
         next.literal=literal.state == .on;next.chinesePunctuation=punctuation.state == .on;next.deferredCommit=hold.state == .on
@@ -140,7 +141,7 @@ import ConstraintCore
             inspector.isHidden=false;focusLease=host.beginInspector(views:ownedInspectorViews())
             guard focusLease != nil else{throw ConstraintError.stale}
             editor.candidates.orderOut(nil);guard window?.makeFirstResponder(rawField)==true,host.isInspectorSuspended else{throw ConstraintError.stale};status.stringValue="Preview searches real engine paths. The document is unchanged until Accept.";updateControls()
-        } catch {status.stringValue=message(error);inspector.isHidden=true;focusLease=nil}
+        } catch {dismissInspector(resume:true);status.stringValue=message(error)}
     }
     private func ownedInspectorViews()->[NSView] {[rawField,surfaceField,previewButton,cancelRepairButton]+targetStack.arrangedSubviews+acceptStack.arrangedSubviews}
     private func refreshTargets(preserving old:RawAnchor?)throws {
@@ -156,6 +157,10 @@ import ConstraintCore
     }
     @objc private func selectTarget(_ sender:TargetButton){
         guard inspectorVisible,sender.renderID==targetRenderID else{return}
+        guard let host=editor.dispatcher,host.permitsInspectorFocus(window?.firstResponder),
+              sender.binding.lease.matches(host.session.snapshot,revision:runtime.dictionaryRevision,request:sender.binding.lease.request) else{
+            editor.dispatcher?.invalidate();dismissInspector(resume:false);return
+        }
         discardProposal();selectedTarget=sender.binding
         if let raw=editor.dispatcher?.session.snapshot?.rawASCII {
             rawField.stringValue=String(decoding:Array(raw.utf8)[sender.binding.anchor.bytes],as:UTF8.self);surfaceField.stringValue=sender.binding.anchor.text
@@ -164,7 +169,7 @@ import ConstraintCore
     public func controlTextDidChange(_ notification:Notification){discardProposal();status.stringValue="Edit changed. Preview again before accepting."}
     private func discardProposal(){proposal?.cancel();proposal=nil;previewLabel.stringValue="";for view in acceptStack.arrangedSubviews {acceptStack.removeArrangedSubview(view);view.removeFromSuperview()}}
     @objc private func preparePreview(_ sender:NSButton){
-        guard let host=editor.dispatcher,let token=focusLease,let target=selectedTarget,host.permitsInspectorFocus(window?.firstResponder) else{dismissInspector(resume:false);return}
+        guard let host=editor.dispatcher,let token=focusLease,let target=selectedTarget,host.permitsInspectorFocus(window?.firstResponder) else{editor.dispatcher?.invalidate();dismissInspector(resume:false);return}
         discardProposal()
         do {
             let p=try host.session.prepareRepair(target:target,replacementRaw:rawField.stringValue,surface:surfaceField.stringValue)
@@ -176,8 +181,10 @@ import ConstraintCore
         } catch {discardProposal();status.stringValue=message(error);try? refreshTargets(preserving:target.anchor)}
     }
     @objc private func acceptPreview(_ sender:AcceptButton){
-        guard let current=proposal,current===sender.proposal,let token=focusLease,let host=editor.dispatcher,
-              host.resumeInspector(token) else{return}
+        guard let current=proposal,current===sender.proposal else{return}
+        guard let token=focusLease,let host=editor.dispatcher,host.resumeInspector(token) else{
+            editor.dispatcher?.invalidate();dismissInspector(resume:false);status.stringValue="Changed target rejected; repair closed.";return
+        }
         do {
             let update=try host.session.applyRepair(sender.proposal)
             guard host.apply(update) else{throw ConstraintError.stale}

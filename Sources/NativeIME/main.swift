@@ -39,7 +39,7 @@ import EngineBridge
             }
             scroll.documentView=view;window.contentView?.addSubview(scroll);self.window=window;self.view=view
             window.makeKeyAndOrderFront(nil);window.makeFirstResponder(view);NSApp.activate(ignoringOtherApps:true)
-        } catch { fputs("A1 startup failed; verified fixture/library configuration is required.\n",stderr);NSApp.terminate(nil) }
+        } catch { fputs("Native lab startup failed; verified resource configuration is required.\n",stderr);NSApp.terminate(nil) }
     }
     func windowDidResignKey(_ notification:Notification) {view?.dispatcher?.invalidate();view?.candidates.orderOut(nil)}
     func applicationDidResignActive(_ notification:Notification) {view?.dispatcher?.invalidate();view?.candidates.orderOut(nil)}

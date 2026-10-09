@@ -61,8 +61,11 @@ import SessionCore
     public func resumeInspector(_ token:UUID)->Bool {
         guard let state=inspector,state.token==token,let client=client,let window=client.window,
               permitsInspectorFocus(window.firstResponder) else{invalidate();return false}
+        // Keep the lease live across the synchronous window focus callback; otherwise
+        // the controller could cancel the still-owned proposal during restoration.
+        guard window.makeFirstResponder(client) else{invalidate();return false}
         inspector=nil
-        guard window.makeFirstResponder(client),isCurrentTarget else{invalidate();return false}
+        guard isCurrentTarget else{invalidate();return false}
         return true
     }
     deinit {for token in observers {NotificationCenter.default.removeObserver(token)}}

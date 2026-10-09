@@ -25,12 +25,23 @@ final class NativeControlTests:XCTestCase {
         XCTAssertTrue(c.editor.hasMarkedText());XCTAssertTrue(c.repairButton.isEnabled)
     }
     @MainActor func preview(_ c:NativeLabController,_ w:LabWindow)throws->NSButton {
-        c.repairButton.performClick(nil);XCTAssertTrue(c.inspectorVisible)
+        let mark=c.editor.markedRange(),selection=c.editor.selectedRange(),document=c.editor.string
+        var transitions=[String]();let originalFocus=w.beforeFocusChange
+        w.beforeFocusChange={responder in
+            let name=responder.map{String(describing:type(of:$0))} ?? "nil"
+            let delegate=(responder as? NSTextView)?.delegate.map{String(describing:type(of:$0))} ?? "none"
+            transitions.append("to="+name+" delegate="+delegate+" suspended=\(c.editor.dispatcher?.isInspectorSuspended ?? false) marked=\(c.editor.markedRange())")
+            originalFocus?(responder)
+        }
+        defer{w.beforeFocusChange=originalFocus}
+        c.repairButton.performClick(nil);XCTAssertTrue(c.inspectorVisible,c.status.stringValue+" | "+transitions.joined(separator:"; "))
+        XCTAssertEqual(c.editor.markedRange(),mark);XCTAssertEqual(c.editor.selectedRange(),selection);XCTAssertEqual(c.editor.string,document)
         XCTAssertTrue(c.editor.dispatcher?.isInspectorSuspended==true)
         let targets=c.targetStack.arrangedSubviews.compactMap{$0 as? NSButton}
         let target=try XCTUnwrap(targets.first(where:{$0.title.hasPrefix("输入法 ")}));target.performClick(nil)
         XCTAssertTrue(w.makeFirstResponder(c.rawField));c.rawField.stringValue="daimashencha"
         XCTAssertTrue(w.makeFirstResponder(c.surfaceField));c.surfaceField.stringValue="代码审查"
+        XCTAssertEqual(c.editor.markedRange(),mark);XCTAssertEqual(c.editor.selectedRange(),selection);XCTAssertEqual(c.editor.string,document)
         c.controlTextDidChange(Notification(name:NSControl.textDidChangeNotification,object:c.surfaceField))
         c.previewButton.performClick(nil)
         XCTAssertEqual(c.previewLabel.stringValue,"你好代码审查世界",c.status.stringValue)
@@ -84,6 +95,28 @@ final class NativeControlTests:XCTestCase {
         let(d,x)=try make();defer{x.close()};try heldSentence(d);let other=try preview(d,x)
         d.editor.string="externally changed target";other.performClick(nil)
         XCTAssertEqual(d.editor.string,"externally changed target");XCTAssertEqual(d.editor.dispatcher?.insertCount,0)
+        XCTAssertFalse(d.inspectorVisible);XCTAssertTrue(d.acceptStack.arrangedSubviews.isEmpty)
+    }
+    @MainActor func testOldTargetAndCandidateControlsHoldDisplayedIdentity()throws {
+        let(c,w)=try make();defer{w.close()};try heldSentence(c)
+        c.repairButton.performClick(nil)
+        let oldTarget=try XCTUnwrap(c.targetStack.arrangedSubviews.first as? NSButton)
+        let oldAccept=try preview(c,w)
+        let raw=c.rawField.stringValue,surface=c.surfaceField.stringValue
+        oldTarget.performClick(nil)
+        XCTAssertEqual(c.rawField.stringValue,raw);XCTAssertEqual(c.surfaceField.stringValue,surface)
+        XCTAssertTrue(c.acceptStack.arrangedSubviews.first===oldAccept)
+        c.previewButton.performClick(nil)
+        let newAccept=try XCTUnwrap(c.acceptStack.arrangedSubviews.first as? NSButton)
+        oldAccept.performClick(nil);XCTAssertTrue(c.acceptStack.arrangedSubviews.first===newAccept);XCTAssertTrue(c.inspectorVisible)
+        c.cancelRepairButton.performClick(nil)
+        let(d,x)=try make();defer{x.close()};try type("nihao",d.editor)
+        let snapshot=try XCTUnwrap(d.editor.dispatcher?.session.snapshot)
+        d.editor.candidates.show(snapshot,below:NSRect(x:10,y:100,width:100,height:20),screen:NSRect(x:0,y:0,width:1000,height:800))
+        let stack=try XCTUnwrap(d.editor.candidates.contentView?.subviews.first as? NSStackView)
+        let oldCandidate=try XCTUnwrap(stack.arrangedSubviews.first as? NSButton)
+        d.cancelCompositionButton.performClick(nil);d.spelling.selectItem(at:1);configurationAction(d)
+        oldCandidate.performClick(nil);XCTAssertEqual(d.editor.string,"");XCTAssertEqual(d.editor.dispatcher?.insertCount,0)
     }
     @MainActor func testNativeControlAccessibilityAndWindowDeactivation()throws {
         let(c,w)=try make();defer{w.close()}
