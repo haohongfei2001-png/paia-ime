@@ -76,7 +76,12 @@ import SessionCore
             let afterSelection=owner.selectedRange();guard stillOwned(ticket,owner,active),afterSelection==selection else{return false}
             let afterMark=owner.markedRange();return stillOwned(ticket,owner,active) && afterMark==mark
         }
-        return mark.length==0
+        guard mark.length==0 else{return false}
+        // Idle expressions must not adopt a selection changed by a later getter.
+        // Bounded repeated observations improve detection, not atomic host CAS.
+        let afterSelection=owner.selectedRange();guard stillOwned(ticket,owner,active),afterSelection==selection else{return false}
+        let afterMark=owner.markedRange();guard stillOwned(ticket,owner,active),afterMark==mark else{return false}
+        let finalSelection=owner.selectedRange();return stillOwned(ticket,owner,active) && finalSelection==selection
     }
     public func hasCurrentTarget(_ sender:AnyObject)->Bool {
         guard !executing,same(sender),let owner=client,let active=session else{return false}
@@ -198,6 +203,20 @@ import SessionCore
             }
             notice=nil;outcome = .ready;return true
         }catch{return false}
+    }
+    // Explicit idle insertion shares apply/reserve, finite range and unknown-outcome policy.
+    @discardableResult public func insertExpression(_ text:String,binding:ExpressionBinding,client sender:AnyObject)->Bool {
+        if executing{fail("Reentrant expression insertion refused.");return false}
+        guard same(sender),let owner=client,let active=session,active.idleExpressionBinding==binding else{return false}
+        executing=true;defer{executing=false};let ticket=activation;beginOperation(active)
+        guard verify(ticket,owner,active) else{if stillOwned(ticket,owner,active){fail("Expression target changed. Nothing replayed.")};return false}
+        do {
+            let update=try active.commitExpression(text,binding:binding)
+            guard stillOwned(ticket,owner,active),apply(update,ticket:ticket,owner:owner,active:active) else{
+                if stillOwned(ticket,owner,active){fail("Expression insertion is unconfirmed. Check the original document; no retry.")};return false
+            }
+            notice=nil;outcome = .ready;return true
+        }catch{if stillOwned(ticket,owner,active){fail("Expression insertion refused. No replay.")};return false}
     }
     // Only a matching lifecycle callback may request the existing raw-Return policy.
     // A stale callback never binds itself to the newly active client.

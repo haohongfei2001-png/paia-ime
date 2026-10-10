@@ -1,0 +1,21 @@
+# Production dictionary provenance gate
+
+Engineering inventory, checked 2026-10-10. This is not a legal clearance opinion or a new resource acquisition. The default IMK bundle still contains only the authored A1 fixture. The existing Rime Ice research corpus remains unbundled. Resource files and their immutable hashes have not been changed by C.
+
+Identity/reproducibility is already established: pinned Rime Ice commit `da1fbe602e38f26db846fa10120ee64c2b0324c0`, file digests/roles, 1,873,509-row inventory, retained license texts, generated spelling schemas and runtime content revisions. Those facts do not establish every imported source grant.
+
+## Narrow unresolved source questions
+
+1. **`cn_dicts/8105.dict.yaml` frequency weights.** The [pinned header](https://github.com/iDvel/rime-ice/blob/da1fbe602e38f26db846fa10120ee64c2b0324c0/cn_dicts/8105.dict.yaml) identifies BLCU's frequency table. Its [official page](https://faculty.blcu.edu.cn/xinghb/zh_CN/article/167473/content/1437.htm) currently says the data is for character-related research. Determine the grant applicable to the imported version, obtain applicable permission, or document a qualified rights assessment before production use. If unresolved, first scope replacement to the affected weights; retaining the repository GPL notice is not sufficient evidence for this separate source.
+
+2. **8105 readings imported from Wiktionary.** This is not simply an unlicensed source: the currently cited site uses CC BY-SA 4.0, and [Creative Commons documents one-way adaptation into GPLv3](https://creativecommons.org/compatible-licenses/). Still missing are the actual imported revision, applicable historical/imported-content licensing, attribution and changes record. Follow [Wikimedia's reuse terms](https://foundation.wikimedia.org/wiki/Policy:Terms_of_Use#7._Licensing_of_Content). Current-page licensing alone does not establish an earlier import's history.
+
+3. **`base.dict.yaml` source subsets.** The lock/credits name Modern Chinese Common Words without an explicit grant and Wild Wind as public domain based only on upstream attribution. Establish original-source basis and imported version for those subsets. Existing THUOCL MIT notice is retained and need not be reinvented. Distinguish references used for corrections from actual copying before asserting additional obligations. See [pinned credits](https://github.com/iDvel/rime-ice/blob/da1fbe602e38f26db846fa10120ee64c2b0324c0/others/docs/Credits.md).
+
+4. **Tencent-derived rows in `base`, `ext` and `tencent`.** Excluding only `tencent.dict.yaml` would not remove all derived material. A historical indexed extract of the [official corpus page](https://ailab.tencent.com/ailab/nlp/en/embedding.html) contains CC BY 3.0 together with research-purpose wording; the live page no longer supplies the original corpus grant, so this remains unresolved version/grant evidence rather than a verified blanket commercial prohibition. Recover the exact distributed version/readme/grant and resolve that wording. See [upstream extraction account](https://github.com/iDvel/rime-ice/issues/24) and [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/). If a source cannot be cleared, map and replace only the affected rows first; do not infer an unrelated engine architecture change.
+
+## Release compliance still needed
+
+The root dictionary, five Chinese dictionaries and derived spelling schemas are declared GPL-3.0-only. A production package needs preserved notices, modification records, and the applicable corresponding-source arrangement for compiled resources and generation/build scripts. Retain existing essay-simp LGPL, THUOCL MIT, double-pinyin authorship and OpenCC Apache notices. Document whether components are independent aggregation or a covered combined work; bundling alone does not prove that the native frontend must be GPL. See the pinned [GPL terms §§4–6](https://github.com/iDvel/rime-ice/blob/da1fbe602e38f26db846fa10120ee64c2b0324c0/LICENSE).
+
+No third-party contact, permission purchase or production dictionary replacement is performed by this inventory. The exact-expression local C loop does not depend on these research dictionaries. The remaining usable-product gates include production vocabulary/provenance and live-client quality, not only installation.

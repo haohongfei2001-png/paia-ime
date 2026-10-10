@@ -4,7 +4,7 @@ An independent **macOS Chinese input method** project. PAIA is an optional futur
 
 ## Status
 
-**Native research slices A1/A2 and B1–B8 implemented; uninstalled IMK engineering and basic-mode/explicit-management integration added. System IME not installed.** The design/research package includes native AppKit test-probe code, a real librime engine experiment report, a browser prototype and bounded test evidence. An offline prototype and a synthetic AppKit host are **not** an installed macOS input source. Comparative user experience and accuracy versus WeChat/Sogou/Apple have not been established.
+**Native research slices A1/A2 and B1–B8 implemented; uninstalled IMK engineering and basic-mode/explicit-management integration and the local exact-expression loop added. System IME not installed.** The design/research package includes native AppKit test-probe code, a real librime engine experiment report, a browser prototype and bounded test evidence. An offline prototype and a synthetic AppKit host are **not** an installed macOS input source. Comparative user experience and accuracy versus WeChat/Sogou/Apple have not been established.
 
 ## Research / 研究资料
 
@@ -60,6 +60,10 @@ See [A1 build, tests, resource pins and evidence boundaries](docs/BATCH_A1.md). 
 ## InputMethodKit engineering integration
 
 [The separate input-method bundle and bounded client adapter](docs/IMK_INTEGRATION.md) add a real IMKInputController, shared event/lifecycle driver and IMKTextInput bridge. Native CI builds the unsigned app, verifies its bundled real engine without starting IMKServer, and exercises an NSTextView-backed protocol client. [Integration evidence](evidence/imk/VALIDATION.md) preserves the first failing expectation, actual engine comparison and ownership regressions. The shared IMK workspace now connects the existing basic modes, explicit settings save/verification and personal term governance under a process-wide idle gate; [basic-controls evidence](evidence/imk-basics/VALIDATION.md) records the actual native stages and retained failures. The default bundle still contains only the tiny authored fixture, while explicitly selected research resources remain unbundled. Known-character/G01 interaction, production resources, update/recovery and installed compatibility remain open.
+
+## Explicit exact-expression loop
+
+[Complete manual save, local lookup, full source review and once-only insertion](docs/EXACT_EXPRESSIONS.md) now share the actual IMK driver. Ordinary input never creates saved expressions; unknown storage/insertion outcomes do not retry. [C evidence](evidence/c-expressions/VALIDATION.md) retains the former unsafe idle-verifier red test, initial UI-test crash and exact native reruns. The optional store is explicitly chosen at startup. This remains authored-protocol/ENGINE_NATIVE/APPKIT_HOST evidence, with no installed service, external selected-text capture or AI/PAIA dependency. [Production vocabulary provenance](docs/PRODUCTION_DICTIONARY_GATE.md) is a separate release gate, not solved by source hashes or by installing the current fixture app.
 
 ## Batch A1 engineering contract
 

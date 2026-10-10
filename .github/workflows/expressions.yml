@@ -1,0 +1,63 @@
+name: Exact local expression IMK loop
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: expressions-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  native:
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Exact source and machine
+        run: |
+          mkdir -p evidence/expression-run
+          echo "PAIA_SOURCE_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+          { git rev-parse HEAD; sw_vers; uname -a; swift --version; } | tee evidence/expression-run/environment.txt
+      - name: Existing verified fixture and engine only
+        run: |
+          python3 Tools/audit-a1.py
+          python3 Tools/audit-a2.py
+          python3 Tools/prepare-a1.py | tee evidence/expression-run/inputs.json
+      - name: Compile real uninstalled IMK bundle
+        run: |
+          set -o pipefail
+          bash Tools/build-imk.sh 2>&1 | tee evidence/expression-run/build.txt
+          cp .build/imk-bundle-manifest.json evidence/expression-run/
+      - name: Exact store and same effect gate
+        run: |
+          set -o pipefail
+          swift test --filter ExpressionCoreTests 2>&1 | tee evidence/expression-run/core-tests.txt
+          grep -Fq 'Executed 11 tests, with 0 failures' evidence/expression-run/core-tests.txt
+      - name: Prove former idle callback-selection regression red
+        run: |
+          set -o pipefail
+          source .build/a1-env.sh
+          python3 Tools/check-expression-idle-regression.py 2>&1 | tee evidence/expression-run/regression-proof.txt
+          git diff --exit-code
+      - name: Real engine and NSTextView protocol expression flow
+        run: |
+          set -o pipefail
+          source .build/a1-env.sh
+          export PAIA_EXPRESSION_CAPTURE="$PWD/evidence/expression-run/review.png"
+          export PAIA_EXPRESSION_CAPTURE_TAIL="$PWD/evidence/expression-run/review-tail.png"
+          swift test --filter ExpressionIMKTests 2>&1 | tee evidence/expression-run/imk-tests.txt
+          grep -Fq 'Executed 14 tests, with 0 failures' evidence/expression-run/imk-tests.txt
+          grep -Fq 'EXPRESSION_NATIVE ENGINE_NATIVE + APPKIT_HOST' evidence/expression-run/imk-tests.txt
+          python3 -c 'import base64,pathlib; s=base64.b64encode(pathlib.Path("evidence/expression-run/review.png").read_bytes()).decode(); [print("PAIA_EXPRESSION_REVIEW_IMAGE_%d:%s" % (i//1800,s[i:i+1800])) for i in range(0,len(s),1800)]'
+          python3 -c 'import base64,pathlib; s=base64.b64encode(pathlib.Path("evidence/expression-run/review-tail.png").read_bytes()).decode(); [print("PAIA_EXPRESSION_TAIL_IMAGE_%d:%s" % (i//1800,s[i:i+1800])) for i in range(0,len(s),1800)]'
+      - name: Preserve complete evidence including failure
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: expressions-evidence-${{ env.PAIA_SOURCE_SHA }}
+          path: evidence/expression-run/
+          retention-days: 14

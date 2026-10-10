@@ -168,6 +168,11 @@ public final class InputSession {
         lock.lock();defer{lock.unlock()};guard !ended else{throw EngineError.closed}
         return try core.commitKnownCharacter(value,binding:binding)
     }
+    public var idleExpressionBinding:ExpressionBinding? {lock.lock();defer{lock.unlock()};return ended ? nil:core.idleExpressionBinding}
+    public func commitExpression(_ text:String,binding:ExpressionBinding)throws->SessionUpdate {
+        lock.lock();defer{lock.unlock()};guard !ended else{throw EngineError.closed}
+        return try core.commitExpression(text,binding:binding)
+    }
     public func commitEngineComposition() throws -> SessionUpdate {
         lock.lock();defer{lock.unlock()};return try step(5)
     }

@@ -23,6 +23,8 @@ import SettingsCore
     public let workspace:IMKWorkspace
     private var controls=[(NSControl,()->Bool)](),window:NSWindow?,termWindow:NSWindow?
     public private(set) var terms:PersonalLexiconController?
+    public private(set) var expressions:ExpressionManager?
+    public let expressionsButton=NSButton()
     public init(workspace:IMKWorkspace){
         self.workspace=workspace;super.init()
         root.orientation = .vertical;root.alignment = .leading;root.spacing=12;root.edgeInsets=NSEdgeInsets(top:20,left:20,bottom:20,right:20)
@@ -42,6 +44,8 @@ import SettingsCore
         root.addArrangedSubview(termsButton);root.addArrangedSubview(status)
         status.widthAnchor.constraint(equalTo:root.widthAnchor,constant:-40).isActive=true
         registerIdleControl(termsButton,available:{[weak self] in self?.workspace.personalStore != nil})
+        expressionsButton.title="Manage exact local expressions…";expressionsButton.target=self;expressionsButton.action=#selector(openExpressions(_:));expressionsButton.bezelStyle = .rounded
+        root.addArrangedSubview(expressionsButton);registerIdleControl(expressionsButton,available:{[weak self] in self?.workspace.expressionStore != nil})
         settings.restoreAtStartup();reflect()
     }
     public func registerIdleControl(_ control:NSControl,available:@escaping()->Bool){controls.append((control,available));refreshControls()}
@@ -68,7 +72,7 @@ import SettingsCore
         guard workspace.isIdle else{status.stringValue="Finish every composition before opening settings.";return}
         isClosed=false
         if window==nil {
-            let w=NSWindow(contentRect:NSRect(x:120,y:180,width:860,height:340),styleMask:[.titled,.closable],backing:.buffered,defer:false)
+            let w=NSWindow(contentRect:NSRect(x:120,y:180,width:860,height:390),styleMask:[.titled,.closable],backing:.buffered,defer:false)
             w.isReleasedWhenClosed=false;w.title="PAIA input settings · Explicit storage";w.contentView=root;w.delegate=self;window=w
         }
         reflect();window?.makeKeyAndOrderFront(nil)
@@ -86,6 +90,10 @@ import SettingsCore
         do{try manager.attach(to:w);terms=manager;termWindow=w;w.makeKeyAndOrderFront(nil)}
         catch{status.stringValue="Personal terms could not be opened. No automatic retry."}
     }
-    public func close(){termWindow?.close();window?.close();isClosed=true;refreshControls()}
+    @objc public func openExpressions(_ sender:Any?){
+        guard !isClosed,workspace.isIdle,workspace.expressionStore != nil else{return}
+        if expressions==nil{expressions=ExpressionManager(workspace:workspace)};expressions?.show()
+    }
+    public func close(){expressions?.close();termWindow?.close();window?.close();isClosed=true;refreshControls()}
 }
 #endif
