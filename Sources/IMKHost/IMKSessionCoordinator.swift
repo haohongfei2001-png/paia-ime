@@ -85,16 +85,21 @@ import TextBoundary
               authority.canRead,authority.cheapReliableLength else{return nil}
         let beforeSelection=owner.selectedRange();guard stillOwned(ticket,owner,active),beforeSelection==selection else{return nil}
         let beforeMark=owner.markedRange();guard stillOwned(ticket,owner,active),beforeMark.length==0 else{return nil}
-        guard let length=owner.contextualLength(),stillOwned(ticket,owner,active),
-              let requested=request ?? (try? ContextBudget.request(selection:selection,length:length)) else{return nil}
+        // Metadata callbacks can revoke permission or change revision. Recheck
+        // immediately before every length and text read, not only at the end.
+        func authorityUnchanged()->Bool {let current=owner.contextAuthority();return stillOwned(ticket,owner,active) && current==authority}
+        guard authorityUnchanged(),let length=owner.contextualLength(),stillOwned(ticket,owner,active),
+              let requested=request ?? (try? ContextBudget.request(selection:selection,length:length)),authorityUnchanged() else{return nil}
         guard let first=owner.boundedText(in:requested),stillOwned(ticket,owner,active) else{return nil}
         let midSelection=owner.selectedRange();guard stillOwned(ticket,owner,active),midSelection==selection else{return nil}
         let midMark=owner.markedRange();guard stillOwned(ticket,owner,active),midMark.length==0 else{return nil}
+        guard authorityUnchanged() else{return nil}
         let midLength=owner.contextualLength();guard stillOwned(ticket,owner,active),midLength==length else{return nil}
         let midAuthority=owner.contextAuthority();guard stillOwned(ticket,owner,active),midAuthority==authority else{return nil}
         guard let second=owner.boundedText(in:requested),stillOwned(ticket,owner,active),first.exactlyMatches(second) else{return nil}
         let afterSelection=owner.selectedRange();guard stillOwned(ticket,owner,active),afterSelection==selection else{return nil}
         let afterMark=owner.markedRange();guard stillOwned(ticket,owner,active),afterMark.length==0 else{return nil}
+        guard authorityUnchanged() else{return nil}
         let afterLength=owner.contextualLength();guard stillOwned(ticket,owner,active),afterLength==length else{return nil}
         let afterAuthority=owner.contextAuthority();guard stillOwned(ticket,owner,active),afterAuthority==authority,
               let evidence=try? ContextEvidence(read:first,selection:selection,documentLength:length) else{return nil}
@@ -117,7 +122,7 @@ import TextBoundary
             guard let (evidence,authority)=observeContext(ticket,next,prepared,selection:selection) else{
                 if stillOwned(ticket,next,prepared){fail("Bounded context or its Unicode/permission evidence is unavailable.")};return nil
             }
-            let rect=next.lineRect(at:selection.location)
+            let rect=next.lineRect(at:0)
             guard stillOwned(ticket,next,prepared),let rect=rect,
                   let (again,afterAuthority)=observeContext(ticket,next,prepared,selection:selection),
                   evidence.exactlyMatches(again),authority==afterAuthority else{
@@ -190,7 +195,9 @@ import TextBoundary
         executing=true;defer{executing=false};beginOperation(active)
         let ticket=activation
         guard verify(ticket,owner,active) else{if stillOwned(ticket,owner,active){fail("Client changed before candidate positioning.")};return nil}
-        let rect=owner.lineRect(at:expectedSelection.location)
+        // Public IMK attributes index is inline-relative; idle uses zero.
+        let inlineIndex=ownedText==nil ? 0:expectedSelection.location-expectedMark.location
+        let rect=owner.lineRect(at:inlineIndex)
         guard stillOwned(ticket,owner,active),verify(ticket,owner,active) else{if stillOwned(ticket,owner,active){fail("Client changed during candidate positioning.")};return nil}
         return rect
     }

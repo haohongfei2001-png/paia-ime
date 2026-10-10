@@ -27,6 +27,7 @@
 }
 - (NSInteger)length {_documentLengthCalls++;if(_onLength){void(^f)(void)=_onLength;_onLength=nil;f();}return _view.string.length;}
 - (NSDictionary *)attributesForCharacterIndex:(NSUInteger)index lineHeightRectangle:(NSRect *)rect {
+    _lastGeometryIndex=index;
     if(_onGeometry){void(^f)(void)=_onGeometry;_onGeometry=nil;f();}
     if(rect)*rect=_invalidGeometry?NSZeroRect:NSMakeRect(200,400,1,22);return @{};
 }

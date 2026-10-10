@@ -54,17 +54,22 @@ final class ContextIMKTests:XCTestCase {
         // This client declares a synthetic bundle identifier and implements every
         // public selector; neither fact authorizes context on the default bridge.
         XCTAssertFalse(r.bridge.offersContext)
+        let prefixed=try Rig("existing",selection:nil,qualified:false);defer{prefixed.close()}
+        try key(prefixed,"n");XCTAssertEqual(prefixed.client.lastGeometryIndex,1)
+        try key(prefixed,"",53);XCTAssertEqual(prefixed.client.lastGeometryIndex,0)
     }
     @MainActor func testSelectionReviewLongerShorterAndEmptyUseOneReservedEffect()throws {
         _=NSApplication.shared
         for replacement in ["x","代码𠀀e\u{301}👩🏽‍💻",""] {
             let r=try Rig();defer{r.close()};let initial=try begin(r)
-            XCTAssertEqual(initial.capture.original,"你好");XCTAssertEqual(r.client.markCalls,0);XCTAssertEqual(r.client.insertCalls,0)
+            XCTAssertEqual(initial.capture.original,"你好");XCTAssertEqual(r.client.lastGeometryIndex,0);XCTAssertEqual(r.client.markCalls,0);XCTAssertEqual(r.client.insertCalls,0)
+            XCTAssertEqual(r.client.reads.count,4);XCTAssertEqual(r.client.documentLengthCalls,6)
             try replaceDraft(replacement,r);let preview=try review(r)
             r.driver.applyContext(token:preview.token);r.driver.applyContext(token:preview.token)
             XCTAssertEqual(r.client.view.string,"a"+replacement+"b");XCTAssertEqual(r.client.insertCalls,1);XCTAssertEqual(r.client.markCalls,0)
             XCTAssertEqual((r.client.writes.firstObject as? NSValue)?.rangeValue,NSRange(location:1,length:2));XCTAssertNil(r.driver.coordinator.session)
             XCTAssertEqual(r.client.view.selectedRange(),NSRange(location:1+replacement.utf16.count,length:0))
+            XCTAssertEqual(r.client.reads.count,10);XCTAssertEqual(r.client.documentLengthCalls,15)
         }
     }
     @MainActor func testContextualKnownCharacterEmptyEndAndJoiningRefusal()throws {
@@ -90,6 +95,14 @@ final class ContextIMKTests:XCTestCase {
             let q=try Rig();defer{q.close()};if unavailable==0{q.authority.read=false}else{q.authority.endpoint=false}
             q.driver.performContextMenuAction(try XCTUnwrap(q.driver.contextMenuAction(kind:.selectedText)))
             XCTAssertNil(q.driver.contextEdit);XCTAssertEqual(q.client.documentLengthCalls,0);XCTAssertEqual(q.client.reads.count,0)
+        }
+        // A metadata callback can revoke read authority without a lifecycle event.
+        // The following body read must not happen under the former permission.
+        for stage in 0..<2 {
+            let q=try Rig();defer{q.close()}
+            if stage==0{q.client.onLength={q.authority.read=false}}else{q.client.onMarkedRange={q.authority.read=false}}
+            q.driver.performContextMenuAction(try XCTUnwrap(q.driver.contextMenuAction(kind:.selectedText)))
+            XCTAssertNil(q.driver.contextEdit);XCTAssertEqual(q.client.reads.count,0)
         }
     }
     @MainActor func testRawMalformedActualRangeAndTruncatedResponsesRefuse()throws {
@@ -140,6 +153,11 @@ final class ContextIMKTests:XCTestCase {
             let before=r.client.view.string;r.driver.applyContext(token:preview.token);r.driver.applyContext(token:preview.token)
             XCTAssertEqual(r.client.insertCalls,0);if variant != 4{XCTAssertEqual(r.client.view.string,before)};XCTAssertNil(r.driver.contextEdit)
         }
+        let distant=String(repeating:"q",count:600)+"\n你好尾",q=try Rig(distant,selection:NSRange(location:601,length:2));defer{q.close()}
+        _=try begin(q);try replaceDraft("new",q);let preview=try review(q),oldRevision=q.client.contextRevision
+        q.client.view.textStorage?.replaceCharacters(in:NSRange(location:0,length:1),with:"z")
+        q.client.view.setSelectedRange(NSRange(location:601,length:2));XCTAssertGreaterThan(q.client.contextRevision,oldRevision)
+        q.driver.applyContext(token:preview.token);XCTAssertEqual(q.client.insertCalls,0)
     }
     @MainActor func testWriteReentryIgnoredRangeAndUnknownReadbackNeverReplay()throws {
         _=NSApplication.shared

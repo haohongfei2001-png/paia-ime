@@ -322,6 +322,9 @@ import ConstraintCore
         let editable=state.reviewed ? ContextEditState(capture:state.capture,draft:state.draft,caret:state.caret):state
         if let next=editable.editing(code:event.keyCode,text:event.characters ?? "") {
             contextEdit=next;presentedContextToken=nil;renderContext(sender,ticket:ticket,owner:owner)
+        }else if !(event.characters ?? "").isEmpty || event.keyCode==48 {
+            contextEdit=ContextEditState(capture:state.capture,draft:state.draft,caret:state.caret,notice:"Unsupported draft key. Original and draft unchanged; Cancel to return to the host.")
+            presentedContextToken=nil;renderContext(sender,ticket:ticket,owner:owner)
         }
         return true
     }

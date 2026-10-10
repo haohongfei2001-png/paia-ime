@@ -1,7 +1,7 @@
 #import "PAIAIMKContext.h"
 @interface PAIABoundedContextRead ()
 @property(nonatomic,readwrite) NSRange actualRange;
-@property(nonatomic,readwrite) NSData *utf16LE;
+@property(nonatomic,readwrite,copy) NSData *utf16LE;
 @end
 @implementation PAIABoundedContextRead
 @end

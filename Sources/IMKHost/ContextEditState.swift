@@ -40,7 +40,14 @@ public struct ContextEditState {
             if position+1<boundaries.count{next=(draft as NSString).replacingCharacters(in:NSRange(location:caret,length:boundaries[position+1]-caret),with:"")}
         case 48,125,126,116,121:return nil
         default:
-            guard !text.isEmpty,!text.unicodeScalars.contains(where:{CharacterSet.controlCharacters.contains($0) || (0xF700...0xF8FF).contains($0.value)}) else{return nil}
+            guard !text.isEmpty,text.unicodeScalars.allSatisfy({ scalar in
+                if (0xF700...0xF8FF).contains(scalar.value){return false}
+                switch scalar.properties.generalCategory {
+                case .control,.lineSeparator,.paragraphSeparator:return false
+                case .format:return scalar.value==0x200C || scalar.value==0x200D // literal ZWNJ / emoji ZWJ
+                default:return true
+                }
+            }) else{return nil}
             if capture.kind == .knownCharacter {
                 guard text.utf8.allSatisfy({(48...57).contains($0) || (65...70).contains($0) || (97...102).contains($0) || $0==85 || $0==117 || $0==43}) else{return nil}
             }
