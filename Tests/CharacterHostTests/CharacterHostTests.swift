@@ -90,17 +90,28 @@ final class CharacterHostTests:XCTestCase {
         let next=try preview(c,"Å");c.characterField.stringValue="Å";try send(next)
         XCTAssertEqual(c.editor.string,"prefix");XCTAssertEqual(host.insertCount,0)
     }
-    @MainActor func testCaretOnlyRefusesSelectionsAndSplitGraphemes()throws {
-        let(c,w)=try make();defer{w.close()}
-        for (text,selection) in [("abc",NSRange(location:0,length:1)),("𠀀",NSRange(location:1,length:0)),("e\u{301}",NSRange(location:1,length:0)),("👩🏽‍💻",NSRange(location:2,length:0))] {
-            seed(c,text);c.editor.setSelectedRange(selection);XCTAssertEqual(c.editor.selectedRange(),selection)
-            try send(c.characterButton);XCTAssertFalse(c.inspectorVisible);XCTAssertEqual(c.editor.string,text)
+    @MainActor func testCaretOnlySelectionRefusalAndNativeRangeNormalization()throws {
+        do {
+            let(c,w)=try make();defer{w.close()};seed(c,"abc")
+            c.editor.setSelectedRange(NSRange(location:0,length:1));XCTAssertEqual(c.editor.selectedRange(),NSRange(location:0,length:1))
+            try send(c.characterButton);XCTAssertFalse(c.inspectorVisible);XCTAssertEqual(c.editor.string,"abc")
         }
-        seed(c,"abcd");c.editor.selectedRanges=[NSValue(range:NSRange(location:0,length:0)),NSValue(range:NSRange(location:3,length:0))]
-        XCTAssertEqual(c.editor.selectedRanges.count,2);try send(c.characterButton);XCTAssertFalse(c.inspectorVisible);XCTAssertEqual(c.editor.string,"abcd")
-        seed(c,"abcd");let insert=try preview(c,"U+0041")
-        c.editor.selectedRanges=[NSValue(range:NSRange(location:4,length:0)),NSValue(range:NSRange(location:1,length:0))]
-        try send(insert);XCTAssertEqual(c.editor.string,"abcd");XCTAssertFalse(c.inspectorVisible)
+        // AppKit normalizes these requests before our controller can observe them.
+        // Pure tests exercise refusal of the original invalid ranges; native tests
+        // verify the actual observable safe range and never forge NSTextView state.
+        for (text,requested) in [("𠀀",[NSRange(location:1,length:0)]),("e\u{301}",[NSRange(location:1,length:0)]),("👩🏽‍💻",[NSRange(location:2,length:0)]),("abcd",[NSRange(location:0,length:0),NSRange(location:3,length:0)])] {
+            let(c,w)=try make();defer{w.close()};seed(c,text)
+            XCTAssertFalse(TextBoundary.validSingleCaret(requested,in:text))
+            c.editor.selectedRanges=requested.map{NSValue(range:$0)}
+            let observed=c.editor.selectedRanges.map{$0.rangeValue}
+            XCTAssertNotEqual(observed,requested);XCTAssertTrue(TextBoundary.validSingleCaret(observed,in:text))
+            try send(c.characterButton);XCTAssertTrue(c.characterInspectorVisible)
+            XCTAssertEqual(Array(c.editor.string.utf8),Array(text.utf8));XCTAssertEqual(c.editor.dispatcher?.insertCount,0)
+            try send(c.characterCancelButton);XCTAssertFalse(c.inspectorVisible)
+        }
+        let(c,w)=try make();defer{w.close()};seed(c,"abcd");let insert=try preview(c,"U+0041")
+        c.editor.setSelectedRange(NSRange(location:1,length:1));try send(insert)
+        XCTAssertEqual(c.editor.string,"abcd");XCTAssertFalse(c.inspectorVisible)
     }
     @MainActor func testCompositionForeignMarksRepairAndClosedWindowRefuseOpening()throws {
         let(c,w)=try make();defer{w.close()};try type("ni",c.editor)

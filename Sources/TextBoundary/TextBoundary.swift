@@ -16,6 +16,10 @@ public enum TextBoundary {
         guard end >= start else { throw BoundaryError.invalidOffset }
         return NSRange(location: start, length: end-start)
     }
+    public static func validSingleCaret(_ ranges:[NSRange],in text:String)->Bool {
+        guard ranges.count==1,let range=ranges.first,range.length==0 else{return false}
+        return validGraphemeRange(range,in:text)
+    }
     public static func validGraphemeRange(_ range: NSRange, in text: String) -> Bool {
         guard range.location != NSNotFound, range.location >= 0, range.length >= 0,
               range.location <= text.utf16.count, range.length <= text.utf16.count-range.location,

@@ -22,6 +22,12 @@ final class CharacterCoreTests:XCTestCase {
         XCTAssertFalse(try KnownCharacter("A").canInsert(at:NSRange(location:0,length:0),in:"\u{301}"))
         XCTAssertFalse(try KnownCharacter("A").canInsert(at:NSRange(location:1,length:0),in:"𠀀"))
         XCTAssertFalse(try KnownCharacter("A").canInsert(at:NSRange(location:0,length:1),in:"A"))
+        for (text,range) in [("abc",NSRange(location:0,length:1)),("𠀀",NSRange(location:1,length:0)),("e\u{301}",NSRange(location:1,length:0)),("👩🏽‍💻",NSRange(location:2,length:0))] {
+            XCTAssertFalse(TextBoundary.validSingleCaret([range],in:text))
+        }
+        XCTAssertFalse(TextBoundary.validSingleCaret([],in:"abcd"))
+        XCTAssertFalse(TextBoundary.validSingleCaret([NSRange(location:0,length:0),NSRange(location:3,length:0)],in:"abcd"))
+        XCTAssertTrue(TextBoundary.validSingleCaret([NSRange(location:4,length:0)],in:"abcd"))
     }
     func testInitializedIdleBindingAndSingleReservation()throws {
         var core=SessionCore(dictionaryRevision:"b7-synthetic-state")

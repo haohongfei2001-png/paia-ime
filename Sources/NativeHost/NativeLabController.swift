@@ -299,8 +299,7 @@ import TextBoundary
         characterField.stringValue="";inspector.isHidden=true;characterInspector.isHidden=true;updateControls()
     }
     private var validCharacterCaret:Bool {
-        let range=editor.selectedRange()
-        return editor.selectedRanges.count==1 && range.length==0 && TextBoundary.validGraphemeRange(range,in:editor.string)
+        TextBoundary.validSingleCaret(editor.selectedRanges.map{$0.rangeValue},in:editor.string)
     }
     @objc private func beginCharacter(_ sender:NSButton){
         guard !isClosed,!hasComposition,!inspectorVisible,window?.firstResponder===editor else{return}
