@@ -114,5 +114,24 @@ final class AppKitHostTests:XCTestCase {
         XCTAssertEqual(client.string,"AnihaoB");XCTAssertEqual(host.insertCount,1)
         XCTAssertFalse(try session.process(.returnKey).handled)
     }
+    @MainActor func testCanonicallyEquivalentExternalTextIsStillAChangedTarget()throws {
+        _=NSApplication.shared
+        for (original,changed) in [("\u{212B}","\u{C5}"),("\u{C5}","\u{212B}")] {
+            XCTAssertEqual(original,changed) // Swift's semantic equality is intentionally not identity.
+            XCTAssertNotEqual(Array(original.utf8),Array(changed.utf8))
+            let client=NSTextView();client.string=original;client.setSelectedRange(NSRange(location:1,length:0))
+            let session=try Self.lab.runtime.makeSession(),host=HostDispatcher(client:client,session:session)
+            defer{host.invalidate()}
+            for byte in "nihao".utf8{_ = try session.process(.code(Int32(byte)))}
+            let prepared=try session.process(.space);XCTAssertEqual(prepared.commit?.text,"你好")
+            // The real engine effect is prepared, but the host changed before receiving it.
+            client.string=changed;client.setSelectedRange(NSRange(location:1,length:0))
+            XCTAssertFalse(host.isCurrentTarget,"Canonically equivalent external edit must invalidate identity")
+            XCTAssertFalse(host.apply(prepared));XCTAssertEqual(host.insertCount,0)
+            XCTAssertEqual(Array(client.string.utf8),Array(changed.utf8))
+            XCTAssertFalse(host.apply(prepared));XCTAssertEqual(host.insertCount,0)
+        }
+    }
+
 }
 #endif
