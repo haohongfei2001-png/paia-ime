@@ -6,6 +6,7 @@ import IMKHost
 import IMKTestClient
 import SessionCore
 import TextBoundary
+import NativeHost
 
 final class ContextIMKTests:XCTestCase {
     static var environment:LabEnvironment!
@@ -57,6 +58,13 @@ final class ContextIMKTests:XCTestCase {
         let prefixed=try Rig("existing",selection:nil,qualified:false);defer{prefixed.close()}
         try key(prefixed,"n");XCTAssertEqual(prefixed.client.lastGeometryIndex,1)
         try key(prefixed,"",53);XCTAssertEqual(prefixed.client.lastGeometryIndex,0)
+        // The older owned-lab dispatcher is not a C3 adapter and cannot ignore
+        // the newly explicit range in a reviewedEdit effect.
+        let session=try Self.environment.runtime.makeSession();_=try session.refresh()
+        let view=NSTextView();view.string="original";view.setSelectedRange(NSRange(location:8,length:0))
+        let dispatcher=HostDispatcher(client:view,session:session)
+        let edit=try session.commitReviewedEdit("X",replacing:NSRange(location:0,length:1),binding:try XCTUnwrap(session.idleExpressionBinding))
+        XCTAssertFalse(dispatcher.apply(edit));XCTAssertEqual(dispatcher.insertCount,0);XCTAssertEqual(view.string,"original");XCTAssertThrowsError(try session.refresh())
     }
     @MainActor func testSelectionReviewLongerShorterAndEmptyUseOneReservedEffect()throws {
         _=NSApplication.shared
@@ -100,9 +108,10 @@ final class ContextIMKTests:XCTestCase {
         // The following body read must not happen under the former permission.
         for stage in 0..<2 {
             let q=try Rig();defer{q.close()}
-            if stage==0{q.client.onLength={q.authority.read=false}}else{q.client.onMarkedRange={q.authority.read=false}}
+            if stage==0{q.client.onLength={q.authority.read=false}}else{q.authority.onRead={q.client.onMarkedRange={q.authority.read=false}}}
             q.driver.performContextMenuAction(try XCTUnwrap(q.driver.contextMenuAction(kind:.selectedText)))
             XCTAssertNil(q.driver.contextEdit);XCTAssertEqual(q.client.reads.count,0)
+            if stage==1{XCTAssertEqual(q.client.documentLengthCalls,0)}
         }
     }
     @MainActor func testRawMalformedActualRangeAndTruncatedResponsesRefuse()throws {
@@ -206,6 +215,12 @@ final class ContextIMKTests:XCTestCase {
         r.driver.performContextMenuAction(menu);XCTAssertFalse(r.driver.contextEdit!.reviewed)
         XCTAssertTrue(r.driver.handle(try event("\r",code:36,repeatKey:true),client:r.client));XCTAssertFalse(r.driver.contextEdit!.reviewed)
         let latest=try review(r);r.driver.cancelContext(token:latest.token);r.driver.applyContext(token:latest.token);XCTAssertEqual(r.client.insertCalls,0)
+        let refusedInputs:[(String,UInt16)]=[("\t",48),("\u{1}",0),(String(repeating:"x",count:1025),0)]
+        for (text,code) in refusedInputs {
+            let blocked=try Rig();defer{blocked.close()};_=try begin(blocked);let oldReview=try review(blocked)
+            try key(blocked,text,code);XCTAssertFalse(blocked.driver.contextEdit!.reviewed);XCTAssertNotNil(blocked.driver.contextEdit!.notice)
+            blocked.driver.applyContext(token:oldReview.token);XCTAssertEqual(blocked.client.insertCalls,0)
+        }
         weak var target:IMKControllerDriver?
         let q=try Rig(present:{state,_ in if state.reviewed{target?.applyContext(token:state.token);return false};return true});target=q.driver;defer{q.close()}
         _=try begin(q);try replaceDraft("new",q);q.driver.reviewContext(token:q.driver.contextEdit!.token)
@@ -232,6 +247,16 @@ final class ContextIMKTests:XCTestCase {
         XCTAssertEqual(NSMaxRange(manager.glyphRange(forBoundingRect:panel.textView.visibleRect,in:container)),manager.numberOfGlyphs)
         try capture("PAIA_CONTEXT_CAPTURE_TAIL")
         r.driver.applyContext(token:preview.token);XCTAssertEqual(r.client.insertCalls,1);XCTAssertFalse(panel.isVisible);XCTAssertEqual(r.client.view.string,original+"终")
+        let next=try Rig("next文字",selection:NSRange(location:4,length:2));defer{next.close()};_=try begin(next);let newer=try review(next)
+        for reentry in 1...5 {
+            var callbacks=0
+            let obsolete=panel.show(preview,below:NSRect(x:200,y:400,width:1,height:22),screen:screen,isCurrent:{
+                callbacks+=1
+                if callbacks==reentry{XCTAssertTrue(panel.show(newer,below:NSRect(x:200,y:400,width:1,height:22),screen:screen))}
+                return true
+            })
+            XCTAssertFalse(obsolete);XCTAssertEqual(panel.renderedToken,newer.token);XCTAssertEqual(panel.displayedOriginal,"文字");XCTAssertTrue(panel.textView.string.hasSuffix("文字"))
+        }
         print("IMK_CONTEXT_NATIVE ENGINE_NATIVE + APPKIT_HOST; authored qualified adapter; 12 tests; no installed or live-client claim")
     }
 }

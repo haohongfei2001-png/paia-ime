@@ -14,7 +14,8 @@ import AppKit
 @MainActor public final class ContextEditPanel:NSPanel {
     public var review:((UUID)->Void)?,apply:((UUID)->Void)?,cancel:((UUID)->Void)?
     public private(set) var renderedToken:UUID?,displayedOriginal:String?,displayedReplacement:String?
-    public let textView=NSTextView(),scroll=NSScrollView()
+    public private(set) var textView=NSTextView(),scroll=NSScrollView()
+    private var presentationGeneration:UInt64=0
     public override var canBecomeKey:Bool {false}
     public override var canBecomeMain:Bool {false}
     public init(){
@@ -23,11 +24,14 @@ import AppKit
         collectionBehavior=[.canJoinAllSpaces,.fullScreenAuxiliary]
     }
     @discardableResult public func show(_ state:ContextEditState,below rect:NSRect,screen:NSRect,isCurrent:()->Bool={true})->Bool {
-        guard isCurrent(),screen.width>=500,screen.height>=514,screen.intersects(rect),
+        presentationGeneration &+= 1;let generation=presentationGeneration
+        guard isCurrent(),presentationGeneration==generation,screen.width>=500,screen.height>=514,screen.intersects(rect),
               [screen.minX,screen.minY,screen.maxX,screen.maxY,rect.minX,rect.minY,rect.maxX,rect.maxY].allSatisfy({$0.isFinite}) else{return false}
-        renderedToken=state.token;displayedOriginal=state.capture.original;displayedReplacement=state.reviewed ? state.replacement:nil
+        // Construct per-render views offscreen. An old reentrant render cannot
+        // mutate text objects already published by a newer review.
+        let textView=NSTextView(),scroll=NSScrollView()
         let width=min(650,screen.width-24),height=min(490,screen.height-24)
-        let root=ContextPanelRoot(frame:NSRect(x:0,y:0,width:width,height:height));contentView=root
+        let root=ContextPanelRoot(frame:NSRect(x:0,y:0,width:width,height:height))
         func label(_ text:String,_ y:CGFloat,_ h:CGFloat){let v=NSTextField(wrappingLabelWithString:text);v.frame=NSRect(x:16,y:y,width:width-32,height:h);v.setAccessibilityLabel(text);root.addSubview(v)}
         label(state.capture.kind == .knownCharacter ? "Explicit known Unicode character":"Explicit bounded selection edit",height-38,26)
         let instruction=state.reviewed ? "Review the complete original and replacement. Apply once, or Cancel. Editing revokes this preview.":
@@ -54,9 +58,12 @@ import AppKit
         label(state.notice ?? (state.capture.canReplace ? "No clipboard, model call, automatic learning or background context read.":"Read-only qualified capture. This client has no replacement capability."),3,26)
         let x=min(max(screen.minX+8,rect.minX),screen.maxX-width-8),below=rect.minY-height-4
         let y=below>=screen.minY+8 ? below:min(screen.maxY-height-8,rect.maxY+4)
-        guard isCurrent(),renderedToken==state.token else{return false};setFrame(NSRect(x:x,y:max(screen.minY+8,y),width:width,height:height),display:true)
-        guard isCurrent(),renderedToken==state.token else{return false};orderFrontRegardless()
-        guard isCurrent(),renderedToken==state.token else{if renderedToken==state.token{orderOut(nil)};return false}
+        guard isCurrent(),presentationGeneration==generation else{return false}
+        renderedToken=state.token;displayedOriginal=state.capture.original;displayedReplacement=state.reviewed ? state.replacement:nil
+        self.textView=textView;self.scroll=scroll;contentView=root
+        guard isCurrent(),presentationGeneration==generation,renderedToken==state.token else{return false};setFrame(NSRect(x:x,y:max(screen.minY+8,y),width:width,height:height),display:true)
+        guard isCurrent(),presentationGeneration==generation,renderedToken==state.token else{return false};orderFrontRegardless()
+        guard isCurrent(),presentationGeneration==generation,renderedToken==state.token else{if presentationGeneration==generation,renderedToken==state.token{orderOut(nil)};return false}
         return isVisible && !isKeyWindow
     }
     public func scrollReview(_ direction:Int,token:UUID){

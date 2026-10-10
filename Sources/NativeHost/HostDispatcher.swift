@@ -122,6 +122,9 @@ import SessionCore
             retireWithoutHostMutation();return false
         }
         if let effect=update.commit {
+            // Exact-range reviewed edits require the qualified IMK context owner.
+            // This owned-lab dispatcher must not silently ignore a replacement range.
+            guard effect.replacementUTF16==nil,effect.origin != .reviewedEdit else{return abandon()}
             guard let inserted=NativeTextState(client).replacing(with:effect.text,asMarked:false) else{return abandon()}
             guard session.reserve(effect) else {return false}
             // Reservation precedes the only insertText call. No retry even if a real host's outcome is uncertain.
