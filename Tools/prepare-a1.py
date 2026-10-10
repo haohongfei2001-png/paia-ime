@@ -18,6 +18,7 @@ with tarfile.open(fileobj=io.BytesIO(archive),mode='r:bz2') as tar:
         if not member.isfile():raise SystemExit('expected regular archive member')
         data=tar.extractfile(member).read();(out/dest).write_bytes(data)
 if digest((out/'rime_api.h').read_bytes())!=lock['headerSha256']:raise SystemExit('archive header does not match pinned ABI')
+if digest((out/'librime.1.16.0.dylib').read_bytes())!=lock['engine']['binarySha256']:raise SystemExit('extracted engine digest mismatch')
 env={'PAIA_RIME_LIBRARY':str(out/'librime.1.16.0.dylib'),'PAIA_FIXTURE_DIR':str(ROOT/'Resources/Dictionaries/A1Fixture'),'PAIA_DICTIONARY_REVISION':lock['dictionaryRevision']}
 (ROOT/'.build/a1-env.sh').write_text(''.join('export '+k+'='+shlex.quote(v)+'\n' for k,v in env.items()))
 print(json.dumps({'engine':lock['engine'],'dictionaryRevision':lock['dictionaryRevision'],'verifiedFiles':len(lock['files'])},indent=2))

@@ -19,6 +19,10 @@ typedef struct {
 enum { PAIA_OK=0, PAIA_UNAVAILABLE=1, PAIA_ABI=2, PAIA_DEPLOY=3,
        PAIA_SESSION=4, PAIA_BOUNDS=5, PAIA_ALLOCATION=6, PAIA_BUSY=7 };
 int paia_rime_open(const char *library, const char *shared, const char *isolated_user);
+// Validated precompiled resources only: no deployer initialization/maintenance,
+// and named deploy is disabled for the lifetime of this runtime.
+int paia_rime_open_precompiled(const char *library, const char *shared, const char *isolated_user);
+uint64_t paia_rime_deployment_calls(void);
 void paia_rime_close(void);
 uint64_t paia_rime_start_session(void);
 void paia_rime_end_session(uint64_t session);

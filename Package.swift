@@ -3,6 +3,7 @@ import PackageDescription
 let package = Package(name: "PAIAIME", platforms: [.macOS(.v13)], products: [
     .executable(name: "PAIANativeLab", targets: ["NativeIME"]),
     .executable(name: "PAIAInputMethod", targets: ["InputMethodService"]),
+    .executable(name: "paia-resources", targets:["ResourceTool"]),
     .executable(name: "paia-benchmark", targets: ["BenchmarkCLI"]),
     .executable(name: "paia-constraints", targets: ["ConstraintCLI"])
 ], targets: [
@@ -10,14 +11,18 @@ let package = Package(name: "PAIAIME", platforms: [.macOS(.v13)], products: [
     .target(name: "TextBoundary"),
     .target(name: "CIMKContext", publicHeadersPath:"include",cSettings:[.unsafeFlags(["-fobjc-arc","-Werror=protocol","-Werror=mismatched-return-types"])]),
     .target(name: "LexiconCore"),
+    .target(name: "ResourceCore"),
+    .executableTarget(name:"ResourceTool",dependencies:["ResourceCore","EngineBridge"]),
+    .testTarget(name:"ResourceCoreTests",dependencies:["ResourceCore"]),
+    .testTarget(name:"ResourceIMKTests",dependencies:["ResourceCore","IMKHost","IMKTestClient","EngineBridge","LexiconCore","SessionCore"]),
     .target(name: "SettingsCore"),
     .target(name: "ExpressionCore"),
     .target(name: "SessionCore", dependencies: ["TextBoundary"]),
     .target(name: "ConstraintCore", dependencies: ["SessionCore", "TextBoundary"]),
-    .target(name: "EngineBridge", dependencies: ["CRimeShim", "SessionCore", "TextBoundary", "ConstraintCore", "LexiconCore", "SettingsCore"]),
+    .target(name: "EngineBridge", dependencies: ["CRimeShim", "SessionCore", "TextBoundary", "ConstraintCore", "LexiconCore", "SettingsCore", "ResourceCore"]),
     .target(name: "NativeHost", dependencies: ["EngineBridge", "SessionCore", "TextBoundary", "ConstraintCore", "LexiconCore", "SettingsCore"]),
     .executableTarget(name: "NativeIME", dependencies: ["NativeHost", "EngineBridge", "SettingsCore"]),
-    .target(name: "IMKHost", dependencies: ["NativeHost", "EngineBridge", "SessionCore", "SettingsCore", "LexiconCore", "ExpressionCore", "ConstraintCore", "TextBoundary", "CIMKContext"]),
+    .target(name: "IMKHost", dependencies: ["NativeHost", "EngineBridge", "SessionCore", "SettingsCore", "LexiconCore", "ExpressionCore", "ConstraintCore", "TextBoundary", "CIMKContext", "ResourceCore"]),
     .executableTarget(name: "InputMethodService", dependencies: ["IMKHost", "EngineBridge", "NativeHost"]),
     .target(name: "IMKTestClient",path:"Tests/IMKTestClient",publicHeadersPath:"include",cSettings:[.unsafeFlags(["-fobjc-arc","-Werror=protocol","-Werror=mismatched-return-types"])]),
     .testTarget(name: "ContextCoreTests",dependencies:["TextBoundary","SessionCore"]),

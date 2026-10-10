@@ -31,6 +31,7 @@ jobs:
         run: |
           python3 Tools/audit-a1.py
           python3 Tools/audit-a2.py
+          python3 Tools/audit-resources.py
           python3 Tools/prepare-a1.py | tee evidence/imk-run/inputs.json
       - name: Compile uninstalled input-method bundle
         run: |
@@ -48,6 +49,24 @@ jobs:
           source .build/a1-env.sh
           swift test --filter IMKProtocolTests 2>&1 | tee evidence/imk-run/protocol-tests.txt
           swift test --skip-build --filter IMKFixtureBasicsTests 2>&1 | tee evidence/imk-run/fixture-basics.txt
+      - name: Offline public resource publication and precompiled startup recovery
+        run: |
+          set -o pipefail
+          source .build/a1-env.sh
+          python3 Tools/prepare-resource-tests.py | tee evidence/imk-run/resource-inputs.json
+          source .build/resource-test-env.sh
+          swift test --skip-build --filter ResourceCoreTests 2>&1 | tee evidence/imk-run/resource-core-tests.txt
+          grep -Fq 'Executed 9 tests, with 0 failures' evidence/imk-run/resource-core-tests.txt
+          swift test --skip-build --filter 'ResourceIMKTests.ResourceIMKTests/testHelperFailuresAreReapedBeforeNativeFallback' 2>&1 | tee evidence/imk-run/resource-helper-tests.txt
+          grep -Fq 'RESOURCE_HELPER_FAULTS' evidence/imk-run/resource-helper-tests.txt
+          swift test --skip-build --filter 'ResourceIMKTests.ResourceIMKTests/testNativeMissingSecondSchemaRejectsWholePublication' 2>&1 | tee evidence/imk-run/resource-all-schema-tests.txt
+          grep -Fq 'RESOURCE_ALL_SCHEMA_NATIVE' evidence/imk-run/resource-all-schema-tests.txt
+          for stage in current fallback semantic both late_failure active_publication after_publication; do
+            PAIA_RESOURCE_STAGE="$stage" swift test --skip-build --filter 'ResourceIMKTests.ResourceIMKTests/testStartupAndRecoveryStage' 2>&1 | tee "evidence/imk-run/resource-$stage.txt"
+            grep -Fq "RESOURCE_IMK_STAGE $stage" "evidence/imk-run/resource-$stage.txt"
+            grep -Fq 'Executed 1 test, with 0 failures' "evidence/imk-run/resource-$stage.txt"
+          done
+          python3 Tools/check-resource-bundle-failure.py | tee evidence/imk-run/resource-bundle-negative.txt
       - name: Explicit bounded context and reviewed one-effect edits
         run: |
           set -o pipefail

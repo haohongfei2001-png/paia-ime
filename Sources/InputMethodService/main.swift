@@ -41,6 +41,10 @@ MainActor.assumeIsolated {
         InputMethodRuntime.workspace=environment.workspace
         InputMethodRuntime.preferences=IMKPreferencesController(workspace:environment.workspace)
         if preflight {
+            if let resources=environment.publicResources {
+                print("IMK_RESOURCE_STARTUP reason=\(resources.selection.reason.rawValue) generation=\(resources.selection.snapshot.pack.reference.generation) mainAttempts=\(RimeRuntime.startupAttempts) deployments=\(resources.runtime.deploymentCalls)")
+                guard resources.runtime.deploymentCalls==0,RimeRuntime.startupAttempts==1 else{throw EngineError.closed}
+            }
             phase="engine-candidates"
             let session=try environment.makeSession(environment.workspace.configuration);defer{session.end()}
             let initial=try session.refresh()
@@ -70,7 +74,7 @@ MainActor.assumeIsolated {
             let delegate=InputMethodDelegate();app.delegate=delegate
             withExtendedLifetime(delegate){app.run()}
         }
-    } catch {if preflight{fputs("IMK_PREFLIGHT_FAILURE phase=\(phase)\n",stderr)}
+    } catch {if preflight{fputs("IMK_PREFLIGHT_FAILURE phase=\(phase) mainAttempts=\(RimeRuntime.startupAttempts)\n",stderr)}
         fputs("Input method verified-resource preflight failed.\n",stderr);exit(1)}
 }
 #else
