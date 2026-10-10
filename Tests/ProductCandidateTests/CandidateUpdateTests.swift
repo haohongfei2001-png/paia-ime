@@ -89,20 +89,27 @@ extension ProductCandidateTests {
         let base=try catalog.pack(XCTUnwrap(index.lastGood)),updated=try catalog.pack(index.current)
         let artifacts=Dictionary(uniqueKeysWithValues:base.manifest.artifacts.map{($0.path,base.files[$0.path]!)})
         let inputs=policy.sources(.updated),manifest=try CandidateManifest(generation:UUID().uuidString.lowercased(),inputs:inputs,artifacts:artifacts)
-        let root=try CandidateCompiler.scratch();defer{try? FileManager.default.removeItem(at:root)}
+        // Catalog parents require physical no-follow ancestors; compiler scratch
+        // URLs may use Foundation's /var alias and are not authority-root fixtures.
+        let root=try CandidateProductScratch.create();defer{try? FileManager.default.removeItem(at:root)}
         let owner=try ResourceDirectory(root),target=try owner.createDirectory("coherent")
         try VerifiedCandidatePack.write(manifest:manifest,files:inputs.merging(artifacts){_,b in b},to:target)
         let wrong=try VerifiedCandidatePack(directory:target,expected:manifest.reference),snapshot=try CandidateResourceSnapshot(wrong);defer{snapshot.close()}
         XCTAssertEqual(try policy.admitSourceIdentity(wrong),.updated)
         // Existing 32-policy smoke does not discriminate this single authored row.
-        XCTAssertNoThrow(try CandidateHelper.probe(snapshot,components:components,timeout:120))
-        XCTAssertThrowsError(try CandidateHelper.probeUpdate(snapshot,preset:.updated,components:components))
+        try CandidateHelper.probe(snapshot,components:components,timeout:120)
+        func requireNativeRefusal(_ operation:()throws->Void)throws {
+            do{try operation()}catch ResourceError.probe{return}
+            throw ResourceError.integrity // A missing refusal is a failing test.
+        }
+        try requireNativeRefusal{try CandidateHelper.probeUpdate(snapshot,preset:.updated,components:components)}
         let correct=try CandidateResourceSnapshot(updated);defer{correct.close()}
-        XCTAssertNoThrow(try CandidateHelper.probeUpdate(correct,preset:.updated,components:components))
+        try CandidateHelper.probeUpdate(correct,preset:.updated,components:components)
         let old=try CandidateResourceSnapshot(base);defer{old.close()}
-        XCTAssertNoThrow(try CandidateHelper.probeUpdate(old,preset:.baseline,components:components))
+        try CandidateHelper.probeUpdate(old,preset:.baseline,components:components)
+        print("CANDIDATE_UPDATE_MARKER_STAGE actual_wrong_binary_refused_and_both_native_controls_passed")
         let isolated=try CandidateResourceStore(directory:root.appendingPathComponent("store"),policy:policy,create:true);defer{isolated.close()}
-        XCTAssertThrowsError(try isolated.publish(wrong,expectedRevision:0){snapshot,preset in try CandidateHelper.probeUpdate(snapshot,preset:preset,components:components)})
+        try requireNativeRefusal{_=try isolated.publish(wrong,expectedRevision:0){snapshot,preset in try CandidateHelper.probeUpdate(snapshot,preset:preset,components:components)}}
         XCTAssertFalse(FileManager.default.fileExists(atPath:root.appendingPathComponent("store/index.json").path));XCTAssertEqual(RimeRuntime.startupAttempts,0)
         print("CANDIDATE_UPDATE_MARKER_NATIVE coherent_old_binary_refused=true source_identity_alone_insufficient=true updated_commits=8 baseline_commits=8 exhaustive_negatives=16 publisher_main_attempts=0")
     }
