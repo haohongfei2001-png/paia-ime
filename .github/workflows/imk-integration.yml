@@ -41,13 +41,19 @@ jobs:
           swift test --skip-build --filter CandidatePackTests 2>&1 | tee evidence/imk-run/candidate-pack-tests.txt
           grep -Fq 'Executed 5 tests, with 0 failures' evidence/imk-run/candidate-pack-tests.txt
           swift test --skip-build --filter InputMethodLaunchTests 2>&1 | tee evidence/imk-run/input-method-launch-tests.txt
-          grep -Fq 'Executed 3 tests, with 0 failures' evidence/imk-run/input-method-launch-tests.txt
+          grep -Fq 'Executed 4 tests, with 0 failures' evidence/imk-run/input-method-launch-tests.txt
+          swift test --skip-build --filter ExistingProductLeaseTests 2>&1 | tee evidence/imk-run/release-existing-store-tests.txt
+          grep -Fq 'Executed 6 tests, with 0 failures' evidence/imk-run/release-existing-store-tests.txt
+          python3 Tools/check-release-existing-regression.py 2>&1 | tee evidence/imk-run/release-existing-regression.txt
+          git diff --exit-code
+          swift test --filter ExistingProductLeaseTests 2>&1 | tee evidence/imk-run/release-existing-store-restored.txt
+          grep -Fq 'Executed 6 tests, with 0 failures' evidence/imk-run/release-existing-store-restored.txt
           swift test --skip-build --filter CandidateUpdateCoreTests 2>&1 | tee evidence/imk-run/candidate-update-core-tests.txt
-          grep -Fq 'Executed 11 tests, with 0 failures' evidence/imk-run/candidate-update-core-tests.txt
+          grep -Fq 'Executed 12 tests, with 0 failures' evidence/imk-run/candidate-update-core-tests.txt
           python3 Tools/check-candidate-update-regressions.py 2>&1 | tee evidence/imk-run/candidate-update-regressions.txt
           git diff --exit-code
           swift test --filter CandidateUpdateCoreTests 2>&1 | tee evidence/imk-run/candidate-update-core-restored.txt
-          grep -Fq 'Executed 11 tests, with 0 failures' evidence/imk-run/candidate-update-core-restored.txt
+          grep -Fq 'Executed 12 tests, with 0 failures' evidence/imk-run/candidate-update-core-restored.txt
           python3 Tools/check-personal-read-regression.py 2>&1 | tee evidence/imk-run/personal-read-regression.txt
           python3 Tools/check-product-empty-regression.py 2>&1 | tee evidence/imk-run/product-empty-regression.txt
           git diff --exit-code
@@ -94,6 +100,16 @@ jobs:
         run: |
           set -o pipefail
           bash Tools/test-candidate-update.sh
+      - name: Freeze original release N source app and XCTest bundle
+        run: |
+          set -o pipefail
+          bash Tools/prepare-release-baseline.sh 2>&1 | tee evidence/imk-run/release-n-build.txt
+      - name: Actual N to N-plus-one to N authored data compatibility
+        run: |
+          set -o pipefail
+          python3 Tools/test-release-compatibility.py 2>&1 | tee evidence/imk-run/release-compatibility.txt
+          grep -Fq 'RELEASE_COMPATIBILITY_TOTAL' evidence/imk-run/release-compatibility.txt
+          grep -Fq 'RELEASE_N_VERIFY' evidence/imk-run/release-compatibility.txt
       - name: Real engine and synthetic IMK protocol client
         run: |
           set -o pipefail

@@ -68,6 +68,9 @@ public final class SettingsStore {
         try verifyIdentity()
     }
     public var hasUnverifiedSave:Bool {lock.lock();defer{lock.unlock()};return !closed && pending != nil}
+    // Preserve the actual canonical source envelope, including legacy format.
+    // Inspection is explicit; it neither migrates bytes nor retries pending saves.
+    public func exportData()throws->Data? {lock.lock();defer{lock.unlock()};try verify();guard pending==nil else{throw SettingsError.durabilityUnknown};return expected}
     public func snapshot()throws->SettingsDocument? {lock.lock();defer{lock.unlock()};try verify();return document}
     // Resolve only this handle's attempted save, under its original lock and root identity.
     // Reads include file/directory durability barriers; no authority bytes are written or retried.

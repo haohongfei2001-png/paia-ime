@@ -35,7 +35,9 @@ public final class LexiconStore {
                 guard marker==Data("paia.personal-lexicon.v1\n".utf8) else{throw LexiconError.invalidFormat}
                 state=try LexiconCodec.decode(data)
             } else {
-                guard !hadLock,marker==nil else{throw LexiconError.invalidFormat}
+                // Existing-only opens must never initialize authority, even if
+                // another process creates a lock after the presence check.
+                guard allowCreateLock,!hadLock,marker==nil else{throw LexiconError.invalidFormat}
                 try createMarker();try publish(try LexiconCodec.encode(state))
             }
             try authorityGuard()

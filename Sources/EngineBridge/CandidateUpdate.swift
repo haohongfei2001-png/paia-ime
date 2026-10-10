@@ -28,6 +28,22 @@ public enum CandidateUpdate {
         let components=try CandidateComponents(library:resources.appendingPathComponent("Engine/librime.1.dylib"),extensionLibrary:resources.appendingPathComponent("Engine/paia-g01.dylib"),helper:executable.deletingLastPathComponent().appendingPathComponent("paia-resources"),extensionSHA:bridgeSHA,helperSHA:helperSHA)
         return (resources.appendingPathComponent("CandidatePack"),ResourceReference(generation:generation,manifestSHA:digest),components)
     }
+    // Shared startup/explicit compatibility selector. Only helpers enter native
+    // code here; no personal store is opened and no main engine is initialized.
+    public static func selectPublic(pack:URL,reference:ResourceReference,components:CandidateComponents,catalog:URL?,
+                                    probeOverride:((CandidateResourceSnapshot,CandidatePublicPreset)throws->Void)?=nil)throws->CandidateResourceSelection {
+        try components.verify()
+        let bundled=try VerifiedCandidatePack(directory:ResourceDirectory(pack),expected:reference)
+        let policy=try CandidateSourcePolicy(bundle:bundled,expectedBundle:reference)
+        let probe=probeOverride ?? {snapshot,preset in
+            try CandidateHelper.probe(snapshot,components:components,timeout:120)
+            try CandidateHelper.probeUpdate(snapshot,preset:preset,components:components)
+        }
+        if let catalog=catalog{return try CandidateResourceCatalog(directory:catalog,policy:policy).select(probe:probe)}
+        let copy=try CandidateResourceSnapshot(bundled)
+        do {try probe(copy,.baseline);try copy.verify()}catch{copy.close();throw error}
+        return CandidateResourceSelection(snapshot:copy,reason:.bundled,preset:.baseline)
+    }
     public static func publish(bundle:Bundle,preset:CandidatePublicPreset,parent:URL,expectedRevision:UInt64,create:Bool)throws->CandidateResourceIndex {
         guard RimeRuntime.startupAttempts==0 else{throw ResourceError.busy}
         let (directory,reference,components)=try bundleInputs(bundle);defer{components.close()}
