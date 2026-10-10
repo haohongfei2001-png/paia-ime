@@ -33,7 +33,7 @@ final class IMKBasicTests:XCTestCase {
         }
         let environment=try IMKServiceEnvironment(environment:variables);defer{environment.close()}
         let fault:SettingsTestFault?=stage=="verify_previous" ? .beforePublication:stage=="verify_published" ? .afterPublication:stage=="verify_unresolved" ? .afterInitialization:nil
-        let directory=URL(fileURLWithPath:stage.hasPrefix("verify_") ? selected+"-"+stage:selected)
+        let directory=URL(fileURLWithPath:(stage.hasPrefix("verify_") || stage.hasPrefix("authority_")) ? selected+"-"+stage:selected)
         let store=try SettingsStore(directory:directory,fault:fault);defer{store.close()}
         var rejectFlypy=stage=="restore_failed",dirtyFlypy=false
         var preparedCallback:(()->Void)?,dirtySession:InputSession?
@@ -96,14 +96,14 @@ final class IMKBasicTests:XCTestCase {
             XCTAssertEqual(b.view.string,mark);XCTAssertEqual(b.view.markedRange(),range);XCTAssertEqual(other.coordinator.snapshot?.inputGeneration,generation)
             XCTAssertTrue(other.handle(try key(" ",code:49),client:b));XCTAssertEqual(b.view.string,"你好")
             // Nested mutation from a client getter cannot enter the global gate.
-            a.onSelectedRange={XCTAssertThrowsError(try workspace.applyConfiguration(flypy))}
+            a.onSelectedRange={do{try workspace.applyConfiguration(flypy);XCTFail("Reentrant settings unexpectedly applied")}catch{}}
             XCTAssertTrue(driver.handle(try key("n"),client:a));XCTAssertEqual(workspace.configuration,original)
             XCTAssertTrue(driver.handle(try key("\u{1b}",code:53),client:a))
             // Callback during staging causes an abort, with no fabricated engine key.
             preparedCallback={XCTAssertFalse(driver.handle(try! self.key("x"),client:a))}
             XCTAssertThrowsError(try preferences.applyConfiguration(flypy));XCTAssertEqual(workspace.configuration,original);XCTAssertNil(driver.coordinator.session)
             try activate(driver,a)
-            hideCallback={XCTAssertThrowsError(try workspace.applyConfiguration(original));XCTAssertEqual(other.activate(try! XCTUnwrap(IMKTextInputBridge(b))),.superseded)}
+            hideCallback={do{try workspace.applyConfiguration(original);XCTFail("Nested mutation unexpectedly applied")}catch{};XCTAssertEqual(other.activate(try! XCTUnwrap(IMKTextInputBridge(b))),.superseded)}
             try preferences.applyConfiguration(flypy);XCTAssertEqual(workspace.configuration,flypy)
             try preferences.applyConfiguration(original);try activate(driver,a);try activate(other,b)
             let ownedA=try XCTUnwrap(driver.coordinator.session),ownedB=try XCTUnwrap(other.coordinator.session)
