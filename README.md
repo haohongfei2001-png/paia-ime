@@ -41,6 +41,10 @@ See [A1 build, tests, resource pins and evidence boundaries](docs/BATCH_A1.md). 
 
 [B4 selected-row and page presentation](docs/BATCH_B4.md) keeps the visible selection aligned with the real engine snapshot, adds honest current-page status, and preserves immutable candidate actions. [B4 validation](evidence/b4/VALIDATION.md) separates native navigation from synthetic presentation checks and tracks exact-head evidence.
 
+## Batch B5 explicit settings-save verification
+
+[B5 known-outcome verification](docs/BATCH_B5.md) checks an unconfirmed Save under the same writer lock, accepting only the known prior or attempted envelope. The explicit native action preserves current input mode and never retries the write. [B5 validation](evidence/b5/VALIDATION.md) distinguishes injected filesystem failures from real engine/AppKit behavior.
+
 ## Batch A1 engineering contract
 
 Read **REPORT → VALIDATION → CODEX_HANDOFF**. Build the native Swift/AppKit/InputMethodKit project structure and a real, version-locked librime C API bridge; prove key → composition → candidate → engine selection → single commit in an isolated AppKit host before asserting system-IME compatibility. Never replace the input engine with the webpage's fixed examples.
