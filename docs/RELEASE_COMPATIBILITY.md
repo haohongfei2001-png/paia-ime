@@ -85,6 +85,15 @@ Every stage checks both its explicit marker and one executed test; an empty filt
 cannot pass. Actual app preflights and XCTest-host commits are separately labelled.
 The existing public macos-15 workflow runs the suite; no new runner or service.
 
+## Observed implementation checkpoint
+
+The b6c69a1 source checkpoint passed all twelve macOS workflows: five original N
+host stages, two N+1 save/delete stages, five original app preflights, two explicit
+store saves, six successful checks and 21 authority-preserving refusals. Frozen
+source/app/test inventories and the expected-red/restored controls were retained
+and verified. See the linked evidence for exact source/run IDs and final-head/main
+status; these counts do not establish installed software transitions.
+
 ## Remaining release gates
 
 Native CI and a frozen unsigned executable comparison do not qualify installed
