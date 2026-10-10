@@ -13,7 +13,8 @@ import ExpressionCore
     private let temporaryOwner:ResourceDirectory?
     // Tests/preflight supply an explicit isolated parent or create a new private
     // one. Only the normal service asks for the fixed application-support root.
-    public init(parent:URL?,temporaryParent:URL?=nil) {
+    public convenience init(parent:URL?){self.init(parent:parent,temporaryParent:nil)}
+    private init(parent:URL?,temporaryParent:URL?) {
         self.temporaryParent=temporaryParent
         temporaryOwner=temporaryParent.flatMap{try? ResourceDirectory($0)}
         guard let parent=parent,let root=try? ProductDataRoot(parent:parent,create:true) else {

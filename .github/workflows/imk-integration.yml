@@ -33,6 +33,19 @@ jobs:
           python3 Tools/audit-a2.py
           python3 Tools/audit-resources.py
           python3 Tools/prepare-a1.py | tee evidence/imk-run/inputs.json
+      - name: Isolated product data and closed resource contracts
+        run: |
+          set -o pipefail
+          swift test --filter ProductDataTests 2>&1 | tee evidence/imk-run/product-data-tests.txt
+          grep -Fq 'Executed 10 tests, with 0 failures' evidence/imk-run/product-data-tests.txt
+          swift test --skip-build --filter CandidatePackTests 2>&1 | tee evidence/imk-run/candidate-pack-tests.txt
+          grep -Fq 'Executed 5 tests, with 0 failures' evidence/imk-run/candidate-pack-tests.txt
+          python3 Tools/check-personal-read-regression.py 2>&1 | tee evidence/imk-run/personal-read-regression.txt
+          git diff --exit-code
+          swift test --filter ProductDataTests 2>&1 | tee evidence/imk-run/product-data-after-regression.txt
+          grep -Fq 'Executed 10 tests, with 0 failures' evidence/imk-run/product-data-after-regression.txt
+          cc -std=c11 -Wall -Wextra -Werror -ISources/CRimeShim/include -ISources/CRimeShim Sources/CRimeShim/paia_rime.c Tools/test-candidate-abi.c -lpthread -o .build/candidate-abi-test
+          .build/candidate-abi-test | tee evidence/imk-run/candidate-abi-tests.txt
       - name: Prepare existing unbundled research resources
         run: |
           set -o pipefail
@@ -62,16 +75,18 @@ jobs:
         run: |
           set -o pipefail
           env -u PAIA_RIME_LIBRARY -u PAIA_FIXTURE_DIR -u PAIA_DICTIONARY_REVISION .build/PAIAInputMethod.app/Contents/MacOS/PAIAInputMethod --preflight 2>&1 | tee evidence/imk-run/preflight.txt
+      - name: Movable candidate and independent product restart contracts
+        run: |
+          set -o pipefail
+          bash Tools/prepare-candidate-negatives.sh 2>&1 | tee evidence/imk-run/candidate-negative-build.txt
+          python3 Tools/check-candidate-bundle.py 2>&1 | tee evidence/imk-run/candidate-movable.txt
+          bash Tools/test-product-candidate.sh
       - name: Real engine and synthetic IMK protocol client
         run: |
           set -o pipefail
           source .build/a1-env.sh
           swift test --filter MixedDraftTests 2>&1 | tee evidence/imk-run/mixed-value-tests.txt
           grep -Fq 'Executed 10 tests, with 0 failures' evidence/imk-run/mixed-value-tests.txt
-          swift test --skip-build --filter ProductDataTests 2>&1 | tee evidence/imk-run/product-data-tests.txt
-          grep -Fq 'Executed 10 tests, with 0 failures' evidence/imk-run/product-data-tests.txt
-          swift test --skip-build --filter CandidatePackTests 2>&1 | tee evidence/imk-run/candidate-pack-tests.txt
-          grep -Fq 'Executed 5 tests, with 0 failures' evidence/imk-run/candidate-pack-tests.txt
           swift test --skip-build --filter IMKProtocolTests 2>&1 | tee evidence/imk-run/protocol-tests.txt
           swift test --skip-build --filter IMKFixtureBasicsTests 2>&1 | tee evidence/imk-run/fixture-basics.txt
       - name: Offline public resource publication and precompiled startup recovery

@@ -223,7 +223,7 @@ int paia_rime_enable_g01(const char *path) {
         if(handle) {
             PaiaG01API *(*get_api)(void)=(PaiaG01API *(*)(void))dlsym(handle,"paia_g01_get_api");
             PaiaG01API *v=get_api?get_api():NULL;
-            if(v && v->abi==PAIA_G01_ABI && v->data_size==sizeof(*v) && v->initialize && v->anchors && v->candidates && v->prepare && v->free_list && v->alternatives && v->free_alternatives && v->initialize(api)==PG_OK){
+            if(v && v->data_size==sizeof(*v) && v->abi==PAIA_G01_ABI && v->initialize && v->anchors && v->candidates && v->prepare && v->free_list && v->alternatives && v->free_alternatives && v->initialize(api)==PG_OK){
                 g01=v;rc=PAIA_OK;
                 PaiaMixedAPI *(*get_mixed)(void)=(PaiaMixedAPI *(*)(void))dlsym(handle,"paia_mixed_get_api");
                 PaiaMixedAPI *m=get_mixed?get_mixed():NULL;
