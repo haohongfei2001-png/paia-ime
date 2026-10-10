@@ -3,6 +3,7 @@ import AppKit
 import EngineBridge
 import SessionCore
 import ExpressionCore
+import ConstraintCore
 
 // The framework controller and synthetic tests use this same dispatch/lifecycle
 // path. Presentation is injected so synchronous AppKit callbacks are testable
@@ -16,21 +17,26 @@ import ExpressionCore
     private let presentRecall:(ExpressionRecallState,NSRect)->Bool
     private let scrollRecall:(Int,UUID)->Void
     public private(set) var recall:ExpressionRecallState?
+    public private(set) var repair:SegmentRepairState?
+    private var presentedRepairToken:UUID?
+    private var repairPresentationVisible=false,suppressRepeatedRepairEscape=false
+    private let presentRepair:(SegmentRepairState,NSRect)->Bool
+    private let scrollRepair:(Int,UUID)->Void
     private var presentedRecallToken:UUID?
     private let literal:()->Bool,permitOperation:()->Bool
     private var operationDepth=0,closed=false
-    public var isIdleForManagement:Bool {operationDepth==0 && recall==nil && (closed || (activationDepth==0 && coordinator.isIdleForManagement))}
+    public var isIdleForManagement:Bool {operationDepth==0 && recall==nil && repair==nil && (closed || (activationDepth==0 && coordinator.isIdleForManagement))}
     public var managementRevision:UInt64 {generation}
     // State retirement is separated from presentation so all old bindings retire
     // before the first reentrant AppKit hide callback.
     public func retireIdleForManagement(){
         precondition(isIdleForManagement)
-        generation &+= 1;recall=nil;pendingActivation=nil;coordinator.retire();lastRect=nil
+        generation &+= 1;discardRepair();recall=nil;pendingActivation=nil;coordinator.retire();lastRect=nil
     }
-    public func dismissCandidatesForManagement(){hide()}
+    public func dismissCandidatesForManagement(){hideAll()}
     public func discardIdleBindingForManagement(){
         precondition(isIdleForManagement)
-        generation &+= 1;recall=nil;pendingActivation=nil;coordinator.retire();current=nil;lastRect=nil
+        generation &+= 1;discardRepair();recall=nil;pendingActivation=nil;coordinator.retire();current=nil;lastRect=nil
     }
     private func enter()->Bool {
         guard permitOperation() else{return false};operationDepth+=1;return true
@@ -42,8 +48,8 @@ import ExpressionCore
     private var activationDepth=0
     private var pendingActivation:(ticket:UInt64,owner:IMKSessionCoordinator,identity:AnyObject)?
     public enum ActivationResult:Equatable {case ready,refused,superseded}
-    public init(makeSession:@escaping ()->InputSession?,expressions:@escaping()->ExpressionCatalog?={nil},literal:@escaping ()->Bool={false},permitOperation:@escaping ()->Bool={true},hide:@escaping ()->Void,present:@escaping (CandidateSnapshot?,NSRect,String?)->Void,presentRecall:@escaping(ExpressionRecallState,NSRect)->Bool={_,_ in false},scrollRecall:@escaping(Int,UUID)->Void={_,_ in}) {
-        self.makeSession=makeSession;self.expressions=expressions;self.presentRecall=presentRecall;self.scrollRecall=scrollRecall;self.literal=literal;self.permitOperation=permitOperation;self.hide=hide;self.present=present
+    public init(makeSession:@escaping ()->InputSession?,expressions:@escaping()->ExpressionCatalog?={nil},literal:@escaping ()->Bool={false},permitOperation:@escaping ()->Bool={true},hide:@escaping ()->Void,present:@escaping (CandidateSnapshot?,NSRect,String?)->Void,presentRecall:@escaping(ExpressionRecallState,NSRect)->Bool={_,_ in false},scrollRecall:@escaping(Int,UUID)->Void={_,_ in},presentRepair:@escaping(SegmentRepairState,NSRect)->Bool={_,_ in false},scrollRepair:@escaping(Int,UUID)->Void={_,_ in}) {
+        self.presentRepair=presentRepair;self.scrollRepair=scrollRepair;self.makeSession=makeSession;self.expressions=expressions;self.presentRecall=presentRecall;self.scrollRecall=scrollRecall;self.literal=literal;self.permitOperation=permitOperation;self.hide=hide;self.present=present
     }
     private func matches(_ ticket:UInt64,_ owner:IMKSessionCoordinator,_ sender:AnyObject)->Bool {
         generation==ticket && coordinator === owner && current===sender
@@ -51,13 +57,13 @@ import ExpressionCore
     @discardableResult public func activate(_ bridge:IMKClientAccess)->ActivationResult {
         guard enter() else{return .superseded};defer{leave()}
         closed=false;activationDepth+=1;defer{activationDepth-=1}
-        generation &+= 1;recall=nil;let ticket=generation
+        generation &+= 1;discardRepair();recall=nil;let ticket=generation
         coordinator.interrupt("Previous activation ended. No text was replayed or cleared.")
         retainedRecovery=coordinator.recovery ?? retainedRecovery
         let next=IMKSessionCoordinator();coordinator=next;current=nil;lastRect=nil
         pendingActivation=(ticket,next,bridge.callbackIdentity)
         defer{if pendingActivation?.ticket==ticket{pendingActivation=nil}}
-        hide();guard generation==ticket,coordinator===next else{return .superseded}
+        hideAll();guard generation==ticket,coordinator===next else{return .superseded}
         let accepted=next.activate(bridge,makeSession:makeSession)
         guard generation==ticket,coordinator===next else{next.retire();return .superseded}
         guard accepted else{return .refused}
@@ -76,6 +82,8 @@ import ExpressionCore
         }
         guard current===sender,coordinator.session != nil else{return false}
         let owner=coordinator,ticket=generation
+        if !event.isARepeat{suppressRepeatedRepairEscape=false}
+        if event.keyCode==53,event.isARepeat,suppressRepeatedRepairEscape{return true}
         let modifiers=event.modifierFlags.intersection([.command,.option,.control,.shift])
         if event.keyCode==49,modifiers == [.option] {
             // This must precede generic modifier flush; busy recall never commits.
@@ -91,6 +99,16 @@ import ExpressionCore
             return true
         }
         if recall != nil{return handleRecall(event,client:sender,ticket:ticket,owner:owner)}
+        if modifiers == [.option],event.keyCode==123 || event.keyCode==124,
+           owner.snapshot?.rawASCII.isEmpty==false || owner.snapshot?.preedit.isEmpty==false {
+            if !event.isARepeat{navigateRepair(event.keyCode==123 ? -1:1,client:sender,ticket:ticket,owner:owner)}
+            return true
+        }
+        if repair != nil {
+            if event.keyCode==36 || event.keyCode==76 || !modifiers.intersection([.command,.option,.control]).isEmpty {
+                discardRepair() // Default Return/modifier lifecycle semantics remain below.
+            }else{return handleRepair(event,client:sender,ticket:ticket,owner:owner)}
+        }
         if literal() {
             let safe=owner.releaseIdle(client:sender)
             render(sender,ticket:ticket,owner:owner)
@@ -127,41 +145,41 @@ import ExpressionCore
     public func choose(_ candidate:CandidateRef){
         guard enter() else{return};defer{leave()}
         guard let sender=current else{return};generation &+= 1;let ticket=generation,owner=coordinator
-        guard recall==nil else{return}
+        guard recall==nil,repair==nil else{return}
         _=owner.choose(candidate,client:sender);render(sender,ticket:ticket,owner:owner)
     }
     private func cancelPendingActivation(_ sender:AnyObject)->Bool {
         guard let pending=pendingActivation,pending.identity===sender,
               generation==pending.ticket,coordinator===pending.owner else{return false}
-        generation &+= 1;recall=nil;pendingActivation=nil
+        generation &+= 1;discardRepair();recall=nil;pendingActivation=nil
         pending.owner.interrupt("Lifecycle ended during activation. No text was written.")
-        current=nil;lastRect=nil;hide()
+        current=nil;lastRect=nil;hideAll()
         return true
     }
     public func finish(client sender:AnyObject){
         guard enter() else{return};defer{leave()}
         if cancelPendingActivation(sender){return}
-        guard current===sender else{return};generation &+= 1;recall=nil;let ticket=generation,owner=coordinator
+        guard current===sender else{return};generation &+= 1;discardRepair();recall=nil;let ticket=generation,owner=coordinator
         _=owner.finish(client:sender);render(sender,ticket:ticket,owner:owner)
     }
     public func deactivate(client sender:AnyObject){
         guard enter() else{return};defer{leave()}
         if cancelPendingActivation(sender){return}
-        guard current===sender else{return};generation &+= 1;recall=nil;let ticket=generation,owner=coordinator
+        guard current===sender else{return};generation &+= 1;discardRepair();recall=nil;let ticket=generation,owner=coordinator
         owner.deactivate(client:sender)
         guard matches(ticket,owner,sender) else{return}
         retainedRecovery=owner.recovery ?? retainedRecovery;current=nil;lastRect=nil
-        hide() // No state writes follow a presentation callback.
+        hideAll() // No state writes follow a presentation callback.
     }
     public func close(){
         guard enter() else{return};defer{leave()}
-        generation &+= 1;recall=nil;pendingActivation=nil;coordinator.interrupt("Controller closed. No automatic text cleanup.")
-        retainedRecovery=coordinator.recovery ?? retainedRecovery;current=nil;lastRect=nil;closed=true;hide()
+        generation &+= 1;discardRepair();recall=nil;pendingActivation=nil;coordinator.interrupt("Controller closed. No automatic text cleanup.")
+        retainedRecovery=coordinator.recovery ?? retainedRecovery;current=nil;lastRect=nil;closed=true;hideAll()
     }
-    public func invalidateRecallForShutdown(){generation &+= 1;recall=nil;hide()}
+    public func invalidateRecallForShutdown(){generation &+= 1;discardRepair();recall=nil;hideAll()}
     public func cancelRecall(token:UUID){
         guard enter() else{return};defer{leave()};guard recall?.token==token else{return}
-        generation &+= 1;recall=nil;hide()
+        generation &+= 1;discardRepair();recall=nil;hideAll()
     }
     public func reviewExpression(_ ref:ExpressionRef,token:UUID){
         guard enter() else{return};defer{leave()}
@@ -169,7 +187,7 @@ import ExpressionCore
               state.rows.contains(where:{$0.ref==ref}),let catalog=expressions(),catalog.epoch==state.catalogEpoch,
               let record=catalog.resolve(ref) else{return}
         generation &+= 1;let ticket=generation,owner=coordinator
-        guard owner.hasCurrentTarget(sender),matches(ticket,owner,sender),recall?.token==token else{if matches(ticket,owner,sender){recall=nil;hide()};return}
+        guard owner.hasCurrentTarget(sender),matches(ticket,owner,sender),recall?.token==token else{if matches(ticket,owner,sender){recall=nil;hideAll()};return}
         guard let match=state.rows.first(where:{$0.ref==ref}),record.exactText?.utf8.elementsEqual(match.record.exactText?.utf8 ?? "".utf8)==true else{return}
         recall=ExpressionRecallState(query:state.query,rows:state.rows,selected:state.selected,review:match,binding:state.binding,catalogEpoch:state.catalogEpoch)
         renderRecall(sender,ticket:ticket,owner:owner)
@@ -182,18 +200,18 @@ import ExpressionCore
         // Consume BEFORE the first client or presentation callback. No retry token survives.
         generation &+= 1;let ticket=generation,owner=coordinator;recall=nil
         _=owner.insertExpression(text,binding:state.binding,client:sender)
-        guard matches(ticket,owner,sender) else{return};hide()
+        guard matches(ticket,owner,sender) else{return};hideAll()
     }
     private func handleRecall(_ event:NSEvent,client sender:AnyObject,ticket:UInt64,owner:IMKSessionCoordinator)->Bool {
         guard let state=recall,let catalog=expressions(),catalog.epoch==state.catalogEpoch,
               owner.session?.idleExpressionBinding==state.binding,owner.hasCurrentTarget(sender),
               matches(ticket,owner,sender),recall?.token==state.token else{
-            if matches(ticket,owner,sender){recall=nil;hide()};return true
+            if matches(ticket,owner,sender){recall=nil;hideAll()};return true
         }
-        if event.keyCode==53{recall=nil;hide();return true}
+        if event.keyCode==53{recall=nil;hideAll();return true}
         if !event.modifierFlags.intersection([.command,.control,.option]).isEmpty {
             recall=nil;let safe=owner.releaseIdle(client:sender)
-            if matches(ticket,owner,sender){hide()};return matches(ticket,owner,sender) ? !safe:true
+            if matches(ticket,owner,sender){hideAll()};return matches(ticket,owner,sender) ? !safe:true
         }
         if event.keyCode==36 || event.keyCode==76 {
             guard !event.isARepeat else{return true}
@@ -216,26 +234,154 @@ import ExpressionCore
         recall=ExpressionRecallState(query:query,rows:catalog.search(query),selected:selected,binding:state.binding,catalogEpoch:state.catalogEpoch)
         renderRecall(sender,ticket:ticket,owner:owner);return true
     }
+    private func hideAll(){repairPresentationVisible=false;hide()}
+    private func discardRepair(){
+        if repair != nil{coordinator.session?.invalidateRepairActions()}
+        repair?.proposal?.cancel();repair=nil;presentedRepairToken=nil
+    }
+    public func retainedMenuAction(arm:Bool)->RetainedMenuAction? {
+        guard current != nil,!closed,!literal(),recall==nil,repair==nil,let session=coordinator.session,let snapshot=session.snapshot else{return nil}
+        if arm {guard session.canRetainForRepair,!session.isRetainedComposition,session.idleExpressionBinding != nil else{return nil}}
+        else{guard session.supportsRepair,!snapshot.rawASCII.isEmpty else{return nil}}
+        return RetainedMenuAction(driverGeneration:generation,activation:coordinator.activation,session:session.key,inputGeneration:snapshot.inputGeneration,arm:arm)
+    }
+    public func performRetainedMenuAction(_ action:RetainedMenuAction){
+        guard enter() else{return};defer{leave()}
+        guard let sender=current,recall==nil,repair==nil,generation==action.driverGeneration,coordinator.activation==action.activation,
+              let session=coordinator.session,session.key==action.session,session.snapshot?.inputGeneration==action.inputGeneration else{return}
+        generation &+= 1;let ticket=generation,owner=coordinator
+        if action.arm {guard let binding=session.idleExpressionBinding else{return};_=owner.beginRetained(binding:binding,client:sender)}
+        else{_=owner.commitRetained(client:sender)}
+        render(sender,ticket:ticket,owner:owner)
+    }
+    private func navigateRepair(_ direction:Int,client sender:AnyObject,ticket:UInt64,owner:IMKSessionCoordinator){
+        let previous=repair?.target.index;discardRepair()
+        guard let anchors=owner.repairAnchors(client:sender),matches(ticket,owner,sender),!anchors.rows.isEmpty else{
+            if matches(ticket,owner,sender){render(sender,ticket:ticket,owner:owner)};return
+        }
+        let initial=anchors.rows.firstIndex(where:{$0.bytes.upperBound>=(owner.snapshot?.caretUTF8 ?? 0)}) ?? anchors.rows.count-1
+        let index=previous.map{min(max(0,$0+direction),anchors.rows.count-1)} ?? initial
+        let target=anchors.targets[index],raw=String(decoding:Array(target.lease.raw.utf8)[target.anchor.bytes],as:UTF8.self)
+        repair=SegmentRepairState(target:target,original:anchors.preview,replacementRaw:raw)
+        renderRepair(sender,ticket:ticket,owner:owner)
+    }
+    public func searchRepair(token:UUID){
+        guard enter() else{return};defer{leave()}
+        guard let sender=current,let state=repair,state.token==token,state.proposal==nil else{return}
+        generation &+= 1;let ticket=generation,owner=coordinator;presentedRepairToken=nil
+        guard let result=owner.repairAlternatives(target:state.target,replacementRaw:state.replacementRaw,client:sender),matches(ticket,owner,sender),repair?.token==token else{
+            if matches(ticket,owner,sender),repair?.token==token{refreshFailedRepair(state,sender:sender,ticket:ticket,owner:owner)};return
+        }
+        let notice=result.complete ? (result.rows.isEmpty ? "No constrained path. Edit spelling or cancel; original unchanged.":"All paths in this bounded supported domain exhausted.") : "Search incomplete. Only these verified choices are usable; absence is not a conflict."
+        repair=SegmentRepairState(target:result.target,original:state.original,replacementRaw:state.replacementRaw,caret:state.caret,rows:result.rows,complete:result.complete,searched:true,notice:notice)
+        renderRepair(sender,ticket:ticket,owner:owner)
+    }
+    private func refreshFailedRepair(_ old:SegmentRepairState,sender:AnyObject,ticket:UInt64,owner:IMKSessionCoordinator){
+        old.proposal?.cancel();presentedRepairToken=nil
+        guard let anchors=owner.repairAnchors(client:sender),matches(ticket,owner,sender),anchors.targets.indices.contains(old.target.index) else{
+            if matches(ticket,owner,sender){discardRepair();render(sender,ticket:ticket,owner:owner)};return
+        }
+        repair=SegmentRepairState(target:anchors.targets[old.target.index],original:old.original,replacementRaw:old.replacementRaw,caret:old.caret,notice:"Search or preview unavailable. Original unchanged. Search again explicitly.")
+        renderRepair(sender,ticket:ticket,owner:owner)
+    }
+    public func reviewRepair(row:Int,token:UUID){
+        guard enter() else{return};defer{leave()}
+        guard let sender=current,let state=repair,state.token==token,presentedRepairToken==token,state.proposal==nil,state.rows.indices.contains(row),row/5==state.page else{return}
+        generation &+= 1;let ticket=generation,owner=coordinator;presentedRepairToken=nil
+        guard let proposal=owner.prepareAlternative(state.rows[row],client:sender),matches(ticket,owner,sender),repair?.token==token else{
+            if matches(ticket,owner,sender),repair?.token==token{refreshFailedRepair(state,sender:sender,ticket:ticket,owner:owner)};return
+        }
+        repair=SegmentRepairState(target:state.target,original:state.original,replacementRaw:state.replacementRaw,caret:state.caret,proposal:proposal)
+        renderRepair(sender,ticket:ticket,owner:owner)
+    }
+    public func applyRepair(token:UUID){
+        guard enter() else{return};defer{leave()}
+        guard let sender=current,let state=repair,state.token==token,presentedRepairToken==token,let proposal=state.proposal else{return}
+        generation &+= 1;let ticket=generation,owner=coordinator
+        // Consume before the first getter/mark/presentation callback. Do not invalidate
+        // the proposal's engine lease until its one transfer has been attempted.
+        repair=nil;presentedRepairToken=nil
+        _=owner.applyRepair(proposal,client:sender);proposal.cancel()
+        render(sender,ticket:ticket,owner:owner)
+    }
+    public func cancelRepair(token:UUID){
+        guard enter() else{return};defer{leave()};guard repair?.token==token,let sender=current else{return}
+        generation &+= 1;let ticket=generation,owner=coordinator;discardRepair()
+        hideAll();guard matches(ticket,owner,sender) else{return};render(sender,ticket:ticket,owner:owner)
+    }
+    private func handleRepair(_ event:NSEvent,client sender:AnyObject,ticket:UInt64,owner:IMKSessionCoordinator)->Bool {
+        guard let state=repair else{return true}
+        guard owner.hasCurrentTarget(sender),matches(ticket,owner,sender),repair?.token==state.token else{
+            if matches(ticket,owner,sender),repair?.token==state.token{discardRepair();hideAll()};return true
+        }
+        if event.keyCode==53{if !event.isARepeat{suppressRepeatedRepairEscape=true;cancelRepair(token:state.token)};return true}
+        if state.proposal != nil {
+            if event.keyCode==116 || event.keyCode==121{scrollRepair(event.keyCode==116 ? -1:1,state.token)}
+            return true // Apply is a separate explicit button; Return keeps its raw policy.
+        }
+        if event.keyCode==49 {
+            if !event.isARepeat {if state.searched,!state.rows.isEmpty{reviewRepair(row:state.selected,token:state.token)}else{searchRepair(token:state.token)}}
+            return true
+        }
+        if let text=event.characters,let number=Int(text),(1...5).contains(number),state.searched {
+            let row=state.page*5+number-1;if !event.isARepeat,state.rows.indices.contains(row){reviewRepair(row:row,token:state.token)};return true
+        }
+        if [125,126,116,121].contains(event.keyCode),state.searched,!state.rows.isEmpty {
+            let delta=event.keyCode==125 ? 1:event.keyCode==126 ? -1:event.keyCode==121 ? 5:-5
+            let selected=min(max(0,state.selected+delta),state.rows.count-1)
+            repair=SegmentRepairState(target:state.target,original:state.original,replacementRaw:state.replacementRaw,caret:state.caret,rows:state.rows,complete:state.complete,selected:selected,searched:true,notice:state.notice)
+            renderRepair(sender,ticket:ticket,owner:owner);return true
+        }
+        var bytes=Array(state.replacementRaw.utf8),caret=state.caret
+        switch event.keyCode {
+        case 123:caret=max(0,caret-1)
+        case 124:caret=min(bytes.count,caret+1)
+        case 115:caret=0
+        case 119:caret=bytes.count
+        case 51:if caret>0{bytes.remove(at:caret-1);caret-=1}
+        case 117:if caret<bytes.count{bytes.remove(at:caret)}
+        default:
+            guard let text=event.characters,text.utf8.count==1,let byte=text.utf8.first,(97...122).contains(byte) || byte==39,bytes.count<4096 else{return true}
+            bytes.insert(byte,at:caret);caret+=1
+        }
+        presentedRepairToken=nil
+        guard let target=try? owner.session?.renewRepairTarget(state.target),matches(ticket,owner,sender) else{
+            if matches(ticket,owner,sender){discardRepair();render(sender,ticket:ticket,owner:owner)};return true
+        }
+        repair=SegmentRepairState(target:target,original:state.original,replacementRaw:String(decoding:bytes,as:UTF8.self),caret:caret)
+        renderRepair(sender,ticket:ticket,owner:owner);return true
+    }
+    private func renderRepair(_ sender:AnyObject,ticket:UInt64,owner:IMKSessionCoordinator){
+        guard matches(ticket,owner,sender),let state=repair else{return}
+        let rect=owner.candidateRect(sender)
+        guard matches(ticket,owner,sender),repair?.token==state.token else{return}
+        guard let rect=rect,owner.session?.supportsRepair==true else{discardRepair();hideAll();return}
+        repairPresentationVisible=true
+        let shown=presentRepair(state,rect)
+        guard matches(ticket,owner,sender),repair?.token==state.token else{return}
+        guard shown else{discardRepair();hideAll();return};presentedRepairToken=state.token
+    }
     private func renderRecall(_ sender:AnyObject,ticket:UInt64,owner:IMKSessionCoordinator){
         guard matches(ticket,owner,sender),let state=recall else{return}
         let rect=owner.candidateRect(sender)
         guard matches(ticket,owner,sender),recall?.token==state.token else{return}
-        guard owner.session?.idleExpressionBinding==state.binding else{recall=nil;hide();return}
-        guard let rect=rect else{recall=nil;hide();return}
+        guard owner.session?.idleExpressionBinding==state.binding else{recall=nil;hideAll();return}
+        guard let rect=rect else{recall=nil;hideAll();return}
         let presented=presentRecall(state,rect)
         guard matches(ticket,owner,sender),recall?.token==state.token else{return}
-        guard presented else{recall=nil;presentedRecallToken=nil;hide();return}
+        guard presented else{recall=nil;presentedRecallToken=nil;hideAll();return}
         presentedRecallToken=state.token
     }
     private func render(_ sender:AnyObject,ticket:UInt64,owner:IMKSessionCoordinator){
         guard matches(ticket,owner,sender) else{return}
+        if repair==nil,repairPresentationVisible{hideAll();guard matches(ticket,owner,sender) else{return}}
         let activation=owner.activation
         let rect=owner.candidateRect(sender)
         guard matches(ticket,owner,sender) else{return}
-        guard owner.session != nil,owner.activation==activation else{lastRect=nil;hide();return}
+        guard owner.session != nil,owner.activation==activation else{lastRect=nil;hideAll();return}
         if let rect=rect{lastRect=rect}
-        guard let rect=lastRect else{hide();return}
-        if owner.snapshot?.rows.isEmpty==false || owner.notice != nil{present(owner.snapshot,rect,owner.notice)}else{hide()}
+        guard let rect=lastRect else{hideAll();return}
+        if owner.snapshot?.rows.isEmpty==false || owner.notice != nil{present(owner.snapshot,rect,owner.notice)}else{hideAll()}
     }
 }
 #endif

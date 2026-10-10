@@ -42,6 +42,8 @@ final class EngineTests:XCTestCase {
     }
     func testEmptyShortcutsEscapeAndSessionLifetime() throws {
         let s=try make()
+        _ = try s.refresh();XCTAssertFalse(s.canRetainForRepair);XCTAssertFalse(s.supportsRepair)
+        XCTAssertThrowsError(try s.beginRetained(binding:XCTUnwrap(s.idleExpressionBinding)))
         for key:InputKey in [.returnKey,.space,.number(1),.escape,.command,.code(0xff09),.code(0xff51)] {XCTAssertFalse(try s.process(key).handled)}
         try type("nihao",s);let ref=s.snapshot!.rows[0].ref
         _=try s.process(.command);XCTAssertEqual(s.snapshot?.rows[0].ref,ref)

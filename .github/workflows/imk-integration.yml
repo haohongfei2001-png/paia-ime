@@ -66,6 +66,22 @@ jobs:
             grep -Fq "IMK_BASIC_STAGE $stage ENGINE_NATIVE + APPKIT_HOST" "evidence/imk-run/basics-$stage.txt"
             grep -Fq "Executed 1 test, with 0 failures" "evidence/imk-run/basics-$stage.txt"
           done
+      - name: Retained composition and constrained repair through actual IMK driver
+        run: |
+          set -o pipefail
+          source .build/b1-env.sh
+          export PAIA_REPAIR_CAPTURE="$PWD/evidence/imk-run/repair-review.png"
+          export PAIA_REPAIR_CAPTURE_TAIL="$PWD/evidence/imk-run/repair-tail.png"
+          swift test --skip-build --filter IMKRepairTests 2>&1 | tee evidence/imk-run/repair-tests.txt
+          grep -Fq 'Executed 8 tests, with 0 failures' evidence/imk-run/repair-tests.txt
+          grep -Fq 'IMK_REPAIR_NATIVE ENGINE_NATIVE + APPKIT_HOST' evidence/imk-run/repair-tests.txt
+          python3 - <<'PY_CAPTURE'
+          import base64, pathlib
+          for name, prefix in [('repair-review.png', 'PAIA_IMK_REPAIR_IMAGE'), ('repair-tail.png', 'PAIA_IMK_REPAIR_TAIL_IMAGE')]:
+              encoded = base64.b64encode(pathlib.Path('evidence/imk-run', name).read_bytes()).decode()
+              for index in range(0, len(encoded), 1800):
+                  print(f'{prefix}_{index//1800}:{encoded[index:index+1800]}')
+          PY_CAPTURE
       - name: Preserve evidence including failed stages
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02

@@ -60,6 +60,51 @@ func repairCase(id:String,raw:String,words:[String],target:Int,replacement:Strin
         try commit(s,expected)
         return "anchors=\(anchors.count); candidates examined=\(proposal.examined); real engine commit once"
     }
+    run(id+".issued-alternatives") {
+        let s=try runtime.makeSession(schema:schema,deferredCommit:true);defer{s.end()};try type(raw,s);try confirm(s,words)
+        let before=s.snapshot!,targetRef=try s.repairAnchors().targets[target]
+        let choices=try s.repairAlternatives(target:targetRef,replacementRaw:replacement)
+        guard let choice=choices.rows.first(where:{$0.surface.utf8.elementsEqual(surface.utf8) && $0.preview.utf8.elementsEqual(expected.utf8)}) else {
+            throw TestFailure.assertion("issued expected choice absent; status=\(choices.status), complete=\(choices.complete), examined=\(choices.examined), rows="+choices.rows.prefix(8).map{$0.surface}.joined(separator:"|"))
+        }
+        try check(s.snapshot!.inputGeneration==before.inputGeneration && s.snapshot!.rawASCII==before.rawASCII,"enumeration mutated source")
+        let proposal=try s.prepareAlternative(choice)
+        try check(proposal.preview.utf8.elementsEqual(expected.utf8),"issued preview changed")
+        let update=try s.applyRepair(proposal);try check(update.commit==nil,"alternative apply committed")
+        try commit(s,expected)
+        return "native issued rows=\(choices.rows.count), complete=\(choices.complete), examined=\(choices.examined); prepared exact displayed preview and engine committed once"
+    }
+}
+run("G01.explicit-idle-arm-capability") {
+    let s=try runtime.makeSession();defer{s.end()};_ = try s.refresh()
+    try check(s.canRetainForRepair && !s.supportsRepair,"loaded capability confused with retained state")
+    let binding=s.idleExpressionBinding!;let armed=try s.beginRetained(binding:binding)
+    try check(armed.commit==nil && s.supportsRepair && s.isRetainedComposition,"arm did not remain idle")
+    do{_ = try s.beginRetained(binding:binding);throw TestFailure.assertion("duplicate arm accepted")}catch ConstraintError.stale{}
+    try type("nihao",s);let before=s.snapshot!
+    for key:Int32 in [44,46,58,65,33] {let u=try s.process(.code(key));try check(u.commit==nil && u.refusal != nil && s.snapshot!.inputGeneration==before.inputGeneration,"retained punctuation mutated engine")}
+    try confirm(s,["你好"]);try check(s.snapshot!.rawASCII=="nihao","retained confirmation lost raw")
+    try commit(s,"你好")
+    return "idle-only same-session arm; no resources loaded; unsupported punctuation refused before mutation"
+}
+run("G01.alternatives-bounds-and-stale") {
+    let s=try runtime.makeSession(deferredCommit:true);defer{s.end()};try type("nihaoshijieni",s);try confirm(s,["你好","世界","你"])
+    let before=s.snapshot!
+    let one=try s.repairAlternatives(target:try s.repairAnchors().targets[0],replacementRaw:"nihao",limit:1)
+    try check(!one.complete && one.status==21 && one.rows.isEmpty,"work exhaustion disguised as conflict")
+    let partial=try s.repairAlternatives(target:try s.repairAnchors().targets[0],replacementRaw:"nihao",maxRows:1)
+    try check(!partial.complete && partial.status==21 && partial.rows.count==1,"row-limited result not honestly partial")
+    let stale=partial.rows[0]
+    let next=try s.repairAlternatives(target:partial.target,replacementRaw:"nihao")
+    do{_ = try s.prepareAlternative(stale);throw TestFailure.assertion("old list accepted")}catch ConstraintError.stale{}
+    try check(!next.rows.isEmpty,"replacement query empty")
+    s.invalidateRepairActions()
+    do{_ = try s.prepareAlternative(next.rows[0]);throw TestFailure.assertion("cancelled choice accepted")}catch ConstraintError.stale{}
+    let conflict=try s.repairAlternatives(target:try s.repairAnchors().targets[1],replacementRaw:"zz")
+    try check(conflict.complete && conflict.status==20 && conflict.rows.isEmpty,"fixture invalid spelling did not exhaust to conflict")
+    try check(s.snapshot!.rawASCII==before.rawASCII && s.snapshot!.inputGeneration==before.inputGeneration,"failed/search/cancel changed source")
+    try commit(s,"你好世界你")
+    return "work=1 incomplete; one usable partial row; old/cancelled rows stale; candidate-free zz conflict; source unchanged"
 }
 repairCase(id:"G01.front.homophone",raw:"nihaoshijieni",words:["你好","世界","你"],target:0,replacement:"nihao",surface:"拟好",expected:"拟好世界你")
 repairCase(id:"G01.middle.homophone",raw:"nihaonihaoshijie",words:["你好","你好","世界"],target:1,replacement:"nihao",surface:"你号",expected:"你好你号世界")

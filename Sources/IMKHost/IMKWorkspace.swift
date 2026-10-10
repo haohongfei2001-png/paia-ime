@@ -45,10 +45,10 @@ public enum IMKManagementError:Error {case busy,unavailable,interrupted}
         if managing{interrupted=true;return false}
         return !closed
     }
-    public func makeDriver(hide:@escaping()->Void,present:@escaping(CandidateSnapshot?,NSRect,String?)->Void,presentRecall:@escaping(ExpressionRecallState,NSRect)->Bool={_,_ in false},scrollRecall:@escaping(Int,UUID)->Void={_,_ in})->IMKControllerDriver {
+    public func makeDriver(hide:@escaping()->Void,present:@escaping(CandidateSnapshot?,NSRect,String?)->Void,presentRecall:@escaping(ExpressionRecallState,NSRect)->Bool={_,_ in false},scrollRecall:@escaping(Int,UUID)->Void={_,_ in},presentRepair:@escaping(SegmentRepairState,NSRect)->Bool={_,_ in false},scrollRepair:@escaping(Int,UUID)->Void={_,_ in})->IMKControllerDriver {
         let driver=IMKControllerDriver(makeSession:{[weak self] in
             guard let self=self,!self.closed,!self.managing else{return nil};return try? self.factory(self.configuration)
-        },expressions:{[weak self] in self?.expressionCatalog},literal:{[weak self] in self?.configuration.literal==true},permitOperation:{[weak self] in self?.permitInput()==true},hide:hide,present:present,presentRecall:presentRecall,scrollRecall:scrollRecall)
+        },expressions:{[weak self] in self?.expressionCatalog},literal:{[weak self] in self?.configuration.literal==true},permitOperation:{[weak self] in self?.permitInput()==true},hide:hide,present:present,presentRecall:presentRecall,scrollRecall:scrollRecall,presentRepair:presentRepair,scrollRepair:scrollRepair)
         drivers.removeAll{$0.value==nil};drivers.append(WeakDriver(driver))
         if managing{interrupted=true}
         return driver

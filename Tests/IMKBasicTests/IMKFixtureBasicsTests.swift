@@ -15,6 +15,7 @@ final class IMKFixtureBasicsTests:XCTestCase {
         defer{driver.close()}
         XCTAssertEqual(driver.activate(try XCTUnwrap(IMKTextInputBridge(client))),.ready)
         let old=try XCTUnwrap(driver.coordinator.session)
+        XCTAssertFalse(old.canRetainForRepair);XCTAssertFalse(old.supportsRepair);XCTAssertNil(driver.retainedMenuAction(arm:true))
         for spelling in [LabSpelling.flypy,.natural] {
             var next=LabConfiguration();next.spelling=spelling
             XCTAssertThrowsError(try workspace.applyConfiguration(next));XCTAssertTrue(driver.coordinator.session===old)

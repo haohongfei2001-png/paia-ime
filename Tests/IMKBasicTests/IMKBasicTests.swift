@@ -54,7 +54,9 @@ final class IMKBasicTests:XCTestCase {
         if stage=="controls" {
             preferences.show();preferences.openTerms(nil)
             let terms=try XCTUnwrap(preferences.terms),personal=try XCTUnwrap(environment.personal),authority=try XCTUnwrap(personal.store)
-            try activate(driver,a);try type("yuanshengxianshijia",driver,a)
+            try activate(driver,a)
+            XCTAssertFalse(driver.coordinator.session!.canRetainForRepair);XCTAssertNil(driver.retainedMenuAction(arm:true))
+            try type("yuanshengxianshijia",driver,a)
             XCTAssertEqual(driver.coordinator.snapshot?.rows.first?.text,"原生显式甲")
             XCTAssertTrue(driver.handle(try key("\u{1b}",code:53),client:a))
             var cases=0

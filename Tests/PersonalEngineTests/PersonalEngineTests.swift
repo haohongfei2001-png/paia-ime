@@ -102,12 +102,15 @@ final class PersonalEngineTests:XCTestCase {
             else {try choosePersonalPrefixWithoutDroppingSuffix();try choose("qionghaicelijia",marker);try choose("qiong'hai'ce'li'jia",marker);try choose("qionghaiceliyi",marker)}
             XCTAssertFalse(try candidates("qionghaiceli").contains(marker))
             try choose("kuo",rare);try choose("linxiaoqiu","林小棠")
-            let s=try session();defer{s.end()};_ = try s.process(.code(110));XCTAssertFalse(s.supportsRepair)
+            let s=try session();defer{s.end()};_ = try s.refresh()
+            XCTAssertFalse(s.canRetainForRepair);XCTAssertFalse(s.supportsRepair)
+            XCTAssertThrowsError(try s.beginRetained(binding:XCTUnwrap(s.idleExpressionBinding)))
+            _ = try s.process(.code(110))
             XCTAssertThrowsError(try s.repairChoices());XCTAssertThrowsError(try s.repairAnchors())
             for _ in 0..<20 {try choose("nihao","你好")}
             environment.disableOverlayUntilRestart()
             XCTAssertThrowsError(try s.refresh()) // Existing overlay capabilities die too, not just future sessions.
-            XCTAssertTrue(try session().supportsRepair);XCTAssertFalse(try candidates("qionghaicelijia").contains(marker))
+            XCTAssertTrue(try session().canRetainForRepair);XCTAssertFalse(try candidates("qionghaicelijia").contains(marker))
             try choose("shurufa","输入法")
         }
         XCTAssertEqual(try? Data(contentsOf:authority),before,"Ordinary engine operations changed explicit authority")

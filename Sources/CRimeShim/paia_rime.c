@@ -150,6 +150,16 @@ int paia_rime_step(uint64_t id, int action, int key, int modifiers, PaiaRimeSnap
         if(key<0 || key>=PAIA_G01_MAX_SEARCH) {rc=PAIA_BOUNDS;goto done;}
         out->handled=api->select_candidate(id,(size_t)key);
     } else if(action==5) out->handled=api->commit_composition(id);
+    else if(action==6) {
+        // Explicit idle-only arming, never library/resource loading on a key.
+        const char *raw=api->get_input(id);
+        RIME_STRUCT(RimeContext, current);
+        if(!g01 || !raw || *raw || !api->get_context(id,&current)){rc=PAIA_BOUNDS;goto done;}
+        int empty=current.composition.length==0;
+        api->free_context(&current);
+        if(!empty){rc=PAIA_BOUNDS;goto done;}
+        api->set_option(id,"_auto_commit",False);out->handled=1;
+    }
     else if (action!=0) { rc=PAIA_BOUNDS; goto done; }
     out->engine_nanoseconds=monotonic_ns()-engine_begin;
     uint64_t copy_begin=monotonic_ns();
@@ -190,7 +200,7 @@ int paia_rime_enable_g01(const char *path) {
         if(handle) {
             PaiaG01API *(*get_api)(void)=(PaiaG01API *(*)(void))dlsym(handle,"paia_g01_get_api");
             PaiaG01API *v=get_api?get_api():NULL;
-            if(v && v->abi==PAIA_G01_ABI && v->data_size==sizeof(*v) && v->initialize && v->anchors && v->candidates && v->prepare && v->free_list && v->initialize(api)==PG_OK){g01=v;rc=PAIA_OK;}
+            if(v && v->abi==PAIA_G01_ABI && v->data_size==sizeof(*v) && v->initialize && v->anchors && v->candidates && v->prepare && v->free_list && v->alternatives && v->free_alternatives && v->initialize(api)==PG_OK){g01=v;rc=PAIA_OK;}
             else dlclose(handle);
         }
     }
@@ -215,4 +225,14 @@ int paia_rime_g01_prepare(uint64_t id,size_t target,const char *replacement,cons
 }
 void paia_rime_g01_free_list(PaiaG01List *list) {
     pthread_mutex_lock(&owner);if(g01)g01->free_list(list);pthread_mutex_unlock(&owner);
+}
+
+int paia_rime_g01_alternatives(uint64_t id,size_t target,const char *replacement,size_t limit,size_t max_rows,PaiaG01Alternatives *out) {
+    if(!out)return PG_INVALID;
+    memset(out,0,sizeof(*out));
+    pthread_mutex_lock(&owner);int rc=g01?g01->alternatives(id,target,replacement,limit,max_rows,out):PAIA_UNAVAILABLE;
+    pthread_mutex_unlock(&owner);return rc;
+}
+void paia_rime_g01_free_alternatives(PaiaG01Alternatives *out) {
+    pthread_mutex_lock(&owner);if(g01)g01->free_alternatives(out);pthread_mutex_unlock(&owner);
 }
