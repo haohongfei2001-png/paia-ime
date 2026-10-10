@@ -29,7 +29,10 @@ MainActor.assumeIsolated {
         // Prohibited/LSBackgroundOnly cannot supply that application contract.
         phase="accessory-policy"
         let app=NSApplication.shared
-        let before=app.activationPolicy(),accepted=app.setActivationPolicy(.accessory),after=app.activationPolicy()
+        let before=app.activationPolicy()
+        // LSUIElement may already establish accessory. A redundant request can
+        // return false even though the required effective policy is unchanged.
+        let accepted=before == .accessory || app.setActivationPolicy(.accessory),after=app.activationPolicy()
         if preflight{print("IMK_PREFLIGHT_POLICY before=\(before.rawValue) accepted=\(accepted) after=\(after.rawValue)")}
         guard accepted,after == .accessory else{throw EngineError.closed}
         phase="engine-startup"
