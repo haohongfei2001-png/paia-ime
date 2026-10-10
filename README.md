@@ -59,7 +59,7 @@ See [A1 build, tests, resource pins and evidence boundaries](docs/BATCH_A1.md). 
 
 ## InputMethodKit engineering integration
 
-[The separate input-method bundle and bounded client adapter](docs/IMK_INTEGRATION.md) add a real IMKInputController, shared event/lifecycle driver and IMKTextInput bridge. Native CI builds the unsigned app, verifies its bundled real engine without starting IMKServer, and exercises an NSTextView-backed protocol client. [Integration evidence](evidence/imk/VALIDATION.md) preserves the first failing expectation, actual engine comparison and ownership regressions. The shared IMK workspace now connects the existing basic modes, explicit settings save/verification and personal term governance under a process-wide idle gate; [basic-controls evidence](evidence/imk-basics/VALIDATION.md) records the actual native stages and retained failures. The default candidate now joins these paths using 46 authored dictionary rows; full vocabulary remains explicitly selected and unbundled. See the candidate resource/data contract below. Contextual known-character interaction is implemented below for explicitly qualified synthetic clients; production resources, staged update/recovery and installed compatibility remain open. The supported fully-confirmed G01 interaction is integrated below.
+[The separate input-method bundle and bounded client adapter](docs/IMK_INTEGRATION.md) add a real IMKInputController, shared event/lifecycle driver and IMKTextInput bridge. Native CI builds the unsigned app, verifies its bundled real engine without starting IMKServer, and exercises an NSTextView-backed protocol client. [Integration evidence](evidence/imk/VALIDATION.md) preserves the first failing expectation, actual engine comparison and ownership regressions. The shared IMK workspace now connects the existing basic modes, explicit settings save/verification and personal term governance under a process-wide idle gate; [basic-controls evidence](evidence/imk-basics/VALIDATION.md) records the actual native stages and retained failures. The default candidate now joins these paths using 46 authored dictionary rows; full vocabulary remains explicitly selected and unbundled. See the candidate resource/data contract below. Contextual known-character interaction is implemented below for explicitly qualified synthetic clients; production resources, signed software update/migration and installed compatibility remain open; authored public-resource publication/recovery is integrated below. The supported fully-confirmed G01 interaction is integrated below.
 
 ## Explicit exact-expression loop
 
@@ -132,3 +132,13 @@ qualification. **The default pack contains only 46 authored dictionary rows. Ful
 remains explicitly configured research; installation alone would not make this a
 daily-use input method.** Production source rights, release signing and actual
 installed-client quality/performance remain separate gates.
+
+## Candidate public-resource recovery (Draft qualification)
+
+[Format-2 fixed-source publication and startup recovery](docs/CANDIDATE_RESOURCE_RECOVERY.md)
+continues the original candidate update contract: recorded current/last-good
+selection precedes rebuilding the current explicit personal layer. The actual
+bundle uses a fixed public-resource sibling, with no new management UI or research
+flag. [Commit-bound evidence](evidence/candidate-resource-recovery/VALIDATION.md)
+separates in-progress native checks from the earlier fixture recovery. This remains
+46 authored rows, restart-only activation and uninstalled engineering evidence.

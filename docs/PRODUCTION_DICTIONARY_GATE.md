@@ -1,6 +1,6 @@
 # Production dictionary provenance gate
 
-Engineering inventory, checked 2026-10-10. This is not a legal clearance opinion or a new resource acquisition. The default IMK bundle still contains only the authored A1 fixture. The existing Rime Ice research corpus remains unbundled. Resource files and their immutable hashes have not been changed by C.
+Engineering inventory, checked 2026-10-10. This is not a legal clearance opinion or a new resource acquisition. The default IMK candidate now contains 46 repository-authored A1/habit rows plus the individually pinned spelling recipes and OpenCC conversion maps described in [the candidate resource contract](PRODUCT_CANDIDATE.md). The existing 1,873,509-row Rime Ice research corpus remains unbundled and requires explicit research configuration. Candidate integration and authored resource publication do not change the unresolved corpus source grants below or establish daily-use language quality.
 
 Identity/reproducibility is already established: pinned Rime Ice commit `da1fbe602e38f26db846fa10120ee64c2b0324c0`, file digests/roles, 1,873,509-row inventory, retained license texts, generated spelling schemas and runtime content revisions. Those facts do not establish every imported source grant.
 

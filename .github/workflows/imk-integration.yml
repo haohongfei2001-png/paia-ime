@@ -40,6 +40,14 @@ jobs:
           grep -Fq 'Executed 11 tests, with 0 failures' evidence/imk-run/product-data-tests.txt
           swift test --skip-build --filter CandidatePackTests 2>&1 | tee evidence/imk-run/candidate-pack-tests.txt
           grep -Fq 'Executed 5 tests, with 0 failures' evidence/imk-run/candidate-pack-tests.txt
+          swift test --skip-build --filter InputMethodLaunchTests 2>&1 | tee evidence/imk-run/input-method-launch-tests.txt
+          grep -Fq 'Executed 3 tests, with 0 failures' evidence/imk-run/input-method-launch-tests.txt
+          swift test --skip-build --filter CandidateUpdateCoreTests 2>&1 | tee evidence/imk-run/candidate-update-core-tests.txt
+          grep -Fq 'Executed 11 tests, with 0 failures' evidence/imk-run/candidate-update-core-tests.txt
+          python3 Tools/check-candidate-update-regressions.py 2>&1 | tee evidence/imk-run/candidate-update-regressions.txt
+          git diff --exit-code
+          swift test --filter CandidateUpdateCoreTests 2>&1 | tee evidence/imk-run/candidate-update-core-restored.txt
+          grep -Fq 'Executed 11 tests, with 0 failures' evidence/imk-run/candidate-update-core-restored.txt
           python3 Tools/check-personal-read-regression.py 2>&1 | tee evidence/imk-run/personal-read-regression.txt
           python3 Tools/check-product-empty-regression.py 2>&1 | tee evidence/imk-run/product-empty-regression.txt
           git diff --exit-code
@@ -82,6 +90,10 @@ jobs:
           bash Tools/prepare-candidate-negatives.sh 2>&1 | tee evidence/imk-run/candidate-negative-build.txt
           python3 Tools/check-candidate-bundle.py 2>&1 | tee evidence/imk-run/candidate-movable.txt
           bash Tools/test-product-candidate.sh
+      - name: Candidate format-2 publication and current-authority recovery
+        run: |
+          set -o pipefail
+          bash Tools/test-candidate-update.sh
       - name: Real engine and synthetic IMK protocol client
         run: |
           set -o pipefail

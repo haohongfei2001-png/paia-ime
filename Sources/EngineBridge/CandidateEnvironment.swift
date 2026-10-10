@@ -5,19 +5,34 @@ import LexiconCore
 @MainActor public final class CandidateEnvironment {
     public let runtime:RimeRuntime,snapshot:CandidateResourceSnapshot,components:CandidateComponents
     public let personalActive:Bool,personalPreparationFailed:Bool
+    public let publicReference:ResourceReference,publicPreset:CandidatePublicPreset,publicSelectionReason:ResourceSelectionReason
     public private(set) var pendingRestart=false
     private final class WeakSession {weak var value:InputSession?;init(_ value:InputSession){self.value=value}}
     private var sessions=[WeakSession]()
     // Helper override is a test seam; production always uses the verified bundled
     // helper. All preparation/fallback occurs before the sole main engine entry.
-    public init(pack:URL,reference:ResourceReference,components:CandidateComponents,personalStore:LexiconStore?,
+    public init(pack:URL,reference:ResourceReference,components:CandidateComponents,personalStore:LexiconStore?,catalog:URL?=nil,
+                publicProbeOverride:((CandidateResourceSnapshot,CandidatePublicPreset)throws->Void)?=nil,
                 helperRun:((URL,[String],URL,TimeInterval)throws->Data)?=nil,beforeAuthorityCheck:(()throws->Void)?=nil)throws {
         self.components=components;try components.verify()
-        let base=try VerifiedCandidatePack(directory:ResourceDirectory(pack),expected:reference)
-        let original=try CandidateResourceSnapshot(base)
+        let bundled=try VerifiedCandidatePack(directory:ResourceDirectory(pack),expected:reference)
+        let policy=try CandidateSourcePolicy(bundle:bundled,expectedBundle:reference)
+        let probe=publicProbeOverride ?? {snapshot,preset in
+            try CandidateHelper.probe(snapshot,components:components,timeout:120)
+            try CandidateHelper.probeUpdate(snapshot,preset:preset,components:components)
+        }
+        let selection:CandidateResourceSelection
+        if let catalog=catalog {
+            selection=try CandidateResourceCatalog(directory:catalog,policy:policy).select(probe:probe)
+        } else {
+            let copy=try CandidateResourceSnapshot(bundled)
+            do {try probe(copy,.baseline);try copy.verify()}catch{copy.close();throw error}
+            selection=CandidateResourceSelection(snapshot:copy,reason:.bundled,preset:.baseline)
+        }
+        let original=selection.snapshot,base=original.pack
+        publicReference=base.reference;publicPreset=selection.preset;publicSelectionReason=selection.reason
         var selected=original,active=false,failed=false,expectedPersonal:Data?
         do {
-            try CandidateHelper.probe(original,components:components)
             if let store=personalStore {
                 do {
                     let bytes=try store.exportData(),document=try LexiconCodec.decode(bytes)
@@ -70,6 +85,6 @@ import LexiconCore
     }
     public var status:String {
         let personal=personalPreparationFailed ? "Personal preparation refused; public authored resources selected without restoring older terms.":personalActive ? "Explicit personal Full/Simplified snapshot active; its repair/mixed mode is unavailable.":"Public authored snapshot; no personal overlay."
-        return "Integrated offline candidate: 32 spelling/script/punctuation policies, G01 and mixed native components. 46 authored rows, not a daily-use language model. "+personal
+        return "Public source: "+publicSelectionReason.rawValue+"/"+publicPreset.rawValue+"; resource updates require an independent restart. Integrated offline candidate: 32 spelling/script/punctuation policies, G01 and mixed native components. 46 authored rows, not a daily-use language model. "+personal
     }
 }

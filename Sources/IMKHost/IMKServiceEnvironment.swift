@@ -21,24 +21,27 @@ import ResourceCore
         // The service's resource contract is chosen by its application metadata,
         // never by a resource file's current existence. Missing packs fail closed.
         let useBundled=environment["PAIA_FIXTURE_DIR"]==nil && (applicationBundle.bundleIdentifier=="dev.paia.ime.integration" || applicationBundle.object(forInfoDictionaryKey:"PAIAResourceGeneration") != nil)
-        let candidateMarkers=["PAIACandidateProfile","PAIACandidateGeneration","PAIACandidateManifestSHA","PAIACandidateExtensionSHA"]
+        let candidateMarkers=["PAIACandidateProfile","PAIACandidateGeneration","PAIACandidateManifestSHA","PAIACandidateExtensionSHA","PAIACandidateResourceCatalog"]
         if applicationBundle.bundleIdentifier=="dev.paia.ime.candidate" || candidateMarkers.contains(where:{applicationBundle.object(forInfoDictionaryKey:$0) != nil}) {
             guard applicationBundle.object(forInfoDictionaryKey:"PAIACandidateProfile") as? String==CandidateContract.profile,
+                  applicationBundle.object(forInfoDictionaryKey:"PAIACandidateResourceCatalog") as? String==CandidateUpdate.catalogContract,
                   !environment.keys.contains(where:{$0.hasPrefix("PAIA_") && $0 != "PAIA_SOURCE_SHA"}),
                   let resources=bundle,let executable=applicationBundle.executableURL,
                   let generation=applicationBundle.object(forInfoDictionaryKey:"PAIACandidateGeneration") as? String,
                   let digest=applicationBundle.object(forInfoDictionaryKey:"PAIACandidateManifestSHA") as? String,
                   let bridgeSHA=applicationBundle.object(forInfoDictionaryKey:"PAIACandidateExtensionSHA") as? String,
                   let helperSHA=applicationBundle.object(forInfoDictionaryKey:"PAIAResourceHelperSHA") as? String else{throw ResourceError.incompatible}
+            let dataParent=preflight ? isolatedDataParent:FileManager.default.urls(for:.applicationSupportDirectory,in:.userDomainMask).first
+            let catalog=try CandidateUpdate.selectedCatalog(parent:dataParent)
             let stores:ProductStores
             if preflight {stores=try ProductStores.preflight(parent:isolatedDataParent)}
             else {
                 guard isolatedDataParent==nil else{throw ResourceError.incompatible}
-                stores=ProductStores(parent:FileManager.default.urls(for:.applicationSupportDirectory,in:.userDomainMask).first)
+                stores=ProductStores(parent:dataParent)
             }
             do {
                 let components=try CandidateComponents(library:resources.appendingPathComponent("Engine/librime.1.dylib"),extensionLibrary:resources.appendingPathComponent("Engine/paia-g01.dylib"),helper:executable.deletingLastPathComponent().appendingPathComponent("paia-resources"),extensionSHA:bridgeSHA,helperSHA:helperSHA)
-                let selected=try CandidateEnvironment(pack:resources.appendingPathComponent("CandidatePack"),reference:ResourceReference(generation:generation,manifestSHA:digest),components:components,personalStore:stores.personal)
+                let selected=try CandidateEnvironment(pack:resources.appendingPathComponent("CandidatePack"),reference:ResourceReference(generation:generation,manifestSHA:digest),components:components,personalStore:stores.personal,catalog:catalog)
                 candidate=selected;productStores=stores;personal=nil;publicResources=nil;runtime=selected.runtime
                 factory={try selected.makeSession(configuration:$0)};makeSession=factory
                 workspace=IMKWorkspace(settingsStore:stores.settings,personalStore:stores.personal,expressionStore:stores.expressions,resourceDescription:selected.status+" "+stores.status,supportsSpellingPolicies:true,makeSession:factory,disablePersonal:{selected.disableOverlayUntilRestart()})
