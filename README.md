@@ -4,7 +4,7 @@ An independent **macOS Chinese input method** project. PAIA is an optional futur
 
 ## Status
 
-**A1/A2 native engine research and B1 controls implemented; B2 explicit personal-lexicon and B3 explicit-settings labs implemented. System IME not installed.** The design/research package includes native AppKit test-probe code, a real librime engine experiment report, a browser prototype and bounded test evidence. An offline prototype and a synthetic AppKit host are **not** an installed macOS input source. Comparative user experience and accuracy versus WeChat/Sogou/Apple have not been established.
+**Native research slices A1/A2 and B1–B7 implemented. System IME not installed.** The design/research package includes native AppKit test-probe code, a real librime engine experiment report, a browser prototype and bounded test evidence. An offline prototype and a synthetic AppKit host are **not** an installed macOS input source. Comparative user experience and accuracy versus WeChat/Sogou/Apple have not been established.
 
 ## Research / 研究资料
 
@@ -27,7 +27,7 @@ See [A1 build, tests, resource pins and evidence boundaries](docs/BATCH_A1.md). 
 
 ## Batch B1 native research controls
 
-[B1 controls and focus contract](docs/BATCH_B1.md) adds an explicit research launch with Full/Flypy/Natural, Simplified/Traditional, literal text, a bounded punctuation mode and a real constrained-repair inspector. Preview is separate from marked-text acceptance and final engine commit. [B1 evidence](evidence/b1/VALIDATION.md) records native control tests, inspected synthetic-view capture and retained failures. This is one Batch B lab slice; subsequent B2/B3 sections cover explicit local persistence, while rare-character workflows and complete update/recovery remain open.
+[B1 controls and focus contract](docs/BATCH_B1.md) adds an explicit research launch with Full/Flypy/Natural, Simplified/Traditional, literal text, a bounded punctuation mode and a real constrained-repair inspector. Preview is separate from marked-text acceptance and final engine commit. [B1 evidence](evidence/b1/VALIDATION.md) records native control tests, inspected synthetic-view capture and retained failures. This is one Batch B lab slice; subsequent B2/B3 sections cover explicit local persistence, while B7 provides bounded known-U+ entry and broader rare-character discovery and complete update/recovery remain open.
 
 ## Batch B2 explicit personal lexicon
 
@@ -48,6 +48,10 @@ See [A1 build, tests, resource pins and evidence boundaries](docs/BATCH_A1.md). 
 ## Batch B6 fully readable long candidates
 
 [B6 bounded native wrapping and scrolling](docs/BATCH_B6.md) keeps complete candidate glyphs reachable inside the supplied safe screen while preserving engine selection and editor focus. [B6 validation](evidence/b6/VALIDATION.md) retains the real failing regression and distinguishes authored-engine, synthetic-geometry and native-render evidence.
+
+## Batch B7 explicit known-character entry
+
+[B7 caret-only Unicode preview and insertion](docs/BATCH_B7.md) shows an explicit U+ identity/name and font warning before a separate once-only Insert action. It shares the existing inspector, mode/settings barriers and host effect path. [B7 validation](evidence/b7/VALIDATION.md) retains the canonical-equivalent target-edit regression, cancellation review finding and native selection-normalization failure. Phonetic/radical discovery and font repertoire remain open.
 
 ## Batch A1 engineering contract
 
