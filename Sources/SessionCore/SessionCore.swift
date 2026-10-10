@@ -34,7 +34,7 @@ public struct CandidateSnapshot {
     public let rows: [CandidateRow], pageIndex: Int, highlighted: Int, hasMore: Bool
     public let complete: Bool
 }
-public enum CommitOrigin { case engine, literal }
+public enum CommitOrigin { case engine, literal, explicitExpression }
 public struct CommitEffect {
     public let operationID: UUID, session: SessionKey, targetEpoch: UInt64, inputGeneration: UInt64
     public let text: String, origin: CommitOrigin
@@ -52,6 +52,10 @@ public struct SessionUpdate {
     }
 }
 public enum SessionError: Error { case inactive, staleCandidate, pendingCommit, invalidEngineValue, staleExplicitAction }
+
+public struct ExpressionBinding:Hashable {
+    public let session:SessionKey,targetEpoch:UInt64,inputGeneration:UInt64,privacyEpoch:UInt64,dictionaryRevision:String
+}
 
 public struct CharacterBinding:Hashable {
     public let session:SessionKey,targetEpoch:UInt64,inputGeneration:UInt64,dictionaryRevision:String
@@ -112,6 +116,17 @@ public struct SessionCore {
         // The initialized engine snapshot is idle; the explicit literal action does not decode
         // or fabricate a candidate. Reuse the same generation/effect reservation machinery.
         return try receive(EngineValue(raw:"",preedit:"",caretUTF8:0),literal:value.text)
+    }
+    public var idleExpressionBinding:ExpressionBinding? {
+        guard let idle=idleCharacterBinding else{return nil}
+        return ExpressionBinding(session:idle.session,targetEpoch:idle.targetEpoch,inputGeneration:idle.inputGeneration,privacyEpoch:privacyEpoch,dictionaryRevision:idle.dictionaryRevision)
+    }
+    public mutating func commitExpression(_ text:String,binding:ExpressionBinding)throws->SessionUpdate {
+        try ensureReady()
+        guard let current=idleExpressionBinding,current==binding,!text.isEmpty,text.utf16.count<=16384,!text.unicodeScalars.contains(where:{$0.value==0}) else{throw SessionError.staleExplicitAction}
+        let update=try receive(EngineValue(raw:"",preedit:"",caretUTF8:0),literal:text)
+        guard let effect=update.commit else{throw SessionError.invalidEngineValue}
+        return SessionUpdate(handled:true,snapshot:update.snapshot,commit:CommitEffect(operationID:effect.operationID,session:effect.session,targetEpoch:effect.targetEpoch,inputGeneration:effect.inputGeneration,text:effect.text,origin:.explicitExpression))
     }
     // Reserve BEFORE calling a host. An uncertain host outcome is not replayable.
     public mutating func reserve(_ effect: CommitEffect) -> Bool {

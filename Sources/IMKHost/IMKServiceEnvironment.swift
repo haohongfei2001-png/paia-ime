@@ -2,6 +2,7 @@
 import Foundation
 import EngineBridge
 import SettingsCore
+import ExpressionCore
 
 // Startup-only selection. The bundle contains the authored fixture, never the
 // unbundled research corpus. No fallback retry initializes librime a second time.
@@ -35,8 +36,10 @@ import SettingsCore
             guard let path=environment["PAIA_B3_STORE"],!path.isEmpty else{_ = runtime.close();throw SettingsError.unsafePath}
             settings=try? SettingsStore(directory:URL(fileURLWithPath:path,isDirectory:true))
         }
+        var expressions:ExpressionStore?
+        if let path=environment["PAIA_C_STORE"],!path.isEmpty {expressions=try? ExpressionStore(directory:URL(fileURLWithPath:path,isDirectory:true))}
         let personal=personal
-        workspace=IMKWorkspace(settingsStore:settings,personalStore:personal?.store,resourceDescription:description,makeSession:factory,disablePersonal:{personal?.disableOverlayUntilRestart()})
+        workspace=IMKWorkspace(settingsStore:settings,personalStore:personal?.store,expressionStore:expressions,resourceDescription:description,makeSession:factory,disablePersonal:{personal?.disableOverlayUntilRestart()})
     }
     public func close(){workspace.close();_ = runtime.close()}
 }
