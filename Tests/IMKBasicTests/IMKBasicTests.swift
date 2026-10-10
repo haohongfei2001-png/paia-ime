@@ -37,7 +37,7 @@ final class IMKBasicTests:XCTestCase {
         let store=try SettingsStore(directory:directory,fault:fault);defer{store.close()}
         var rejectFlypy=stage=="restore_failed",dirtyFlypy=false
         var preparedCallback:(()->Void)?,dirtySession:InputSession?
-        let workspace=IMKWorkspace(settingsStore:store,personalStore:environment.personal?.store,resourceDescription:environment.workspace.resourceDescription,makeSession:{configuration in
+        let workspace=IMKWorkspace(settingsStore:store,personalStore:environment.personal?.store,resourceDescription:environment.workspace.resourceDescription,supportsSpellingPolicies:environment.workspace.supportsSpellingPolicies,makeSession:{configuration in
             if rejectFlypy && configuration.spelling == .flypy{throw EngineError.closed}
             let session=try environment.makeSession(configuration)
             if dirtyFlypy && configuration.spelling == .flypy{_ = try session.process(.text("n"));dirtySession=session}
@@ -59,6 +59,18 @@ final class IMKBasicTests:XCTestCase {
             try type("yuanshengxianshijia",driver,a)
             XCTAssertEqual(driver.coordinator.snapshot?.rows.first?.text,"原生显式甲")
             XCTAssertTrue(driver.handle(try key("\u{1b}",code:53),client:a))
+            XCTAssertTrue(workspace.supportsSpellingPolicies)
+            var personalPolicies=0
+            for punctuation in [false,true] {for fuzzy in [false,true] {for correction in [true,false] {
+                var c=LabConfiguration();c.chinesePunctuation=punctuation;c.fuzzyInitials=fuzzy;c.fullPinyinCorrection=correction
+                try preferences.applyConfiguration(c);a.view.string="";a.view.setSelectedRange(NSRange(location:0,length:0));try activate(driver,a)
+                XCTAssertFalse(driver.coordinator.session!.canRetainForRepair)
+                let inserts=a.insertCalls;try type("yuanshengxianshijia",driver,a)
+                XCTAssertEqual(driver.coordinator.snapshot?.rows.first?.text,"原生显式甲")
+                XCTAssertTrue(driver.handle(try key(" ",code:49),client:a));XCTAssertEqual(a.view.string,"原生显式甲");XCTAssertEqual(a.insertCalls,inserts+1)
+                XCTAssertEqual(try? Data(contentsOf:file),before);personalPolicies+=1
+            }}}
+            XCTAssertEqual(personalPolicies,8)
             var cases=0
             for spelling in LabSpelling.allCases {for traditional in [false,true]{for literal in [false,true]{for punctuation in [false,true]{
                 var c=LabConfiguration();c.spelling=spelling;c.traditional=traditional;c.literal=literal;c.chinesePunctuation=punctuation
@@ -122,6 +134,18 @@ final class IMKBasicTests:XCTestCase {
             terms.surface.stringValue="原生新词乙";terms.reading.stringValue="yuan sheng xin ci yi";send(terms.addButton)
             XCTAssertTrue(personal.pendingRestart);XCTAssertThrowsError(try ownedA.refresh());XCTAssertThrowsError(try ownedB.refresh())
             XCTAssertEqual(try authority.snapshot().revision,revision+1)
+            var baselinePolicies=0
+            for punctuation in [false,true] {for fuzzy in [false,true] {for correction in [true,false] {
+                var c=LabConfiguration();c.chinesePunctuation=punctuation;c.fuzzyInitials=fuzzy;c.fullPinyinCorrection=correction
+                try preferences.applyConfiguration(c);a.view.string="";a.view.setSelectedRange(NSRange(location:0,length:0));try activate(driver,a)
+                XCTAssertTrue(driver.coordinator.session!.canRetainForRepair)
+                let inserts=a.insertCalls;try type("shurufa",driver,a)
+                XCTAssertTrue(driver.handle(try key(" ",code:49),client:a));XCTAssertEqual(a.view.string,"输入法");XCTAssertEqual(a.insertCalls,inserts+1)
+                XCTAssertEqual(try? Data(contentsOf:file),before);baselinePolicies+=1
+            }}}
+            XCTAssertEqual(baselinePolicies,8)
+            print("HABIT_PERSONAL_NATIVE overlay_commits=8 configured_baseline_commits=8; real driver selection; no automatic settings save")
+            try preferences.applyConfiguration(original);try activate(driver,a);try activate(other,b)
             // Import preview is immutable, but a later Apply must reacquire global idle.
             let source=try LexiconStore(directory:directory.appendingPathComponent("import-source"));defer{source.close()}
             _ = try source.add(surface:"明确导入丙",reading:"ming que dao ru bing",expectedRevision:0)

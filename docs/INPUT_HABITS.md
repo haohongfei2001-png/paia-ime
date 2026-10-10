@@ -4,14 +4,17 @@ Original scope: REPORT sections 6.4, 7 and 8.2. Baseline is mixed-input main
 `4a2cc9db13133720618ad3e2e736730d4a8bc7f4`. This node consolidates required ordinary
 input settings and protocol behavior; it does not create a new character manager.
 
-## Source implemented; native execution pending
+## Native checkpoint and final capability increment
 
-No Swift/AppKit/engine result is claimed before this exact source passes macOS CI.
-The existing twelve public standard workflows remain the only CI workflows.
+Head `7d4f085f6ad6cc68d4890e4257ac14c8b3626d8b` passed all twelve existing
+public standard macOS workflows; every job and step succeeded without skips.
+[Commit-bound validation](../evidence/input-habits/VALIDATION.md) records actual
+engine/host counts and the separately pending final increment. Old green runs
+do not qualify that later source. These remain the only CI workflows.
 Initial source review found and fixed three owner boundaries: unrelated management
 retirement resetting an explicit activation mode, same-counter foreign-driver menu
 tokens, and selection/foreign-mark changes during the palette hide callback. New
-tests cover each, but their native execution is still pending.
+tests for each passed at the qualified checkpoint.
 
 ### Independent bounded spelling controls
 
@@ -28,7 +31,7 @@ option cannot disable static spelling algebra compiled into an existing prism.
 Eight distinct effective spelling policies produce eight prisms and 32 schemas
 across script/punctuation variants. Defaults retain old schema/prism names and
 the old spelling algebra. Variants never share a prism with different algebra.
-No deployment happens per key. Unsupported public-fixture settings fail preparation
+No deployment happens per key. Public-fixture policy controls are explicitly disabled and show no active typo toggle. Unsupported public-fixture settings fail preparation
 and retain the previous configuration. Personal exact-reading overlays are carried
 through all new Full/Simplified variants; their own exact prisms do not silently
 become fuzzy. After a personal edit, each variant falls back to its matching public
@@ -92,7 +95,7 @@ that direct phonetic input requires a separately validated source-to-engine mapp
 Return, editing and repair contract; neither ASCII SessionCore nor librime's speller
 currently provides it.
 
-## Configured acceptance, not yet results
+## Actual checkpoint evidence
 
 - Static pinned recipe: exact 37-rule removal, four preserved orthographic aliases,
   unchanged default algebra, collision-free 32 schemas/eight prisms.
@@ -107,6 +110,13 @@ currently provides it.
   reentrancy, stale/foreign actions and target changes. Actual OS palette is untested.
 - Five additional settings migration/identity/known-save-outcome tests; all previous
   mixed, G01, resource, expression, context and basic-input regressions remain enabled.
+
+The final increment disables unsupported public-fixture policy UI, preserves the
+internal legacy default when that UI is visually off, and tests a real literal-mode
+button action. It also carries the research capability into the basic-controls test
+workspace and adds eight personal-overlay commits plus eight configured public-baseline
+commits after explicit personal mutation. Those additions must pass their own exact
+head; the earlier checkpoint does not claim they executed.
 
 No installed input source, normal IMKServer startup, signing/notarization, production
 corpus clearance, real-app compatibility, physical-key/VoiceOver/display scaling,

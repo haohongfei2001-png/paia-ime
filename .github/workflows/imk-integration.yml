@@ -144,6 +144,7 @@ jobs:
             grep -Fq "IMK_BASIC_STAGE $stage ENGINE_NATIVE + APPKIT_HOST" "evidence/imk-run/basics-$stage.txt"
             grep -Fq "Executed 1 test, with 0 failures" "evidence/imk-run/basics-$stage.txt"
           done
+          grep -Fq 'HABIT_PERSONAL_NATIVE overlay_commits=8 configured_baseline_commits=8' evidence/imk-run/basics-controls.txt
       - name: Retained composition and constrained repair through actual IMK driver
         run: |
           set -o pipefail

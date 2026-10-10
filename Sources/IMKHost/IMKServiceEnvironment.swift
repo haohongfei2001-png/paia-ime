@@ -13,13 +13,14 @@ import ResourceCore
     public let publicResources:PublicResourceEnvironment?
     public let makeSession:(LabConfiguration)throws->InputSession
     public init(environment:[String:String]=ProcessInfo.processInfo.environment)throws {
-        let factory:(LabConfiguration)throws->InputSession,description:String
+        let factory:(LabConfiguration)throws->InputSession,description:String,supportsPolicies:Bool
         let bundle=Bundle.main.resourceURL,bundledPack=bundle?.appendingPathComponent("DictionaryFixturePack")
         let explicitStore=environment["PAIA_RESOURCE_ROOT"]
         // The service's resource contract is chosen by its application metadata,
         // never by a resource file's current existence. Missing packs fail closed.
         let useBundled=environment["PAIA_FIXTURE_DIR"]==nil && (Bundle.main.bundleIdentifier=="dev.paia.ime.integration" || Bundle.main.object(forInfoDictionaryKey:"PAIAResourceGeneration") != nil)
         if explicitStore != nil || useBundled {
+            supportsPolicies=false
             guard environment["PAIA_IMK_RESEARCH"] != "1",environment["PAIA_B1_RESEARCH"] != "1",environment["PAIA_B2_RESEARCH"] != "1",
                   explicitStore == nil || !explicitStore!.isEmpty,
                   let library=environment["PAIA_RIME_LIBRARY"] ?? bundle?.appendingPathComponent("Engine/librime.1.16.0.dylib").path,
@@ -37,7 +38,7 @@ import ResourceCore
             }
             description=selected.status
         } else if environment["PAIA_IMK_RESEARCH"]=="1" {
-            publicResources=nil
+            supportsPolicies=true;publicResources=nil
             if environment["PAIA_B2_RESEARCH"]=="1" {
                 let selected=try PersonalLabEnvironment(environment:environment);personal=selected;runtime=selected.runtime
                 factory={try selected.makeSession(configuration:$0)}
@@ -48,6 +49,7 @@ import ResourceCore
                 description="Unbundled verified research schemas. Personal terms unavailable without an explicit store."
             }
         } else {
+            supportsPolicies=false
             let selected=try LabEnvironment(environment:environment);publicResources=nil;personal=nil;runtime=selected.runtime
             factory={configuration in
                 guard configuration.spelling == .full,!configuration.traditional,!configuration.chinesePunctuation,!configuration.deferredCommit,!configuration.fuzzyInitials,configuration.fullPinyinCorrection else{throw IMKManagementError.unavailable}
@@ -64,7 +66,7 @@ import ResourceCore
         var expressions:ExpressionStore?
         if let path=environment["PAIA_C_STORE"],!path.isEmpty {expressions=try? ExpressionStore(directory:URL(fileURLWithPath:path,isDirectory:true))}
         let personal=personal
-        workspace=IMKWorkspace(settingsStore:settings,personalStore:personal?.store,expressionStore:expressions,resourceDescription:description,makeSession:factory,disablePersonal:{personal?.disableOverlayUntilRestart()})
+        workspace=IMKWorkspace(settingsStore:settings,personalStore:personal?.store,expressionStore:expressions,resourceDescription:description,supportsSpellingPolicies:supportsPolicies,makeSession:factory,disablePersonal:{personal?.disableOverlayUntilRestart()})
     }
     public func close(){workspace.close();_ = runtime.close()}
 }

@@ -103,5 +103,19 @@ stale-action refusal and whole-source Return. [Commit-bound mixed evidence](evid
 records the actual C ABI/Swift/NSTextView path, 12 research schemas, bounded search,
 128-span suffix cases and all initial failures. Default fixture bundles without
 the research extension do not expose the capability. This does not qualify
-installed apps, complete language quality, independent typo/fuzzy policies,
+installed apps, complete language quality, the later independent policies below,
 rare-character discovery or production corpus redistribution.
+
+## Consolidated input habits
+
+[Independent bounded spelling controls and activation modes](docs/INPUT_HABITS.md)
+add a closed fuzzy-initial preset, separately switchable Full-Pinyin typo rules,
+explicit application-ID initial Chinese/literal preferences, and a gated public
+system character-panel action. Defaults preserve existing schema names; old settings
+are verified before memory-only migration and saved only explicitly. [Native
+checkpoint evidence](evidence/input-habits/VALIDATION.md) records all 32 schemas,
+finite authored positive/negative controls, actual research-engine commits and
+production IMK driver tests. The final fixture-capability/personal-policy increment
+requires its own exact-source acceptance. Direct Unicode ü phonetic normalization,
+double-Pinyin typo correction, actual OS-panel behavior and installed qualification
+remain outside the proven result.

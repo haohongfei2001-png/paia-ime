@@ -17,15 +17,16 @@ public enum IMKManagementError:Error {case busy,unavailable,interrupted}
     public let expressionStore:ExpressionStore?
     public private(set) var expressionCatalog:ExpressionCatalog?
     public let resourceDescription:String
+    public let supportsSpellingPolicies:Bool
     private let factory:(LabConfiguration)throws->InputSession
     private let disablePersonal:()->Void
     private final class WeakDriver {weak var value:IMKControllerDriver?;init(_ value:IMKControllerDriver){self.value=value}}
     private var drivers=[WeakDriver](),managing=false,interrupted=false,closed=false
     public private(set) var configurationRevision:UInt64=0
-    public init(settingsStore:SettingsStore?=nil,personalStore:LexiconStore?=nil,expressionStore:ExpressionStore?=nil,resourceDescription:String,
+    public init(settingsStore:SettingsStore?=nil,personalStore:LexiconStore?=nil,expressionStore:ExpressionStore?=nil,resourceDescription:String,supportsSpellingPolicies:Bool=false,
                 makeSession:@escaping(LabConfiguration)throws->InputSession,disablePersonal:@escaping()->Void={}) {
         self.settingsStore=settingsStore;self.personalStore=personalStore;self.resourceDescription=resourceDescription
-        factory=makeSession;self.disablePersonal=disablePersonal;self.expressionStore=expressionStore
+        factory=makeSession;self.disablePersonal=disablePersonal;self.expressionStore=expressionStore;self.supportsSpellingPolicies=supportsSpellingPolicies
         if let store=expressionStore {do{expressionCatalog=ExpressionCatalog(document:try store.snapshot())}catch{expressionCatalog=nil}}
     }
     private var live:[IMKControllerDriver] {drivers.compactMap{$0.value}}
@@ -55,7 +56,7 @@ public enum IMKManagementError:Error {case busy,unavailable,interrupted}
     }
     public func applyConfiguration(_ next:LabConfiguration)throws {
         try withIdleAccess {
-            guard !next.deferredCommit else{throw IMKManagementError.unavailable}
+            guard !next.deferredCommit,supportsSpellingPolicies || (!next.fuzzyInitials && next.fullPinyinCorrection) else{throw IMKManagementError.unavailable}
             try SettingsCodec.validate(next.preferences)
             let prepared=try factory(next);defer{prepared.end()}
             let initial=try prepared.refresh()

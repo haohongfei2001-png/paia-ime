@@ -17,7 +17,7 @@ final class InputHabitHostTests:XCTestCase {
         _=NSApplication.shared;let c=PAIAIMKTestClient(text:"prefix");c.applicationIdentifier=id;return c
     }
     @MainActor func workspace() -> IMKWorkspace {
-        IMKWorkspace(resourceDescription:"Explicit research qualification",makeSession:{try Self.environment.runtime.makeSession(schema:$0.schema)})
+        IMKWorkspace(resourceDescription:"Explicit research qualification",supportsSpellingPolicies:true,makeSession:{try Self.environment.runtime.makeSession(schema:$0.schema)})
     }
     @MainActor func activate(_ d:IMKControllerDriver,_ c:PAIAIMKTestClient)throws {
         XCTAssertEqual(d.activate(try XCTUnwrap(IMKTextInputBridge(c))),.ready)
@@ -112,7 +112,7 @@ final class InputHabitHostTests:XCTestCase {
     @MainActor func testNativePreferencesKeepPolicyAndAppRulesInOneExplicitSave()throws {
         let root=FileManager.default.temporaryDirectory.appendingPathComponent("paia-habit-ui-"+UUID().uuidString)
         let store=try SettingsStore(directory:root)
-        let w=IMKWorkspace(settingsStore:store,resourceDescription:"Explicit policy test",makeSession:{try Self.environment.runtime.makeSession(schema:$0.schema)})
+        let w=IMKWorkspace(settingsStore:store,resourceDescription:"Explicit policy test",supportsSpellingPolicies:true,makeSession:{try Self.environment.runtime.makeSession(schema:$0.schema)})
         defer{w.close();try? FileManager.default.removeItem(at:root)}
         _=NSApplication.shared;let preferences=IMKPreferencesController(workspace:w);defer{preferences.close()}
         preferences.fuzzy.state = .on

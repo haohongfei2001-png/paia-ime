@@ -41,8 +41,8 @@ import SettingsCore
         for button in [literal,punctuation]{button.setAccessibilityLabel(button.title)}
         root.addArrangedSubview(NSStackView(views:[fuzzy,correction]))
         for button in [fuzzy,correction] {button.target=self;button.action=#selector(changeConfiguration(_:));button.setAccessibilityLabel(button.title)}
-        registerIdleControl(fuzzy,available:{true});registerIdleControl(correction,available:{[weak self] in self?.configuration.spelling == .full})
-        let policyHelp=NSTextField(wrappingLabelWithString:"Fuzzy sound rules are separate from typo tolerance. Typo tolerance applies only to Full Pinyin; double-Pinyin keys are unchanged. Ordinary spelling uses v for ü; direct ü is literal, not normalized.")
+        registerIdleControl(fuzzy,available:{[weak workspace] in workspace?.supportsSpellingPolicies==true});registerIdleControl(correction,available:{[weak self] in self?.workspace.supportsSpellingPolicies==true && self?.configuration.spelling == .full})
+        let policyHelp=NSTextField(wrappingLabelWithString:workspace.supportsSpellingPolicies ? "Fuzzy sound rules are separate from typo tolerance. Typo tolerance applies only to Full Pinyin; double-Pinyin keys are unchanged. Ordinary spelling uses v for ü; direct ü is literal, not normalized.":"Spelling policies require verified research resources. The tiny authored fixture does not supply them; these controls are unavailable.")
         root.addArrangedSubview(policyHelp);policyHelp.widthAnchor.constraint(equalTo:root.widthAnchor,constant:-40).isActive=true
         applicationID.placeholderString="Explicit app ID, e.g. com.apple.TextEdit";applicationID.setAccessibilityLabel("Explicit application identifier")
         applicationID.widthAnchor.constraint(equalToConstant:310).isActive=true
@@ -76,7 +76,7 @@ import SettingsCore
     private func reflect(){
         spelling.selectItem(at:LabSpelling.allCases.firstIndex(of:configuration.spelling)!);script.selectItem(at:configuration.traditional ? 1:0)
         literal.state=configuration.literal ? .on:.off;punctuation.state=configuration.chinesePunctuation ? .on:.off
-        fuzzy.state=configuration.fuzzyInitials ? .on:.off;correction.state=configuration.fullPinyinCorrection ? .on:.off
+        fuzzy.state=configuration.fuzzyInitials ? .on:.off;correction.state=workspace.supportsSpellingPolicies && configuration.fullPinyinCorrection ? .on:.off
         knownApplications.removeAllItems();knownApplications.addItem(withTitle:"Explicit app preferences (maximum 16)…")
         knownApplications.addItems(withTitles:configuration.initialModes.keys.sorted())
         refreshControls()
@@ -85,7 +85,7 @@ import SettingsCore
         guard !isClosed,LabSpelling.allCases.indices.contains(spelling.indexOfSelectedItem),(0...1).contains(script.indexOfSelectedItem) else{return}
         var next=configuration;next.spelling=LabSpelling.allCases[spelling.indexOfSelectedItem];next.traditional=script.indexOfSelectedItem==1
         next.literal=literal.state == .on;next.chinesePunctuation=punctuation.state == .on
-        next.fuzzyInitials=fuzzy.state == .on;next.fullPinyinCorrection=correction.state == .on
+        if workspace.supportsSpellingPolicies{next.fuzzyInitials=fuzzy.state == .on;next.fullPinyinCorrection=correction.state == .on}
         do{try applyConfiguration(next);status.stringValue="Session mode changed. Save explicitly to keep these preferences."}
         catch{reflect();status.stringValue="Mode unavailable or another client is busy. Previous configuration retained; no text committed."}
     }
