@@ -11,6 +11,9 @@ final class IMKFixtureBasicsTests:XCTestCase {
         var variables=ProcessInfo.processInfo.environment;variables["PAIA_IMK_RESEARCH"]="0";variables["PAIA_B3_SETTINGS"]="0"
         let environment=try IMKServiceEnvironment(environment:variables);defer{environment.close()}
         let workspace=environment.workspace
+        XCTAssertFalse(workspace.supportsSpellingPolicies)
+        let preferences=IMKPreferencesController(workspace:workspace);defer{preferences.close()}
+        XCTAssertFalse(preferences.fuzzy.isEnabled);XCTAssertFalse(preferences.correction.isEnabled);XCTAssertEqual(preferences.correction.state,.off)
         let driver=workspace.makeDriver(hide:{},present:{_,_,_ in}),client=PAIAIMKTestClient(text:"existing👩🏽‍💻")
         defer{driver.close()}
         XCTAssertEqual(driver.activate(try XCTUnwrap(IMKTextInputBridge(client))),.ready)
@@ -22,8 +25,13 @@ final class IMKFixtureBasicsTests:XCTestCase {
         }
         var next=LabConfiguration();next.traditional=true;XCTAssertThrowsError(try workspace.applyConfiguration(next))
         next=LabConfiguration();next.chinesePunctuation=true;XCTAssertThrowsError(try workspace.applyConfiguration(next))
-        XCTAssertEqual(workspace.configuration,LabConfiguration());XCTAssertNoThrow(try old.refresh())
-        next=LabConfiguration();next.literal=true;try workspace.applyConfiguration(next)
+        next=LabConfiguration();next.fuzzyInitials=true;XCTAssertThrowsError(try workspace.applyConfiguration(next))
+        next=LabConfiguration();next.fullPinyinCorrection=false;XCTAssertThrowsError(try workspace.applyConfiguration(next))
+        XCTAssertEqual(workspace.configuration,LabConfiguration());XCTAssertTrue(driver.coordinator.session===old);XCTAssertNoThrow(try old.refresh())
+        preferences.literal.state = .on
+        XCTAssertTrue(NSApp.sendAction(preferences.literal.action!,to:preferences.literal.target,from:preferences.literal))
+        XCTAssertTrue(workspace.configuration.literal);XCTAssertTrue(workspace.configuration.fullPinyinCorrection)
+        XCTAssertEqual(preferences.correction.state,.off);XCTAssertFalse(preferences.correction.isEnabled)
         let event=try XCTUnwrap(NSEvent.keyEvent(with:.keyDown,location:.zero,modifierFlags:[],timestamp:0,windowNumber:0,context:nil,characters:"x",charactersIgnoringModifiers:"x",isARepeat:false,keyCode:0))
         XCTAssertFalse(driver.handle(event,client:client));XCTAssertEqual(client.view.string,"existing👩🏽‍💻");XCTAssertEqual(client.insertCalls,0)
         // This mark belongs to an external text system after idle release. No

@@ -1,7 +1,7 @@
 #import "PAIAIMKTestClient.h"
 @implementation PAIAIMKTestClient { id _contextObserver; }
 - (instancetype)initWithText:(NSString *)text {
-    if((self=[super init])){_view=[[NSTextView alloc] initWithFrame:NSMakeRect(0,0,600,200)];_view.richText=NO;_view.string=text;[_view setSelectedRange:NSMakeRange(text.length,0)];_reads=[NSMutableArray array];_writes=[NSMutableArray array];_contextRevision=1;
+    if((self=[super init])){_view=[[NSTextView alloc] initWithFrame:NSMakeRect(0,0,600,200)];_view.richText=NO;_view.string=text;[_view setSelectedRange:NSMakeRange(text.length,0)];_reads=[NSMutableArray array];_writes=[NSMutableArray array];_contextRevision=1;_applicationIdentifier=@"dev.paia.synthetic.imk-client";
         __weak PAIAIMKTestClient *weakSelf=self;
         _contextObserver=[[NSNotificationCenter defaultCenter] addObserverForName:NSTextStorageDidProcessEditingNotification object:_view.textStorage queue:nil usingBlock:^(NSNotification *note){PAIAIMKTestClient *strong=weakSelf;if(strong)strong->_contextRevision++;}];}return self;
 }
@@ -36,7 +36,7 @@
 - (void)overrideKeyboardWithKeyboardNamed:(NSString *)name {}
 - (void)selectInputMode:(NSString *)mode {}
 - (BOOL)supportsUnicode {return YES;}
-- (NSString *)bundleIdentifier {return @"dev.paia.synthetic.imk-client";}
+- (NSString *)bundleIdentifier {_applicationIdentifierCalls++;if(_onApplicationIdentifier){void(^f)(void)=_onApplicationIdentifier;_onApplicationIdentifier=nil;f();}return _applicationIdentifier;}
 - (CGWindowLevel)windowLevel {return NSNormalWindowLevel;}
 - (BOOL)supportsProperty:(TSMDocumentPropertyTag)property {return NO;}
 - (NSString *)uniqueClientIdentifierString {return [NSString stringWithFormat:@"synthetic-%p", self];}

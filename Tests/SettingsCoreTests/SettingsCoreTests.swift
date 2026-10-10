@@ -14,13 +14,13 @@ final class SettingsCoreTests:XCTestCase {
             let document=SettingsDocument(revision:1,values:value),bytes=try SettingsCodec.encode(document)
             XCTAssertEqual(try SettingsCodec.decode(bytes),document)
             let envelope=try XCTUnwrap(JSONSerialization.jsonObject(with:bytes) as? [String:Any]),body=try XCTUnwrap(envelope["document"] as? [String:Any]),fields=try XCTUnwrap(body["values"] as? [String:Any])
-            XCTAssertEqual(Set(fields.keys),Set(["spelling","traditional","literal","chinesePunctuation"]))
+            XCTAssertEqual(Set(fields.keys),Set(["spelling","traditional","literal","chinesePunctuation","fuzzyInitials","fullPinyinCorrection","initialModes"]))
             count+=1
         }}}};XCTAssertEqual(count,24)
     }
     func testUnknownTypeVersionDigestDepthAndOversizeFailClosed()throws {
         let valid=try SettingsCodec.encode(SettingsDocument(revision:1,values:SettingsValues())),text=String(decoding:valid,as:UTF8.self)
-        var bad=[Data(),Data([255]),Data(valid.dropLast()),Data(repeating:32,count:SettingsCodec.maximumBytes+1),Data((String(repeating:"[",count:9)+String(repeating:"]",count:9)).utf8),Data((" "+text).utf8),Data(text.replacingOccurrences(of:"paia.settings.v1",with:"paia.settings.v2").utf8),Data(text.replacingOccurrences(of:"full",with:"untrusted-schema").utf8),Data(text.replacingOccurrences(of:"false",with:"0").utf8),Data(text.replacingOccurrences(of:"\"document\":",with:"\"body\":\"never record\",\"document\":").utf8)]
+        var bad=[Data(),Data([255]),Data(valid.dropLast()),Data(repeating:32,count:SettingsCodec.maximumBytes+1),Data((String(repeating:"[",count:9)+String(repeating:"]",count:9)).utf8),Data((" "+text).utf8),Data(text.replacingOccurrences(of:"paia.settings.v2",with:"paia.settings.v3").utf8),Data(text.replacingOccurrences(of:"full",with:"untrusted-schema").utf8),Data(text.replacingOccurrences(of:"false",with:"0").utf8),Data(text.replacingOccurrences(of:"\"document\":",with:"\"body\":\"never record\",\"document\":").utf8)]
         let prefix="\"sha256\":\"",start=try XCTUnwrap(text.range(of:prefix)?.upperBound)
         var tampered=text;tampered.replaceSubrange(start...start,with:text[start]=="a" ? "b":"a")
         bad += [Data(tampered.utf8),Data(text.replacingOccurrences(of:"\"traditional\":false",with:"\"traditional\":true").utf8),Data(text.replacingOccurrences(of:"\"literal\":false",with:"\"literal\":false,\"literal\":false").utf8)]

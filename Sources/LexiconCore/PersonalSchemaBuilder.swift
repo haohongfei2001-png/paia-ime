@@ -2,7 +2,7 @@ import Foundation
 
 public struct PersonalResources {
     public let shared:URL,schemas:[String],requiredArtifacts:[String],revision:String,activeTerms:Int,overlaySchemas:Set<String>
-    public static func baselineSchema(punctuation:Bool)->String {"paia_b2_baseline_full_"+(punctuation ? "punct":"ascii")}
+    public static func baselineSchema(punctuation:Bool,fuzzy:Bool=false,correction:Bool=true)->String {"paia_b2_baseline_full_"+(punctuation ? "punct":"ascii")+(fuzzy ? "_fuzzy":"")+(!correction ? "_strict":"")}
 }
 public enum PersonalSchemaBuilder {
     // Startup only. Trusted fixed schema templates; personal text appears exclusively in validated TSV data rows.
@@ -51,8 +51,9 @@ public enum PersonalSchemaBuilder {
             namespaces.insert("script_translator@"+namespace,at:0);blocks += "\n"+namespace+":\n"+options
         }
         var overlays=Set<String>(),schemas=builders
-        for punctuation in [false,true] {
-            let original="paia_b1_full_"+(punctuation ? "punct":"ascii"),baselineName=PersonalResources.baselineSchema(punctuation:punctuation)
+        for punctuation in [false,true] {for fuzzy in [false,true] {for correction in [true,false] {
+            let policy=(fuzzy ? "_fuzzy":"")+(!correction ? "_strict":"")
+            let original="paia_b1_full_"+(punctuation ? "punct":"ascii")+policy,baselineName=PersonalResources.baselineSchema(punctuation:punctuation,fuzzy:fuzzy,correction:correction)
             let text=try String(contentsOf:baseline.appendingPathComponent(original+".schema.yaml"),encoding:.utf8)
             guard text.contains("schema_id: "+original),text.contains("enable_user_dict: false") else{throw LexiconError.invalidFormat}
             let plain=text.replacingOccurrences(of:"schema_id: "+original,with:"schema_id: "+baselineName)
@@ -66,12 +67,13 @@ public enum PersonalSchemaBuilder {
                 try enhanced.write(to:destination.appendingPathComponent(original+".schema.yaml"),atomically:false,encoding:.utf8)
                 overlays.insert(original)
             }
-        }
-        for spelling in ["full","flypy","natural"] {for traditional in [false,true] {for punctuation in [false,true] {
-            let schema="paia_b1_"+spelling+(traditional ? "_traditional":"")+(punctuation ? "_punct":"_ascii")
-            schemas.append(schema);artifacts.append(schema+".schema.yaml")
         }}}
-        let identity=Data((baseRevision+"|librime-1.16.0|b2-template-1|"+digest).utf8)
+        for spelling in ["full","flypy","natural"] {for traditional in [false,true] {for punctuation in [false,true] {for fuzzy in [false,true] {for correction in (spelling=="full" ? [true,false]:[true]) {
+            let policy=(fuzzy ? "_fuzzy":"")+(spelling=="full" && !correction ? "_strict":"")
+            let schema="paia_b1_"+spelling+(traditional ? "_traditional":"")+(punctuation ? "_punct":"_ascii")+policy
+            schemas.append(schema);artifacts.append(schema+".schema.yaml")
+        }}}}}
+        let identity=Data((baseRevision+"|librime-1.16.0|b2-template-2-spelling-policy|"+digest).utf8)
         return PersonalResources(shared:destination,schemas:schemas,requiredArtifacts:artifacts,revision:LexiconCodec.digest(identity),activeTerms:document.activeTerms.count,overlaySchemas:overlays)
     }
     public static func verifyCompiled(_ resources:PersonalResources,userDirectory:URL)throws {

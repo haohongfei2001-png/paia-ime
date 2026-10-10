@@ -1,0 +1,35 @@
+# Authored finite test data, not imported corpus or a production dictionary.
+---
+name: paia_habit_fixture
+version: "1"
+sort: original
+use_preset_vocabulary: false
+columns: [text, code, weight]
+...
+中国	zhong guo	1000
+总攻	zong gong	1000
+输入法	shu ru fa	1000
+俗语	su yu	1000
+蓝天	lan tian	1000
+农田	nong tian	1000
+出门	chu men	1000
+粗略	cu lve	1000
+女	nv	1000
+绿	lv	1000
+略	lve	1000
+虐	nve	1000
+西安	xi an	1000
+先	xian	1000
+知	zhi	1000
+啊	a	1000
+额	e	1000
+哦	o	1000
+安	an	1000
+恩	en	1000
+昂	ang	1000
+鞥	eng	1000
+而	er	1000
+爱	ai	1000
+奥	ao	1000
+诶	ei	1000
+欧	ou	1000

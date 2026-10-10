@@ -8,6 +8,7 @@ import CIMKContext
 // Object identity is a callback identity, not a claim of stable document identity.
 @MainActor public protocol IMKClientAccess:AnyObject {
     var callbackIdentity:AnyObject {get}
+    var applicationIdentifier:String? {get}
     func selectedRange()->NSRange
     func markedRange()->NSRange
     func text(in range:NSRange)->String?
@@ -30,6 +31,7 @@ public struct ContextAuthority:Equatable {
     }
 }
 public extension IMKClientAccess {
+    var applicationIdentifier:String? {nil}
     var offersContext:Bool {false}
     func contextAuthority()->ContextAuthority? {nil}
     func contextualLength()->Int? {nil}
@@ -38,6 +40,7 @@ public extension IMKClientAccess {
 @MainActor public final class IMKTextInputBridge:IMKClientAccess {
     private let input:IMKTextInput
     public var callbackIdentity:AnyObject {input as AnyObject}
+    public var applicationIdentifier:String? {input.bundleIdentifier()}
     private let qualifiedContext:(()->ContextAuthority?)?
     public var offersContext:Bool {qualifiedContext != nil}
     public init?(_ sender:Any?,qualifiedContext:(()->ContextAuthority?)?=nil) {

@@ -5,6 +5,9 @@ NS_ASSUME_NONNULL_BEGIN
 // connection or system input source is created by this test fixture.
 @interface PAIAIMKTestClient : NSObject <IMKTextInput>
 @property(nonatomic,readonly) NSTextView *view;
+@property(nonatomic,copy) NSString *applicationIdentifier;
+@property(nonatomic,copy,nullable) void (^onApplicationIdentifier)(void);
+@property(nonatomic,readonly) NSInteger applicationIdentifierCalls;
 @property(nonatomic,copy,nullable) void (^onSelectedRange)(void);
 @property(nonatomic,copy,nullable) void (^onMarkedRange)(void);
 @property(nonatomic,copy,nullable) void (^onRead)(void);
