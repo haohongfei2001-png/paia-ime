@@ -4,7 +4,7 @@ An independent **macOS Chinese input method** project. PAIA is an optional futur
 
 ## Status
 
-**Native research slices A1/A2 and B1–B7 implemented. System IME not installed.** The design/research package includes native AppKit test-probe code, a real librime engine experiment report, a browser prototype and bounded test evidence. An offline prototype and a synthetic AppKit host are **not** an installed macOS input source. Comparative user experience and accuracy versus WeChat/Sogou/Apple have not been established.
+**Native research slices A1/A2 and B1–B8 implemented; uninstalled IMK engineering integration added. System IME not installed.** The design/research package includes native AppKit test-probe code, a real librime engine experiment report, a browser prototype and bounded test evidence. An offline prototype and a synthetic AppKit host are **not** an installed macOS input source. Comparative user experience and accuracy versus WeChat/Sogou/Apple have not been established.
 
 ## Research / 研究资料
 
@@ -56,6 +56,10 @@ See [A1 build, tests, resource pins and evidence boundaries](docs/BATCH_A1.md). 
 ## Batch B8 composition-safe keyboard boundary
 
 [B8 pre-mutation refusal and text/control separation](docs/BATCH_B8.md) protects remaining raw spelling and marked text from unsupported middle-caret punctuation and Unicode events. Visible recovery stays explicit; no automatic commit, retry or caret move is added. [B8 validation](evidence/b8/VALIDATION.md) retains the original native data-loss observations and checks synchronous host callback ownership. Full compound insertion remains open.
+
+## InputMethodKit engineering integration
+
+[The separate input-method bundle and bounded client adapter](docs/IMK_INTEGRATION.md) add a real IMKInputController, shared event/lifecycle driver and IMKTextInput bridge. Native CI builds the unsigned app, verifies its bundled real engine without starting IMKServer, and exercises an NSTextView-backed protocol client. [Integration evidence](evidence/imk/VALIDATION.md) preserves the first failing expectation, actual engine comparison and ownership regressions. It is still a tiny-fixture engineering bundle; complete Batch B product integration and installed compatibility remain open.
 
 ## Batch A1 engineering contract
 

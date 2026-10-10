@@ -37,6 +37,7 @@ jobs:
           set -o pipefail
           bash Tools/build-imk.sh 2>&1 | tee evidence/imk-run/build.txt
           cp .build/imk-bundle-manifest.json evidence/imk-run/
+          cat .build/imk-bundle-manifest.json
       - name: Preflight only, no IMKServer construction
         run: |
           set -o pipefail
