@@ -59,7 +59,7 @@ public enum IMKManagementError:Error {case busy,unavailable,interrupted}
             let prepared=try factory(next);defer{prepared.end()}
             let initial=try prepared.refresh()
             guard !interrupted,live.allSatisfy({$0.isIdleForManagement}),initial.commit==nil,
-                  initial.snapshot?.rawASCII.isEmpty==true,initial.snapshot?.preedit.isEmpty==true else{throw IMKManagementError.interrupted}
+                  initial.snapshot?.sourceText.isEmpty==true,initial.snapshot?.preedit.isEmpty==true else{throw IMKManagementError.interrupted}
             // No callbacks between global publication and all-owner retirement.
             configuration=next;configurationRevision &+= 1
             let owners=live;for driver in owners{driver.retireIdleForManagement()}

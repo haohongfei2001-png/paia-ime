@@ -21,16 +21,31 @@ public struct EngineValue {
         self.commit=commit; self.handled=handled
     }
 }
+public struct MixedCandidateBinding:Hashable {
+    public let owner:UUID,span:UUID,revision:UInt64,projection:UInt64,coverage:Range<Int>
+    public init(owner:UUID,span:UUID,revision:UInt64,projection:UInt64,coverage:Range<Int>){self.owner=owner;self.span=span;self.revision=revision;self.projection=projection;self.coverage=coverage}
+}
+public struct MixedCandidateValue {
+    public let text:String,coverage:Range<Int>
+    public init(text:String,coverage:Range<Int>){self.text=text;self.coverage=coverage}
+}
 public struct CandidateRef: Hashable {
     public let session: SessionKey, targetEpoch: UInt64, inputGeneration: UInt64, dictionaryRevision: String
     public let page: Int, engineIndexOnPage: Int
-    // C API does not expose exact per-row source spans. Do not invent G01 coverage.
-    public var rawSpanUTF8: Range<Int>? { nil }
+    public let mixed:MixedCandidateBinding?
+    init(session:SessionKey,targetEpoch:UInt64,inputGeneration:UInt64,dictionaryRevision:String,page:Int,engineIndexOnPage:Int,mixed:MixedCandidateBinding?=nil){
+        self.session=session;self.targetEpoch=targetEpoch;self.inputGeneration=inputGeneration;self.dictionaryRevision=dictionaryRevision
+        self.page=page;self.engineIndexOnPage=engineIndexOnPage;self.mixed=mixed
+    }
+    // Ordinary C API rows have no verified coverage. Mixed rows do.
+    public var rawSpanUTF8: Range<Int>? {mixed?.coverage}
 }
 public struct CandidateRow { public let ref: CandidateRef, text: String }
 public struct CandidateSnapshot {
     public let session: SessionKey, targetEpoch: UInt64, inputGeneration: UInt64, privacyEpoch: UInt64
     public let rawASCII: String, preedit: String, caretUTF8: Int, selectedRangeUTF16: NSRange
+    // Full authored source differs from active native projection in mixed input.
+    public let sourceText:String,mixedDraft:MixedDraft?
     public let rows: [CandidateRow], pageIndex: Int, highlighted: Int, hasMore: Bool
     public let complete: Bool
 }
@@ -72,7 +87,7 @@ public struct SessionCore {
     public private(set) var active = true
     private var pendingOperation: UUID?
     public init(key: SessionKey = SessionKey(), dictionaryRevision: String) { self.key=key; self.dictionaryRevision=dictionaryRevision }
-    public var isComposing: Bool { !(snapshot?.rawASCII.isEmpty ?? true) || !(snapshot?.preedit.isEmpty ?? true) }
+    public var isComposing: Bool { !(snapshot?.sourceText.isEmpty ?? true) || !(snapshot?.preedit.isEmpty ?? true) }
     public func validate(_ ref: CandidateRef) throws {
         guard active else { throw SessionError.inactive }
         guard let s=snapshot, ref.session==key, ref.targetEpoch==targetEpoch,
@@ -99,7 +114,7 @@ public struct SessionCore {
             page:v.page,engineIndexOnPage:i),text:text) }
         let s=CandidateSnapshot(session:key,targetEpoch:targetEpoch,inputGeneration:inputGeneration,
             privacyEpoch:privacyEpoch,rawASCII:v.raw,preedit:v.preedit,caretUTF8:v.caretUTF8,
-            selectedRangeUTF16:selection,rows:rows,pageIndex:v.page,highlighted:v.highlighted,hasMore:v.hasMore,complete:true)
+            selectedRangeUTF16:selection,sourceText:v.raw,mixedDraft:nil,rows:rows,pageIndex:v.page,highlighted:v.highlighted,hasMore:v.hasMore,complete:true)
         snapshot=s
         var effect: CommitEffect?
         if let text=literal ?? v.commit, !text.isEmpty {
@@ -109,8 +124,37 @@ public struct SessionCore {
         }
         return SessionUpdate(handled:v.handled,snapshot:s,commit:effect)
     }
+    public mutating func receiveMixed(_ draft:MixedDraft,owner:UUID,span:UUID?,projection:UInt64,rows values:[MixedCandidateValue],page:Int=0,hasMore:Bool=false,complete:Bool=true)throws->SessionUpdate {
+        try ensureReady();try draft.validate()
+        guard inputGeneration<UInt64.max,page>=0,values.count<=64 else{throw SessionError.invalidEngineValue}
+        let active=draft.map.first{$0.span.id==span}
+        if let active=active {guard case .spelling=active.span.origin else{throw SessionError.invalidEngineValue}}
+        guard values.isEmpty || (active != nil && projection != 0) else{throw SessionError.invalidEngineValue}
+        for value in values {
+            guard let active=active,!value.text.isEmpty,value.text.utf16.count<=16384,
+                  !value.text.unicodeScalars.contains(where:{$0.value==0}),!value.coverage.isEmpty,
+                  value.coverage.lowerBound>=active.sourceUTF8.lowerBound,value.coverage.upperBound<=active.sourceUTF8.upperBound else{throw SessionError.invalidEngineValue}
+            _=try TextBoundary.range(in:draft.source,startUTF8:value.coverage.lowerBound,endUTF8:value.coverage.upperBound)
+        }
+        let caret=try draft.displayCaretUTF16;inputGeneration+=1
+        let rows=values.enumerated().map{index,value in
+            CandidateRow(ref:CandidateRef(session:key,targetEpoch:targetEpoch,inputGeneration:inputGeneration,dictionaryRevision:dictionaryRevision,page:page,engineIndexOnPage:index,
+                mixed:MixedCandidateBinding(owner:owner,span:span!,revision:draft.revision,projection:projection,coverage:value.coverage)),text:value.text)
+        }
+        let value=CandidateSnapshot(session:key,targetEpoch:targetEpoch,inputGeneration:inputGeneration,privacyEpoch:privacyEpoch,
+            rawASCII:active?.span.source ?? "",preedit:draft.display,caretUTF8:draft.caretUTF8,selectedRangeUTF16:NSRange(location:caret,length:0),
+            sourceText:draft.source,mixedDraft:draft,rows:rows,pageIndex:page,highlighted:0,hasMore:hasMore,complete:complete)
+        snapshot=value;return SessionUpdate(handled:true,snapshot:value)
+    }
+    // A native mixed result or full-source Return uses the same one-effect gate.
+    public mutating func finishMixed(_ text:String,engine:Bool)throws->SessionUpdate {
+        try ensureReady()
+        guard snapshot?.mixedDraft != nil,!text.isEmpty,text.utf16.count<=16384,text.utf8.count<=65536,
+              !text.unicodeScalars.contains(where:{$0.value==0}) else{throw SessionError.invalidEngineValue}
+        return try receive(EngineValue(raw:"",preedit:"",caretUTF8:0,commit:engine ? text:nil),literal:engine ? nil:text)
+    }
     public var idleCharacterBinding:CharacterBinding? {
-        guard active,pendingOperation==nil,let s=snapshot,s.rawASCII.isEmpty,s.preedit.isEmpty,s.rows.isEmpty else{return nil}
+        guard active,pendingOperation==nil,let s=snapshot,s.sourceText.isEmpty,s.preedit.isEmpty,s.rows.isEmpty else{return nil}
         return CharacterBinding(session:key,targetEpoch:targetEpoch,inputGeneration:inputGeneration,dictionaryRevision:dictionaryRevision)
     }
     public mutating func commitKnownCharacter(_ value:KnownCharacter,binding:CharacterBinding)throws->SessionUpdate {

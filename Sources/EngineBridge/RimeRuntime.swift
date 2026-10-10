@@ -69,8 +69,12 @@ public final class InputSession {
     private let chinesePunctuation:Bool
     public let canRetainForRepair:Bool
     private var retained:Bool
-    public var supportsRepair:Bool {lock.lock();defer{lock.unlock()};return !ended && canRetainForRepair && retained}
-    public var isRetainedComposition:Bool {lock.lock();defer{lock.unlock()};return !ended && retained}
+    private var mixed:MixedComposition?
+    // Internal post-C validation dependency. Tests inject rejection after real
+    // native success, never a fabricated engine result or public setting.
+    var mixedResultValidation:(MixedValidationPoint)throws->Void={_ in}
+    public var supportsRepair:Bool {lock.lock();defer{lock.unlock()};return !ended && canRetainForRepair && retained && mixed==nil}
+    public var isRetainedComposition:Bool {lock.lock();defer{lock.unlock()};return !ended && (retained || mixed != nil)}
     private let lock=NSRecursiveLock()
     private var core: SessionCore
     private var ended=false
@@ -84,7 +88,7 @@ public final class InputSession {
     public var key: SessionKey { lock.lock(); defer {lock.unlock()}; return core.key }
     public func end() {
         lock.lock(); defer {lock.unlock()}
-        if !ended { core.invalidate(); paia_rime_end_session(id); ended=true }
+        if !ended { core.invalidate(); mixed?.close();mixed=nil;paia_rime_end_session(id); ended=true }
     }
     public func reserve(_ effect: CommitEffect) -> Bool {
         lock.lock(); defer {lock.unlock()}; return core.reserve(effect)
@@ -114,10 +118,11 @@ public final class InputSession {
             selectionEndUTF8:Int(c.selection_end_utf8),candidates:rows,page:Int(c.page),highlighted:Int(c.highlighted),
             hasMore:c.has_more != 0,commit:c.commit == nil ? nil : string(c.commit),handled:c.handled != 0)
     }
-    public func refresh() throws -> SessionUpdate { lock.lock(); defer {lock.unlock()}; return try step(0) }
+    public func refresh() throws -> SessionUpdate { lock.lock(); defer {lock.unlock()}; if let mixed=mixed{return try mixedOperation{try mixed.republish(core:&core)}};return try step(0) }
     public func select(_ ref: CandidateRef) throws -> SessionUpdate {
         lock.lock(); defer {lock.unlock()}
         try core.validate(ref)
+        if let mixed=mixed{return try mixedOperation{try mixed.select(ref,core:&core)}}
         return try step(2,Int32(ref.engineIndexOnPage))
     }
     private func lease() throws -> RepairLease {
@@ -254,12 +259,134 @@ public final class InputSession {
         return try core.commitReviewedEdit(text,replacing:range,binding:binding)
     }
     public func commitEngineComposition() throws -> SessionUpdate {
-        lock.lock();defer{lock.unlock()};return try step(5)
+        lock.lock();defer{lock.unlock()};if mixed != nil{return try commitMixed()};return try step(5)
+    }
+    public var mixedDraft:MixedDraft? {lock.lock();defer{lock.unlock()};return mixed?.state.draft}
+    public var mixedLiteralIntent:Bool {lock.lock();defer{lock.unlock()};return mixed?.literalIntent ?? false}
+    public var canBeginMixed:Bool {lock.lock();defer{lock.unlock()};return !ended && canRetainForRepair && mixed==nil && core.snapshot != nil && core.active}
+    public func beginMixed(binding:ExpressionBinding)throws->SessionUpdate {
+        lock.lock();defer{lock.unlock()}
+        guard core.idleExpressionBinding==binding,let snapshot=core.snapshot else{throw SessionError.staleExplicitAction}
+        return try beginMixed(snapshot:snapshot)
+    }
+    public func beginMixed(snapshot expected:CandidateSnapshot)throws->SessionUpdate {
+        lock.lock();defer{lock.unlock()};try core.ensureReady()
+        guard canBeginMixed,let snapshot=core.snapshot,snapshot.session==expected.session,
+              snapshot.targetEpoch==expected.targetEpoch,snapshot.inputGeneration==expected.inputGeneration else{throw SessionError.staleExplicitAction}
+        let prepared=try MixedComposition(source:id,snapshot:snapshot,validateResult:{[weak self] point in try self?.mixedResultValidation(point)})
+        var next=core;let update=try prepared.republish(core:&next)
+        // Original engine state is no longer the draft authority. Clear only
+        // after a complete verified import and pure publication are prepared.
+        var cleared=PaiaRimeSnapshot();let rc=paia_rime_step(id,3,0,0,&cleared)
+        defer{paia_rime_free_snapshot(&cleared)}
+        do{
+            guard rc==PAIA_OK,cleared.commit==nil else{throw EngineError.code(rc)}
+            try mixedResultValidation(.sourceClear)
+            let value=try Self.decode(cleared)
+            guard value.raw.isEmpty,value.preedit.isEmpty,value.candidates.isEmpty else{throw SessionError.invalidEngineValue}
+        }catch{core.invalidate();throw error}
+        core=next;mixed=prepared;invalidateRepairActions();return update
+    }
+    public func setMixedLiteralIntent(_ literal:Bool)throws->SessionUpdate {
+        lock.lock();defer{lock.unlock()};try core.ensureReady();guard let mixed=mixed else{throw SessionError.staleExplicitAction}
+        let update=try mixed.republish(core:&core);mixed.literalIntent=literal;return update
+    }
+    public func reopenMixedSpan(_ span:UUID)throws->SessionUpdate {
+        lock.lock();defer{lock.unlock()};try core.ensureReady();guard let mixed=mixed else{throw SessionError.staleExplicitAction}
+        let draft=try mixed.state.draft.reopening(span)
+        return try mixedOperation{try mixed.publish(mixed.prepared(draft),core:&core)}
+    }
+    private func mixedOperation(_ action:()throws->SessionUpdate)throws->SessionUpdate {
+        do{return try action()}catch{
+            if let mixed=mixed,mixed.unsafeTransition || mixed.sealed{mixed.close();self.mixed=nil;core.invalidate()}
+            throw error
+        }
+    }
+    private func commitMixed()throws->SessionUpdate {
+        try core.ensureReady();guard let mixed=mixed else{throw SessionError.staleExplicitAction}
+        // Native failures before a result preserve the draft. A sealed result
+        // can create at most one core effect; later publication failure retires.
+        do{
+            let text=try mixed.commit(),update=try core.finishMixed(text,engine:true)
+            mixed.close();self.mixed=nil;return update
+        }catch{
+            if mixed.sealed{mixed.close();self.mixed=nil;core.invalidate()}
+            throw error
+        }
+    }
+    private func processMixed(_ key:InputKey)throws->SessionUpdate {
+        guard let mixed=mixed else{throw SessionError.staleExplicitAction}
+        let draft=mixed.state.draft
+        func refusal()->SessionUpdate {SessionUpdate(handled:true,snapshot:core.snapshot,refusal:.unsupportedTextDuringComposition)}
+        func edit(_ range:Range<Int>,_ text:String,_ literal:Bool)throws->SessionUpdate {
+            let changed:MixedDraft
+            do{changed=try draft.replacing(range,with:text,literal:literal)}
+            catch is MixedDraftError{return refusal()}
+            catch is BoundaryError{return refusal()}
+            return try mixed.publish(mixed.prepared(changed),core:&core)
+        }
+        func insert(_ text:String)throws->SessionUpdate {
+            guard !text.isEmpty else{return SessionUpdate(handled:true,snapshot:core.snapshot)}
+            let spelling=text.utf8.allSatisfy{(97...122).contains($0) || $0==39}
+            return try edit(draft.caretUTF8..<draft.caretUTF8,text,mixed.literalIntent || !spelling)
+        }
+        switch key {
+        case .command:return SessionUpdate(handled:false,snapshot:core.snapshot)
+        case .returnKey:
+            guard !draft.isEmpty else{return SessionUpdate(handled:false,snapshot:core.snapshot)}
+            let update=try core.finishMixed(draft.source,engine:false);mixed.close();self.mixed=nil;return update
+        case .escape:
+            mixed.close();self.mixed=nil;return try step(3)
+        case .text(let text):
+            if !mixed.literalIntent,text.utf8.count==1,let byte=text.utf8.first,(48...57).contains(byte){return try processMixed(.number(Int(byte-48)))}
+            return try insert(text)
+        case .space:
+            if mixed.literalIntent{return try insert(" ")}
+            if draft.isResolved && !draft.isEmpty{return try commitMixed()}
+            guard let snapshot=core.snapshot,let row=snapshot.rows.first else{return SessionUpdate(handled:true,snapshot:core.snapshot)}
+            return try mixed.select(row.ref,core:&core)
+        case .number(let number):
+            if mixed.literalIntent{return try insert(String(number))}
+            guard let snapshot=core.snapshot,(1...5).contains(number),snapshot.rows.indices.contains(number-1) else{return SessionUpdate(handled:true,snapshot:core.snapshot)}
+            return try mixed.select(snapshot.rows[number-1].ref,core:&core)
+        case .code(let code,let modifiers):
+            guard modifiers==0 else{return refusal()}
+            if (32...126).contains(code),let scalar=UnicodeScalar(UInt32(code)){return try processMixed(.text(String(scalar)))}
+            if code==0xff55 || code==0xff56{return try mixed.page(code==0xff55 ? -1:1,core:&core)}
+            if code==0xff09 {
+                let spelling=draft.map.filter{if case .spelling=$0.span.origin{return true};return false}
+                guard !spelling.isEmpty else{return SessionUpdate(handled:true,snapshot:core.snapshot)}
+                let index=spelling.firstIndex{$0.span.id==mixed.state.active} ?? -1,next=spelling[(index+1)%spelling.count]
+                let moved=try draft.movingCaret(to:next.sourceUTF8.lowerBound)
+                return try mixed.publish(mixed.prepared(moved,active:next.span.id),core:&core)
+            }
+            // Walk actual graphemes once. Confirmed spans expose only proven
+            // endpoints, without rebuilding/validating a draft for every byte.
+            var allowed=[0]
+            for item in draft.map {
+                if case .engine=item.span.origin{allowed.append(item.sourceUTF8.upperBound)}
+                else{var position=item.sourceUTF8.lowerBound;for character in item.span.source{position+=String(character).utf8.count;allowed.append(position)}}
+            }
+            if code==0xff51 || code==0xff53 || code==0xff50 || code==0xff57 {
+                let destination:Int
+                if code==0xff50{destination=0}else if code==0xff57{destination=draft.source.utf8.count}
+                else if code==0xff51{destination=allowed.last{$0<draft.caretUTF8} ?? draft.caretUTF8}
+                else{destination=allowed.first{$0>draft.caretUTF8} ?? draft.caretUTF8}
+                let moved=try draft.movingCaret(to:destination);return try mixed.publish(mixed.prepared(moved),core:&core)
+            }
+            if code==0xff08 || code==0xffff {
+                let start=code==0xff08 ? (allowed.last{$0<draft.caretUTF8} ?? draft.caretUTF8):draft.caretUTF8
+                let end=code==0xffff ? (allowed.first{$0>draft.caretUTF8} ?? draft.caretUTF8):draft.caretUTF8
+                return try edit(start..<end,"",true)
+            }
+            return refusal()
+        }
     }
     public func process(_ key: InputKey) throws -> SessionUpdate {
         lock.lock(); defer {lock.unlock()}
         guard !ended, core.active else { throw EngineError.closed }
         try core.ensureReady()
+        if mixed != nil{return try mixedOperation{try processMixed(key)}}
         let composing=core.isComposing
         func passthrough() -> SessionUpdate { SessionUpdate(handled:false,snapshot:core.snapshot) }
         func refuse(_ reason:InputRefusal)->SessionUpdate {SessionUpdate(handled:true,snapshot:core.snapshot,refusal:reason)}

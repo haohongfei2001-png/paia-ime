@@ -220,7 +220,7 @@ int paia_rime_enable_g01(const char *path) {
                 g01=v;rc=PAIA_OK;
                 PaiaMixedAPI *(*get_mixed)(void)=(PaiaMixedAPI *(*)(void))dlsym(handle,"paia_mixed_get_api");
                 PaiaMixedAPI *m=get_mixed?get_mixed():NULL;
-                if(m && m->abi==PAIA_MIXED_ABI && m->data_size==sizeof(*m) && m->open && m->close && m->close_all && m->project && m->select && m->free_selection && m->commit && m->free_text && m->forget)mixed=m;
+                if(m && m->abi==PAIA_MIXED_ABI && m->data_size==sizeof(*m) && m->open && m->close && m->close_all && m->project && m->select && m->free_selection && m->commit && m->free_text && m->forget && m->adopt)mixed=m;
             }
             else dlclose(handle);
         }
@@ -287,3 +287,15 @@ int paia_rime_mixed_commit(uint64_t id,const PaiaMixedPart *parts,size_t count,s
 }
 void paia_rime_mixed_free_text(char *text){free(text);}
 void paia_rime_mixed_forget(uint64_t id,uint64_t proof){pthread_mutex_lock(&owner);if(mixed)mixed->forget(id,proof);pthread_mutex_unlock(&owner);}
+
+int paia_rime_mixed_adopt(uint64_t id,uint64_t source,PaiaMixedImport *out){
+    if(!out)return PG_INVALID;
+    memset(out,0,sizeof(*out));pthread_mutex_lock(&owner);
+    int rc=mixed?mixed->adopt(id,source,out):PG_UNSUPPORTED;pthread_mutex_unlock(&owner);return rc;
+}
+void paia_rime_mixed_free_import(PaiaMixedImport *out){
+    if(!out)return;
+    free(out->raw);
+    if(out->anchors){for(size_t i=0;i<out->count;++i)free(out->anchors[i].surface);free(out->anchors);}
+    memset(out,0,sizeof(*out));
+}

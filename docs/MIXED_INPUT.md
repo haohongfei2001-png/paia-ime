@@ -57,3 +57,57 @@ syntax checks of the shim pass; Swift/AppKit and the C++ extension still require
 macOS CI. The first strict-C11 Linux attempt lacked POSIX declarations and found
 new misleading indentation; indentation was corrected and GNU C11 used to
 match the existing POSIX source. This was not an engine or macOS execution.
+
+### Exact checkpoint 7277956
+
+All 12 existing workflows succeeded for
+`7277956faa67a0e48bc80fdff179333356f48d05`.
+[IMK run](https://github.com/haohongfei2001-png/paia-ime/actions/runs/38066439154)
+records the native owner implementation's 20 full commits, the previous 98
+scenarios and all nine pure-value tests. The owner probe directly calls the
+native implementation; it does not establish the exported C table, Swift or host
+path. Existing downstream startup/context/basic/repair stages also completed.
+The old matrix's `total_us=110283` excludes the later owner matrix and is not a
+performance percentile. No failures from earlier checkpoints were discarded.
+
+## Swift and uninstalled IMK integration (next exact-head run pending)
+
+The source now routes a complete draft through one InputSession, one SessionCore
+and the existing host effect dispatcher. `sourceText` always carries the entire
+authored source; `rawASCII` remains only the active spelling projection. Ordinary
+engine receive keeps its original ASCII guard. Mixed publication separately
+validates source/display maps and binds every row to owner, span, draft revision,
+projection capability, session, target, input generation and dictionary identity.
+
+A native adopt operation reads existing genuinely selected prefix candidates and
+issues their phonetic proofs without changing the source. The unresolved suffix
+is copied from actual raw input. Swift prepares a full value, then clears the old
+engine composition before making the typed draft authoritative. Unsupported
+preexisting mappings are rejected instead of reconstructing choices from preedit.
+The initial native auto-commit/retention setting is preserved when mixed ends.
+
+The real IMK controller offers bounded native menu actions to enter mixed input,
+choose literal/spelling intent, reopen a confirmed span at its caret endpoint,
+and commit a fully resolved draft. Option-L switches literal intent; in that
+intent letters, digits, punctuation and Space are exact text. Tab selects the
+next unresolved spelling span. Ordinary candidate pages use the existing panel.
+Space selects a candidate, then only commits after all spelling is resolved.
+Return/lifecycle completion emits the entire original source exactly once.
+All text stays marked until one explicit final effect; no implicit learning.
+
+Current configured tests are seven real Swift/ABI-owner tests and four synthetic
+IMK/NSTextView tests, in two separate processes using the existing runtime rule.
+They include ordinary-source and already-confirmed-prefix adoption, partial
+coverage, stale/foreign candidates, reopen preserving another proof, literal
+paths/digits/graphemes, whole-source Return at allowed carets, subsequent normal
+input, target loss and reentrant commit. Four internal validation dependencies
+reject *after actual native success* (project/select/commit/source-clear), checking
+retirement rather than reuse of a consumed native projection or receipt. They
+are not public settings and do not replace engine results with fabricated values.
+
+This checkpoint has not yet passed its own macOS run. It still requires broader
+mode/script matrices, chained edits/long input and final independent review.
+Visible literal input is explicit, not a language detector. No claim is made
+about whole-sentence language ranking across literal boundaries. Default fixture
+bundles without the research extension do not expose this capability, and the
+production-corpus license gate remains separate.

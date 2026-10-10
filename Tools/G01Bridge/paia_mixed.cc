@@ -146,6 +146,44 @@ int commit(uint64_t id,const PaiaMixedPart *parts,size_t count,size_t limit,char
 }
 void free_text(char *text){free(text);}
 void forget(uint64_t id,uint64_t proof){auto i=owners.find(id);if(i!=owners.end())i->second->proofs.erase(proof);}
-PaiaMixedAPI extension={sizeof(PaiaMixedAPI),PAIA_MIXED_ABI,open,close,close_all,project,select,free_selection,commit,free_text,forget};
+void free_import(PaiaMixedImport *out){
+  if(!out)return;free(out->raw);
+  if(out->anchors){for(size_t i=0;i<out->count;++i)free(out->anchors[i].surface);free(out->anchors);}
+  std::memset(out,0,sizeof(*out));
+}
+int adopt(uint64_t id,uint64_t source,PaiaMixedImport *out){
+  std::vector<uint64_t> issued;
+  try{
+    auto& owner=get(id);if(!out || owner.sealed || owner.projection || !owner.proofs.empty())return PG_INVALID;
+    auto src=session(source);auto ctx=src->context();if(!src->commit_text().empty())return PG_INVALID;
+    char schema[256]={};if(!api->get_current_schema(source,schema,sizeof(schema)) || schema!=owner.schema)return PG_INVALID;
+    auto options=ctx->options();options["ascii_mode"]=false;options["_no_learning"]=true;options["_auto_commit"]=false;
+    if(options!=owner.options)return PG_INVALID;
+    const auto raw=ctx->input();if(!raw.empty() && !spelling(raw))return PG_UNSUPPORTED;
+    std::vector<Span> selected;size_t end=0;bool unselected=false;
+    for(const auto& segment:ctx->composition()){
+      if(segment.start==segment.end)continue;
+      if(segment.status<Segment::kSelected){unselected=true;continue;}
+      if(unselected)return PG_UNSUPPORTED;
+      auto c=segment.GetSelectedCandidate();
+      if(!c || c->start()!=end || c->end()<=end || c->end()>raw.size() || candidate_code(c).empty())return PG_UNSUPPORTED;
+      selected.emplace_back(c->start(),c->end(),segment.selected_index,c->text(),candidate_code(c));end=c->end();
+    }
+    if(selected.size()>256 || selected.size()>std::numeric_limits<uint64_t>::max()-nextProof)return PG_INVALID;
+    out->raw=copy(raw);out->caret_utf8=ctx->caret_pos();
+    if(!selected.empty()){
+      out->anchors=static_cast<PaiaMixedSelection*>(std::calloc(selected.size(),sizeof(PaiaMixedSelection)));
+      if(!out->anchors)throw std::bad_alloc();out->count=selected.size();
+      for(size_t i=0;i<selected.size();++i){
+        const auto& span=selected[i];const auto token=++nextProof;issued.push_back(token);
+        owner.proofs.emplace(token,Proof{raw.substr(span.start,span.end-span.start),span.text,span.code});
+        out->anchors[i]={token,span.start,span.end,copy(span.text)};
+      }
+    }
+    return PG_OK;
+  }catch(const Failure& f){for(auto proof:issued)forget(id,proof);free_import(out);return f.code;}
+   catch(...){for(auto proof:issued)forget(id,proof);free_import(out);return PG_ENGINE;}
+}
+PaiaMixedAPI extension={sizeof(PaiaMixedAPI),PAIA_MIXED_ABI,open,close,close_all,project,select,free_selection,commit,free_text,forget,adopt};
 }
 extern "C" __attribute__((visibility("default"))) PaiaMixedAPI *paia_mixed_get_api(){return &mixed::extension;}

@@ -113,8 +113,12 @@ import ConstraintCore
             return true
         }
         if recall != nil{return handleRecall(event,client:sender,ticket:ticket,owner:owner)}
+        if modifiers == [.option],event.charactersIgnoringModifiers?.lowercased()=="l",let session=owner.session,session.mixedDraft != nil {
+            if !event.isARepeat{_=owner.performMixed(session.mixedLiteralIntent ? .spelling:.literal,client:sender)}
+            render(sender,ticket:ticket,owner:owner);return true
+        }
         if modifiers == [.option],event.keyCode==123 || event.keyCode==124,
-           owner.snapshot?.rawASCII.isEmpty==false || owner.snapshot?.preedit.isEmpty==false {
+           owner.snapshot?.sourceText.isEmpty==false || owner.snapshot?.preedit.isEmpty==false {
             if !event.isARepeat{navigateRepair(event.keyCode==123 ? -1:1,client:sender,ticket:ticket,owner:owner)}
             return true
         }
@@ -129,7 +133,7 @@ import ConstraintCore
             return matches(ticket,owner,sender) ? !safe:true
         }
         if !event.modifierFlags.intersection([.command,.option,.control]).isEmpty {
-            let composing=owner.snapshot?.rawASCII.isEmpty==false || owner.snapshot?.preedit.isEmpty==false
+            let composing=owner.snapshot?.sourceText.isEmpty==false || owner.snapshot?.preedit.isEmpty==false
             let safe=composing ? owner.finish(client:sender):owner.releaseIdle(client:sender)
             render(sender,ticket:ticket,owner:owner)
             return matches(ticket,owner,sender) ? !safe:true
@@ -341,10 +345,35 @@ import ConstraintCore
         if repair != nil{coordinator.session?.invalidateRepairActions()}
         repair?.proposal?.cancel();repair=nil;presentedRepairToken=nil
     }
+    public func mixedMenuAction(_ kind:MixedActionKind)->MixedMenuAction? {
+        guard current != nil,!closed,!literal(),contextEdit==nil,!coordinator.isContextReview,recall==nil,repair==nil,
+              let session=coordinator.session,let snapshot=session.snapshot else{return nil}
+        var span:UUID?
+        switch kind {
+        case .begin:guard session.canBeginMixed else{return nil}
+        case .literal,.spelling:guard session.mixedDraft != nil else{return nil}
+        case .commit:guard let draft=session.mixedDraft,!draft.isEmpty,draft.isResolved else{return nil}
+        case .reopen:
+            guard let draft=session.mixedDraft else{return nil}
+            let selected=draft.map.filter{if case .engine=$0.span.origin{return true};return false}
+            span=(selected.first{$0.sourceUTF8.upperBound==draft.caretUTF8} ?? selected.first{$0.sourceUTF8.lowerBound==draft.caretUTF8})?.span.id
+            guard span != nil else{return nil}
+        }
+        return MixedMenuAction(kind:kind,driverGeneration:generation,activation:coordinator.activation,session:session.key,inputGeneration:snapshot.inputGeneration,span:span)
+    }
+    public func performMixedMenuAction(_ action:MixedMenuAction){
+        guard enter() else{return};defer{leave()}
+        guard let sender=current,contextEdit==nil,!coordinator.isContextReview,recall==nil,repair==nil,
+              generation==action.driverGeneration,coordinator.activation==action.activation,
+              let session=coordinator.session,session.key==action.session,session.snapshot?.inputGeneration==action.inputGeneration else{return}
+        generation &+= 1;let ticket=generation,owner=coordinator
+        _=owner.performMixed(action.kind,span:action.span,client:sender)
+        render(sender,ticket:ticket,owner:owner)
+    }
     public func retainedMenuAction(arm:Bool)->RetainedMenuAction? {
         guard current != nil,!closed,!literal(),contextEdit==nil,!coordinator.isContextReview,recall==nil,repair==nil,let session=coordinator.session,let snapshot=session.snapshot else{return nil}
         if arm {guard session.canRetainForRepair,!session.isRetainedComposition,session.idleExpressionBinding != nil else{return nil}}
-        else{guard session.supportsRepair,!snapshot.rawASCII.isEmpty else{return nil}}
+        else{guard session.supportsRepair,!snapshot.sourceText.isEmpty else{return nil}}
         return RetainedMenuAction(driverGeneration:generation,activation:coordinator.activation,session:session.key,inputGeneration:snapshot.inputGeneration,arm:arm)
     }
     public func performRetainedMenuAction(_ action:RetainedMenuAction){

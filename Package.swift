@@ -29,6 +29,7 @@ let package = Package(name: "PAIAIME", platforms: [.macOS(.v13)], products: [
     .testTarget(name: "ContextIMKTests",dependencies:["IMKHost","IMKTestClient","EngineBridge","SessionCore","TextBoundary","NativeHost"]),
     .testTarget(name: "ExpressionCoreTests", dependencies: ["ExpressionCore", "SessionCore"]),
     .testTarget(name: "ExpressionIMKTests", dependencies: ["ExpressionCore", "IMKHost", "IMKTestClient", "EngineBridge", "SessionCore"]),
+    .testTarget(name: "MixedInputTests",dependencies:["IMKHost","IMKTestClient","EngineBridge","SessionCore"]),
     .testTarget(name: "IMKRepairTests",dependencies:["IMKHost","IMKTestClient","EngineBridge","SessionCore"]),
     .testTarget(name: "IMKBasicTests",dependencies:["IMKHost","IMKTestClient","EngineBridge","NativeHost","SettingsCore","LexiconCore","SessionCore"]),
     .testTarget(name: "IMKProtocolTests",dependencies:["IMKHost","IMKTestClient","EngineBridge","SessionCore"]),

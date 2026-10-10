@@ -108,7 +108,7 @@ import SessionCore
             if !update.handled {
                 guard keyGeneration==eventTicket,self.dispatcher===dispatcher,dispatcher.isCurrentTarget else{return}
                 let snapshot=dispatcher.session.snapshot
-                guard !hasMarkedText(),snapshot?.rawASCII.isEmpty != false,snapshot?.preedit.isEmpty != false else{
+                guard !hasMarkedText(),snapshot?.sourceText.isEmpty != false,snapshot?.preedit.isEmpty != false else{
                     refuse(.unhandledControlDuringComposition);return
                 }
                 super.keyDown(with:event)
