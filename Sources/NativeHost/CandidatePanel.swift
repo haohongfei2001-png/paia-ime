@@ -63,7 +63,7 @@ import SessionCore
         backgroundColor = .windowBackgroundColor
     }
     public override var canBecomeKey:Bool {false}
-    public func show(_ snapshot:CandidateSnapshot,below rect:NSRect,screen:NSRect) {
+    public func show(_ snapshot:CandidateSnapshot,below rect:NSRect,screen:NSRect,notice:String?=nil) {
         // A smaller/invalid rectangle cannot honestly show readable text plus status. Hide rather
         // than produce negative geometry or invent a pointer-based anchor. Normal screens scroll.
         guard !snapshot.rows.isEmpty,screen.width>=120,screen.height>=96,rect.width>=0,rect.height>0,
@@ -92,7 +92,7 @@ import SessionCore
         }
         let documentHeight=max(0,top-4)
         func footer(_ overflow:Bool)->NSTextField {
-            let text="Page \(snapshot.pageIndex+1) · \(snapshot.hasMore ? "More candidates":"End of candidates")"+(overflow ? "\nScroll to read complete candidates":"")
+            let text="Page \(snapshot.pageIndex+1) · \(snapshot.hasMore ? "More candidates":"End of candidates")"+(overflow ? "\nScroll to read complete candidates":"")+(notice.map{"\n"+$0} ?? "")
             let label=NSTextField(wrappingLabelWithString:text);label.font = .systemFont(ofSize:12);label.textColor = .secondaryLabelColor
             label.setAccessibilityIdentifier("candidate-page-status");label.setAccessibilityLabel(text)
             let h=ceil(label.attributedStringValue.boundingRect(with:NSSize(width:contentWidth-4,height:10000),options:[.usesLineFragmentOrigin,.usesFontLeading]).height)+4
@@ -121,6 +121,19 @@ import SessionCore
     @objc private func pick(_ sender:CandidateButton) {
         // The clicked control retains its snapshot even if a queued click outlives a render.
         choose?(sender.candidate)
+    }
+    public func showNotice(_ text:String,below rect:NSRect,screen:NSRect) {
+        presentation=nil
+        guard screen.width>=180,screen.height>=96,rect.width>=0,rect.height>0,
+              [screen.minX,screen.minY,screen.maxX,screen.maxY,rect.minX,rect.minY,rect.maxX,rect.maxY].allSatisfy({$0.isFinite}) else{orderOut(nil);return}
+        let width=min(560,screen.width),label=NSTextField(wrappingLabelWithString:text)
+        label.font = .systemFont(ofSize:13);label.setAccessibilityLabel(text)
+        let height=ceil(label.attributedStringValue.boundingRect(with:NSSize(width:width-24,height:10000),options:[.usesLineFragmentOrigin,.usesFontLeading]).height)+24
+        guard height<=screen.height else{orderOut(nil);return}
+        label.frame=NSRect(x:12,y:12,width:width-24,height:height-24)
+        let view=CandidateContentView(frame:NSRect(x:0,y:0,width:width,height:height));view.addSubview(label);contentView=view
+        let x=max(screen.minX,min(rect.minX,screen.maxX-width)),y=max(screen.minY,min(rect.minY-height-4,screen.maxY-height))
+        setFrame(NSRect(x:x,y:y,width:width,height:height),display:true);orderFront(nil)
     }
 }
 #endif
