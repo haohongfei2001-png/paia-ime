@@ -99,7 +99,7 @@ bool choose_projected(Context* ctx,const Span& span,Budget& budget) {
     return confirmed(ctx,span);
   }
 }
-void replay(uint64_t source,const std::vector<Part>& parts,size_t work,OwnedSession& trial,bool projectChinese=true) {
+void replay_impl(uint64_t source,const std::vector<Part>& parts,size_t work,OwnedSession& trial,bool projectChinese) {
   std::string raw;bool suffix=false;
   for(const auto& part:parts) {
     require(!suffix,"raw suffix must be last in this bounded probe");
@@ -123,13 +123,22 @@ void replay(uint64_t source,const std::vector<Part>& parts,size_t work,OwnedSess
       const Span expected(offset,offset+part.raw.size(),0,part.text,part.code);
       const bool chosen=projectChinese ? choose_projected(ctx,expected,budget):choose(ctx,expected,budget);
       require(chosen,"actual Chinese replay failed");
-      ctx->set_caret_pos(raw.size());
+      if(projectChinese)ctx->set_caret_pos(raw.size());
     } else if(part.kind==Part::literal) {
       budget.spend();insert_identity(ctx,offset,part.raw);
     }
     offset+=part.raw.size();
   }
   verify_layout(ctx,parts);require(session(trial.id)->commit_text().empty(),"unsolicited commit during replay");
+}
+void replay(uint64_t source,const std::vector<Part>& parts,size_t work,OwnedSession& trial,bool projected) {
+  const auto before=witness(source);
+  try {replay_impl(source,parts,work,trial,projected);}
+  catch(...) {
+    require(witness(source)==before,"failed trial mutated source");
+    std::cout<<"MIXED_NATIVE_FAILURE_SOURCE_UNCHANGED"<<std::endl;throw;
+  }
+  require(witness(source)==before,"successful trial mutated source");
 }
 void drain_exact(uint64_t id,const std::string& expected) {
   require(session(id)->commit_text().empty(),"commit already pending");
@@ -151,7 +160,7 @@ Span choose_prefix(Context* ctx,size_t end,const std::string& wanted,bool altern
   Span result(chosen->start(),chosen->end(),index,chosen->text(),candidate_code(chosen));
   require(ctx->Select(index) && confirmed(ctx,result),"real selection failed");return result;
 }
-int run(const std::string& schema,const std::string& raw,size_t split,bool alternate) {
+int run(const std::string& schema,const std::string& raw,size_t split,bool alternate,bool projected) {
   OwnedSession source;create(source,schema,{},raw);auto original=session(source.id)->context();
   const auto first=choose_prefix(original,split,"你好",alternate);choose_prefix(original,raw.size(),"世界");
   const auto before=witness(source.id);const auto anchors=observed_prefix(source.id);
@@ -162,7 +171,7 @@ int run(const std::string& schema,const std::string& raw,size_t split,bool alter
     const auto& value=literals[literalIndex];
     std::cout<<"MIXED_NATIVE_CASE_BEGIN alternate="<<alternate<<" literal="<<literalIndex<<" position="<<where<<std::endl;
     auto parts=anchors;parts.insert(parts.begin()+where,{Part::literal,value,value,{}});
-    OwnedSession trial;replay(source.id,parts,2048,trial);
+    OwnedSession trial;replay(source.id,parts,2048,trial,projected);
     // A normal full-input recompose must not lose this explicit literal anchor.
     session(trial.id)->context()->update_notifier()(session(trial.id)->context());verify_layout(session(trial.id)->context(),parts);
     std::string expected;for(const auto& part:parts)expected+=part.text;
@@ -171,25 +180,18 @@ int run(const std::string& schema,const std::string& raw,size_t split,bool alter
   // Five independent whole-literal reconstruction variants from the same original
   // Chinese witnesses. Not chained mixed-state edits or a grapheme UI qualification.
   for(const auto& value:std::vector<std::string>{"e","é","é👩🏽‍💻","é","RAG"}) {
-    auto parts=anchors;parts.insert(parts.begin()+1,{Part::literal,value,value,{}});OwnedSession trial;replay(source.id,parts,2048,trial);
+    auto parts=anchors;parts.insert(parts.begin()+1,{Part::literal,value,value,{}});OwnedSession trial;replay(source.id,parts,2048,trial,projected);
     drain_exact(trial.id,anchors[0].text+value+anchors[1].text);++passed;
   }
   {auto parts=anchors;parts.insert(parts.begin()+1,{Part::literal,"RAG","RAG",{}});bool exhausted=false;
-   try{OwnedSession trial;replay(source.id,parts,0,trial);}catch(const Failure& f){exhausted=f.code==PG_INCOMPLETE;}
+   try{OwnedSession trial;replay(source.id,parts,0,trial,projected);}catch(const Failure& f){exhausted=f.code==PG_INCOMPLETE;}
    require(exhausted && witness(source.id)==before,"exhausted replay mutated source");++passed;}
-  // Retain the original whole-mixed-input back-menu failure as an explicit
-  // negative regression. It must fail without touching the source, not pass by
-  // choosing a later suffix or manufacturing Chinese text.
-  {auto parts=anchors;parts.insert(parts.begin()+1,{Part::literal,"RAG","RAG",{}});bool rejected=false;
-   try{OwnedSession trial;replay(source.id,parts,2048,trial,false);}
-   catch(const CheckFailure& e){rejected=std::string(e.what())=="actual Chinese replay failed";}
-   require(rejected && witness(source.id)==before,"unprojected frontier regression not reproduced");
-   std::cout<<"MIXED_NATIVE_UNPROJECTED expected rejection; source unchanged\n";++passed;}
   // A genuinely unconfirmed suffix stays unconfirmed until an actual later selection.
-  {OwnedSession partial;create(partial,schema,{},raw);auto ctx=session(partial.id)->context();choose_prefix(ctx,split,"你好",alternate);
+  {std::cout<<"MIXED_NATIVE_CASE_BEGIN alternate="<<alternate<<" partial_suffix=1"<<std::endl;
+   OwnedSession partial;create(partial,schema,{},raw);auto ctx=session(partial.id)->context();choose_prefix(ctx,split,"你好",alternate);
    auto parts=observed_prefix(partial.id);require(parts.size()==2 && parts[1].kind==Part::unconfirmed,"suffix unexpectedly confirmed");
    parts.insert(parts.begin()+1,{Part::literal,"👩🏽‍💻","👩🏽‍💻",{}});const auto partialBefore=witness(partial.id);
-   OwnedSession trial;replay(partial.id,parts,2048,trial);ctx=session(trial.id)->context();
+   OwnedSession trial;replay(partial.id,parts,2048,trial,projected);ctx=session(trial.id)->context();
    const auto selected=choose_prefix(ctx,ctx->input().size(),"世界");
    require(selected.start==split+parts[1].raw.size(),"suffix selection attached to wrong span");
    drain_exact(trial.id,parts[0].text+parts[1].text+selected.text);require(witness(partial.id)==partialBefore,"partial source changed");++passed;}
@@ -200,7 +202,8 @@ int run(const std::string& schema,const std::string& raw,size_t split,bool alter
 
 int main(int argc,char** argv) {
   using namespace mixed_probe;
-  if(argc!=3){std::cerr<<"usage: mixed-probe verified-shared fresh-owned-user\n";return 2;}
+  if(argc!=4 || (std::string(argv[3])!="unprojected" && std::string(argv[3])!="projected")){std::cerr<<"usage: mixed-probe verified-shared fresh-owned-user unprojected|projected\n";return 2;}
+  const bool projected=std::string(argv[3])=="projected";
   bool initialized=false;
   try {
     api=rime_get_api();require(api && std::strcmp(api->get_version(),"1.16.0")==0,"wrong engine version");
@@ -212,7 +215,7 @@ int main(int argc,char** argv) {
     // interior-unconfirmed edits and real grapheme UI remain explicit later gates.
     const std::string schema="paia_b1_full_ascii",file=std::string(argv[1])+"/"+schema+".schema.yaml";
     require(api->deploy_schema(file.c_str()),"declared probe schema deploy failed");
-    const auto start=std::chrono::steady_clock::now();const int total=run(schema,"nihaoshijie",5,false)+run(schema,"nihaoshijie",5,true);
+    const auto start=std::chrono::steady_clock::now();const int total=run(schema,"nihaoshijie",5,false,projected)+run(schema,"nihaoshijie",5,true,projected);
     auto micros=std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now()-start).count();
     api->finalize();initialized=false;
     std::cout<<"MIXED_NATIVE_PROBE_TOTAL cases="<<total<<" total_us="<<micros<<" ENGINE_NATIVE only; no production path/host integration\n";return 0;

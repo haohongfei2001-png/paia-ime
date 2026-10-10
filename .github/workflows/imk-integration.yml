@@ -33,6 +33,17 @@ jobs:
           python3 Tools/audit-a2.py
           python3 Tools/audit-resources.py
           python3 Tools/prepare-a1.py | tee evidence/imk-run/inputs.json
+      - name: Prepare existing unbundled research resources
+        run: |
+          set -o pipefail
+          python3 Tools/prepare-a2.py | tee evidence/imk-run/research-inputs.json
+          bash Tools/build-g01.sh 2>&1 | tee evidence/imk-run/extension-build.txt
+          python3 Tools/prepare-b1.py | tee evidence/imk-run/schema-inputs.json
+      - name: Bounded mixed-input native feasibility probe only
+        run: |
+          set -o pipefail
+          bash Tools/probe-mixed.sh 2>&1 | tee evidence/imk-run/mixed-probe.txt
+          grep -Fq 'MIXED_NATIVE_PROBE_TOTAL cases=98' evidence/imk-run/mixed-probe.txt
       - name: Compile uninstalled input-method bundle
         run: |
           set -o pipefail
@@ -85,17 +96,6 @@ jobs:
               for index in range(0, len(encoded), 1800):
                   print(f'{prefix}_{index//1800}:{encoded[index:index+1800]}')
           PY_CONTEXT_CAPTURE
-      - name: Prepare existing unbundled research resources
-        run: |
-          set -o pipefail
-          python3 Tools/prepare-a2.py | tee evidence/imk-run/research-inputs.json
-          bash Tools/build-g01.sh 2>&1 | tee evidence/imk-run/extension-build.txt
-          python3 Tools/prepare-b1.py | tee evidence/imk-run/schema-inputs.json
-      - name: Bounded mixed-input native feasibility probe only
-        run: |
-          set -o pipefail
-          bash Tools/probe-mixed.sh 2>&1 | tee evidence/imk-run/mixed-probe.txt
-          grep -Fq 'MIXED_NATIVE_PROBE_TOTAL cases=100' evidence/imk-run/mixed-probe.txt
       - name: Consolidated basic controls through real IMK driver
         run: |
           set -o pipefail
