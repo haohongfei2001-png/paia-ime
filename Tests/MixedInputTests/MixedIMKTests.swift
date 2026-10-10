@@ -104,5 +104,17 @@ final class MixedIMKTests:XCTestCase {
             XCTAssertEqual(label.stringValue,complete ? "Page 1 · End of candidates":"Page 1 · Shown candidate limit reached; search incomplete")
         }
     }
+    @MainActor func testNonemptyMixedLifecycleFlushKeepsFullSourceExactlyOnce()throws {
+        for deactivate in [false,true] {for middle in [false,true] {
+            let r=try Rig();defer{r.driver.close()};try composed(r,"RAG")
+            try key(r,"",115);if middle{try key(r,"",124)}
+            let old=try XCTUnwrap(r.driver.mixedMenuAction(.commit))
+            if deactivate{r.driver.deactivate(client:r.client)}else{r.driver.finish(client:r.client)}
+            r.driver.performMixedMenuAction(old);r.driver.finish(client:r.client)
+            XCTAssertEqual(r.client.insertCalls,1);XCTAssertEqual(r.client.view.string,"prefix👩🏽‍💻niRAGhao")
+            XCTAssertNil(r.driver.coordinator.session)
+        }}
+        print("MIXED_IMK_LIFECYCLE nonempty finish/deactivate at front/middle; full source once; stale menu rejected")
+    }
 }
 #endif

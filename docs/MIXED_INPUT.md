@@ -1,4 +1,29 @@
-# Ordinary mixed-input implementation checkpoint
+# Lossless typed mixed input
+
+## Current bounded implementation
+
+One `InputSession` now owns full source, a typed spelling/literal/engine-proof draft,
+a separate Unicode display map and the existing once-only host effect path. The
+optional pinned native extension issues Chinese proofs only after real selection;
+literal identity is reserved for exact authored literal bytes. The actual IMK
+controller exposes explicit mixed/literal/reopen/commit actions. Tab/Shift-Tab
+walk unresolved spans, Up/Down move real candidate rows, Space selects, and Return
+emits the **whole original source** from any allowed caret. Literal intent is
+explicit; ordinary input does not learn or create persisted expressions.
+
+The qualified code checkpoint `c715add1a9676763f88be58ccc8e003a25c3059b` passed all
+12 existing macOS workflows, including 10 pure tests, 10 actual Swift/C ABI tests
+and seven host-target tests (six real engine/NSTextView paths and one simulated
+panel-footer case). See [consolidated evidence and limits](../evidence/mixed/VALIDATION.md).
+The final increment adds a separate nonempty finish/deactivate test and requires
+its own exact-source run; this text does not claim that new case has already run.
+No installed input-source or production language-quality acceptance is implied.
+
+## Historical investigation and retained failures
+
+The following dated/source-bound sections record the progression from an isolated
+probe to integration. Statements such as “not yet wired” and “pending” describe
+that historical checkpoint only, not the current implementation above.
 
 Original REPORT 6.4/8 and HANDOFF 5 require lossless Chinese mixed with English, code and Unicode. Baseline is resource-startup main df871e48bc3a5df450f7b600280e964c8e1cc511. This branch begins with an isolated **ENGINE_NATIVE feasibility probe**, not an exposed mixed-input product feature. Existing B8 refusals, G01 validators and app/host paths are unchanged.
 
@@ -22,7 +47,7 @@ In a mixed trial, `Select` itself can restore the full caret and move the last-m
 
 Checkpoint 938f8b6a90816dafcb3e45e2f19e732fbfb51a2f passed the 42 ordinary-choice literal/position cases, five independent reconstruction variants and exhausted-work test, then [IMK run 38064531605](https://github.com/haohongfei2001-png/paia-ime/actions/runs/38064531605) failed an incorrectly anticipated negative fixture: that specific unprojected RAG-middle case did **not** reproduce the earlier replay failure. The partial-suffix and alternate-choice groups had not run; this is not a 98-case pass. Instead of presuming the failing input, the next checkpoint executes the whole former unprojected algorithm in its own process/user directory with per-case diagnostics. That control must reproduce the specific native replay failure with verified unchanged source (setup failures/crashes do not qualify), followed by all 98 projected cases succeeding in a separate process. The invalid two anticipated negatives are not counted as passing tests. Resource preparation/probe steps move earlier in the same existing job for faster diagnostic feedback; the twelve workflows, runner allocation and existing app/host assertions are unchanged.
 
-## Owner API and typed-value checkpoint (implementation in progress)
+## Historical owner API and typed-value checkpoint
 
 The next source checkpoint introduces a separate optional C ABI table in the
 same pinned extension. It keeps the original G01 ABI unchanged. Opaque mixed
@@ -70,7 +95,7 @@ path. Existing downstream startup/context/basic/repair stages also completed.
 The old matrix's `total_us=110283` excludes the later owner matrix and is not a
 performance percentile. No failures from earlier checkpoints were discarded.
 
-## Swift and uninstalled IMK integration (next exact-head run pending)
+## Historical first Swift and uninstalled IMK integration
 
 The source now routes a complete draft through one InputSession, one SessionCore
 and the existing host effect dispatcher. `sourceText` always carries the entire
@@ -112,7 +137,7 @@ about whole-sentence language ranking across literal boundaries. Default fixture
 bundles without the research extension do not expose this capability, and the
 production-corpus license gate remains separate.
 
-### Broader qualification in the next local increment
+### Broader qualification configured before c715add
 
 The mixed candidate owner now carries a real page/highlight state. Up/Down
 moves the highlighted actual native row across page boundaries, Space selects
@@ -154,3 +179,24 @@ complete preexisting regression stages. Source proof import and subsequent
 ordinary input after mixed completion both ran. This checkpoint predates the
 broader local matrix, navigation/footer changes and extra output-lifetime test;
 those still require their own exact-source macOS result.
+
+### Exact broader checkpoint c715add
+
+All 12 workflows succeeded for `c715add1a9676763f88be58ccc8e003a25c3059b`,
+tree `173b07bd341701e6b4eb39d61651e01bef6c6437`.
+[IMK run 38068420577](https://github.com/haohongfei2001-png/paia-ime/actions/runs/38068420577)
+completed every stage, including 10 pure, 10 bridge and seven host-target tests.
+Actual output confirms 32 converted commits and 32 whole-source Returns across
+the 12 research schemas plus full initials, the chained 128-proof bridge case
+and the real 128-selection host suffix. The native 98 scenarios and 20 owner
+commits also passed. [A1 run 38068420612](https://github.com/haohongfei2001-png/paia-ime/actions/runs/38068420612)
+ran the updated synthetic output-free-after-close test with Address/Undefined
+sanitizers. These synthetic allocation checks are not engine execution.
+
+Independent whole-diff source review found no blocking ownership issue. It
+identified that an earlier lifecycle test called Return before finishing an
+already-empty draft. The final increment therefore adds four independent
+**nonempty** cases (finish/deactivate at front/middle), followed by stale-menu
+and duplicate-finish attempts, asserting complete original source and exactly
+one host insert. Source review confirms this closes the coverage gap structurally;
+the configured eight host-target tests still need their own final-head run.
