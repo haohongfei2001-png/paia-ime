@@ -55,7 +55,7 @@ See [A1 build, tests, resource pins and evidence boundaries](docs/BATCH_A1.md). 
 
 ## Batch B8 composition-safe keyboard boundary
 
-[B8 pre-mutation refusal and text/control separation](docs/BATCH_B8.md) protects remaining raw spelling and marked text from unsupported middle-caret punctuation and Unicode events. Visible recovery stays explicit; no automatic commit, retry or caret move is added. [B8 validation](evidence/b8/VALIDATION.md) retains the original native data-loss observations and checks synchronous host callback ownership. Full compound insertion remains open.
+[B8 pre-mutation refusal and text/control separation](docs/BATCH_B8.md) protects remaining raw spelling and marked text from unsupported middle-caret punctuation and Unicode events. Visible recovery stays explicit; no automatic commit, retry or caret move is added. [B8 validation](evidence/b8/VALIDATION.md) retains the original native data-loss observations and checks synchronous host callback ownership. The subsequent explicit typed mixed-input path below now covers bounded compound insertion; ordinary unqualified forwarding keeps these conservative guards.
 
 ## InputMethodKit engineering integration
 
@@ -92,3 +92,16 @@ Public repository visibility is not a blanket open-source license. Review depend
 ## Recoverable fixture-resource startup (commit-bound native evidence)
 
 The next original resource-update node adds offline two-schema fixture compilation, complete artifact verification, isolated native probes, versioned current/last-good publication and precompiled startup selection. Existing sessions keep their resource snapshot until the next launch. The default uninstalled bundle uses only the authored fixture; no production corpus, personal rollback, hot reload or signed updater claim. See [resource startup contract and evidence boundary](docs/RESOURCE_STARTUP.md). The 2699995 native checkpoint passed its real compiler/probe/startup recovery suite; final-source and exact-main acceptance are separate, recorded at PR16.
+
+## Lossless explicit mixed-input composition
+
+[Typed Chinese/literal composition](docs/MIXED_INPUT.md) preserves the complete
+original source while confirming real Chinese candidates around English, paths,
+identifiers, punctuation and Unicode. It uses one input owner and one host effect,
+with actual native proof replay, explicit literal intent, grapheme-safe edits,
+stale-action refusal and whole-source Return. [Commit-bound mixed evidence](evidence/mixed/VALIDATION.md)
+records the actual C ABI/Swift/NSTextView path, 12 research schemas, bounded search,
+128-span suffix cases and all initial failures. Default fixture bundles without
+the research extension do not expose the capability. This does not qualify
+installed apps, complete language quality, independent typo/fuzzy policies,
+rare-character discovery or production corpus redistribution.

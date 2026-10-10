@@ -54,3 +54,12 @@ The C node adds an optional isolated `PAIA_C_STORE` at startup and an explicit e
 ## Precompiled public-resource startup checkpoint
 
 The bundled fixture now has a distinct no-deploy initialization route with an isolated all-schema helper probe and bounded manifest/artifact verification before the main engine attempt. Explicit developer resource stores may select current or verified last-good at a new startup. Missing bundled data does not select the legacy compiling lab path. Existing explicitly configured A1/research labs stay separate; there is no same-process reinitialization or installed updater. Source/native evidence is tracked separately in [RESOURCE_STARTUP.md](RESOURCE_STARTUP.md).
+
+## Later explicit mixed-input integration
+
+The same controller/driver now has [bounded typed mixed-input actions](MIXED_INPUT.md),
+with native selection proofs, full-source lifecycle/effect ownership and the
+existing candidate panel. [Evidence](../evidence/mixed/VALIDATION.md) distinguishes
+real engine/NSTextView paths from simulated panel checks and installed validation.
+Earlier open-compound notes describe their original checkpoint. Production data,
+live-client qualification and signed installation remain separate gates.

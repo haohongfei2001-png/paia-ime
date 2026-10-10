@@ -171,7 +171,7 @@ import TextBoundary
         else{session=try runtime.makeSession(schema:next.schema,deferredCommit:next.deferredCommit,chinesePunctuation:next.chinesePunctuation)}
         do {
             let update=try session.refresh()
-            guard update.commit==nil,let snapshot=update.snapshot,snapshot.rawASCII.isEmpty,snapshot.preedit.isEmpty else{throw EngineError.closed}
+            guard update.commit==nil,let snapshot=update.snapshot,snapshot.sourceText.isEmpty,snapshot.preedit.isEmpty else{throw EngineError.closed}
             return session
         }catch{session.end();throw error}
     }
@@ -186,7 +186,7 @@ import TextBoundary
         configuration=next;editor.literalMode=next.literal;editor.dispatcher=HostDispatcher(client:editor,session:prepared)
         reflectConfiguration();status.stringValue="Mode applied for this session. Preferences are not saved automatically.";updateControls()
     }
-    private var hasEngineComposition:Bool {guard let s=editor.dispatcher?.session.snapshot else{return false};return !s.rawASCII.isEmpty || !s.preedit.isEmpty}
+    private var hasEngineComposition:Bool {guard let s=editor.dispatcher?.session.snapshot else{return false};return !s.sourceText.isEmpty || !s.preedit.isEmpty}
     public var hasComposition:Bool {editor.hasMarkedText() || hasEngineComposition}
     private func updateControls(){
         if let message=refusalMessage,
@@ -249,7 +249,7 @@ import TextBoundary
         for target in targets {targetStack.addArrangedSubview(TargetButton(target,renderID:targetRenderID,target:self,action:#selector(selectTarget(_:))))}
         rebuildInspectorKeyLoop()
         targetStack.layoutSubtreeIfNeeded();targetStack.setFrameSize(NSSize(width:max(1,targetStack.fittingSize.width),height:32))
-        if old==nil,let target=selectedTarget,let raw=host.session.snapshot?.rawASCII {
+        if old==nil,let target=selectedTarget,let raw=host.session.snapshot?.sourceText {
             rawField.stringValue=String(decoding:Array(raw.utf8)[target.anchor.bytes],as:UTF8.self);surfaceField.stringValue=target.anchor.text
         }
         if let token=focusLease {_=host.updateInspectorViews(token,views:ownedInspectorViews())}
@@ -261,7 +261,7 @@ import TextBoundary
             editor.dispatcher?.invalidate();dismissInspector(resume:false);return
         }
         discardProposal();selectedTarget=sender.binding
-        if let raw=editor.dispatcher?.session.snapshot?.rawASCII {
+        if let raw=editor.dispatcher?.session.snapshot?.sourceText {
             rawField.stringValue=String(decoding:Array(raw.utf8)[sender.binding.anchor.bytes],as:UTF8.self);surfaceField.stringValue=sender.binding.anchor.text
         }
     }

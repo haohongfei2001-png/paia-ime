@@ -39,9 +39,13 @@ import TextBoundary
     private var hostWriteIssued=false
     public init() {}
     public var snapshot:CandidateSnapshot? {session?.snapshot}
+    private func mixedNotice(_ active:InputSession)->String? {
+        guard active.mixedDraft != nil else{return nil}
+        return active.mixedLiteralIntent ? "Literal input: letters, digits and Space stay exact. Option-L returns to spelling. Return keeps the full source.":"Mixed composition: Tab changes spelling span. Option-L enters literal input. Space commits after every spelling span is selected; Return keeps the full source."
+    }
     // No host callbacks: process-wide management can inspect this without reentry.
     public var isIdleForManagement:Bool {
-        !executing && !contextOnly && ownedText==nil && (snapshot == nil || (snapshot?.rawASCII.isEmpty==true && snapshot?.preedit.isEmpty==true)) &&
+        !executing && !contextOnly && ownedText==nil && (snapshot == nil || (snapshot?.sourceText.isEmpty==true && snapshot?.preedit.isEmpty==true)) &&
         (outcome == .ready || outcome == .inactive)
     }
     public var identity:AnyObject? {client?.callbackIdentity}
@@ -70,7 +74,7 @@ import TextBoundary
         guard activation==ticket else{prepared.end();return false}
         do {
             let initial=try prepared.refresh()
-            guard initial.commit==nil,initial.snapshot?.rawASCII.isEmpty==true,initial.snapshot?.preedit.isEmpty==true,
+            guard initial.commit==nil,initial.snapshot?.sourceText.isEmpty==true,initial.snapshot?.preedit.isEmpty==true,
                   activation==ticket else{prepared.end();return false}
             let afterSelection=next.selectedRange();guard activation==ticket,afterSelection==selection else{prepared.end();return false}
             let afterMark=next.markedRange();guard activation==ticket,afterMark==mark else{prepared.end();return false}
@@ -209,10 +213,10 @@ import TextBoundary
         retire()
     }
     private func beginOperation(_ active:InputSession){
-        operationRaw=active.snapshot?.rawASCII ?? "";operationPreedit=active.snapshot?.preedit ?? "";issuedText=nil;hostWriteIssued=false
+        operationRaw=active.snapshot?.sourceText ?? "";operationPreedit=active.snapshot?.preedit ?? "";issuedText=nil;hostWriteIssued=false
     }
     private func preserveAcceptedInput(_ update:SessionUpdate){
-        if let raw=update.snapshot?.rawASCII,!raw.isEmpty{operationRaw=raw}
+        if let raw=update.snapshot?.sourceText,!raw.isEmpty{operationRaw=raw}
         if let preedit=update.snapshot?.preedit,!preedit.isEmpty{operationPreedit=preedit}
     }
     private func apply(_ update:SessionUpdate,ticket:UInt64,owner:IMKClientAccess,active:InputSession,reviewed:ContextReplacement?=nil)->Bool {
@@ -297,11 +301,11 @@ import TextBoundary
                 if stillOwned(ticket,owner,active){fail("Input outcome is unconfirmed. No automatic retry or further text write.")}
                 return true
             }
-            if !update.handled,(update.snapshot?.rawASCII.isEmpty==false || update.snapshot?.preedit.isEmpty==false) {
+            if !update.handled,(update.snapshot?.sourceText.isEmpty==false || update.snapshot?.preedit.isEmpty==false) {
                 notice="This control is unsupported during composition. Use Return or Escape before continuing.";outcome = .refused;return true
             }
-            notice=nil;outcome = .ready
-            if active.isRetainedComposition && update.snapshot?.rawASCII.isEmpty==true && update.snapshot?.preedit.isEmpty==true {
+            notice=mixedNotice(active);outcome = .ready
+            if active.isRetainedComposition && update.snapshot?.sourceText.isEmpty==true && update.snapshot?.preedit.isEmpty==true {
                 retire();terminalRetiredFrom=ticket
             } else if !update.handled{retire()}
             return update.handled
@@ -319,10 +323,10 @@ import TextBoundary
             guard stillOwned(ticket,owner,active),apply(update,ticket:ticket,owner:owner,active:active) else{
                 if stillOwned(ticket,owner,active){fail("Candidate outcome is unconfirmed. It will not be replayed.")};return false
             }
-            notice=nil;outcome = .ready
-            if active.isRetainedComposition && active.snapshot?.rawASCII.isEmpty==true && active.snapshot?.preedit.isEmpty==true{retire()}
+            notice=mixedNotice(active);outcome = .ready
+            if active.isRetainedComposition && active.snapshot?.sourceText.isEmpty==true && active.snapshot?.preedit.isEmpty==true{retire()}
             return true
-        }catch{return false}
+        }catch{if active.snapshot==nil,stillOwned(ticket,owner,active){fail("Candidate projection ended safely. Retained input is available; no automatic replay.")};return false}
     }
     private func observeRepair<T>(client sender:AnyObject,_ action:(InputSession)throws->T)->T? {
         if executing{fail("Reentrant repair operation refused.");return nil}
@@ -346,6 +350,34 @@ import TextBoundary
     }
     public func prepareAlternative(_ choice:RepairAlternative,client sender:AnyObject)->RepairProposal? {
         observeRepair(client:sender){try $0.prepareAlternative(choice)}
+    }
+    @discardableResult public func performMixed(_ kind:MixedActionKind,span:UUID?=nil,client sender:AnyObject)->Bool {
+        if executing{fail("Reentrant mixed input operation refused.");return false}
+        guard !contextOnly,same(sender),let owner=client,let active=session else{return false}
+        executing=true;defer{executing=false};let ticket=activation;beginOperation(active)
+        guard verify(ticket,owner,active) else{if stillOwned(ticket,owner,active){fail("Mixed input target changed. No replay.")};return false}
+        do{
+            let update:SessionUpdate
+            switch kind {
+            case .begin:guard let snapshot=active.snapshot else{return false};update=try active.beginMixed(snapshot:snapshot)
+            case .literal:update=try active.setMixedLiteralIntent(true)
+            case .spelling:update=try active.setMixedLiteralIntent(false)
+            case .commit:guard let draft=active.mixedDraft,draft.isResolved,!draft.isEmpty else{return false};update=try active.commitEngineComposition()
+            case .reopen:guard let span=span else{return false};update=try active.reopenMixedSpan(span)
+            }
+            preserveAcceptedInput(update)
+            guard stillOwned(ticket,owner,active),apply(update,ticket:ticket,owner:owner,active:active) else{
+                if stillOwned(ticket,owner,active){fail("Mixed input outcome is unconfirmed. No automatic replay or cleanup.")};return false
+            }
+            outcome = .ready
+            if kind == .commit{notice=nil;retire()}
+            else{notice=active.mixedLiteralIntent ? "Literal input: letters, digits and Space stay exact. Option-L returns to spelling. Return keeps the full original source.":"Mixed composition: Tab changes spelling span; reopen confirmed text before editing it. Option-L enters literal input. Space commits only after all spelling is selected; Return keeps the full source."}
+            return true
+        }catch{
+            if active.snapshot==nil,stillOwned(ticket,owner,active){fail("Mixed input projection ended safely. Retained source is available; no automatic replay.")}
+            else{notice="This mixed operation is unavailable. Existing composition retained.";outcome = .refused}
+            return false
+        }
     }
     @discardableResult public func beginRetained(binding:ExpressionBinding,client sender:AnyObject)->Bool {
         if executing{fail("Reentrant retained-session activation refused.");return false}
@@ -372,7 +404,7 @@ import TextBoundary
                 if stillOwned(ticket,owner,active){fail("Repair mark application is unconfirmed. No automatic retry or cleanup.")};return false
             }
             notice="Repair applied only to composition. Commit Chinese explicitly, or Return keeps spelling.";outcome = .ready
-            if active.snapshot?.rawASCII.isEmpty==true,active.snapshot?.preedit.isEmpty==true{retire()}
+            if active.snapshot?.sourceText.isEmpty==true,active.snapshot?.preedit.isEmpty==true{retire()}
             return true
         }catch{notice="Repair proposal is stale or unavailable. Original composition retained.";return false}
     }
@@ -389,7 +421,7 @@ import TextBoundary
             guard update.commit != nil,stillOwned(ticket,owner,active),apply(update,ticket:ticket,owner:owner,active:active) else{
                 if stillOwned(ticket,owner,active){fail("Chinese commit is unconfirmed. No repeat or cleanup.")};return false
             }
-            guard active.snapshot?.rawASCII.isEmpty==true,active.snapshot?.preedit.isEmpty==true else{fail("Engine did not finish the retained composition.");return false}
+            guard active.snapshot?.sourceText.isEmpty==true,active.snapshot?.preedit.isEmpty==true else{fail("Engine did not finish the retained composition.");return false}
             notice=nil;outcome = .ready;retire();return true
         }catch{if stillOwned(ticket,owner,active){fail("Chinese commit failed. Check retained input; no replay or cleanup.")};return false}
     }
@@ -426,7 +458,7 @@ import TextBoundary
     }
     @discardableResult public func releaseIdle(client sender:AnyObject)->Bool {
         guard !executing,!contextOnly,same(sender),let owner=client,let active=session,
-              active.snapshot?.rawASCII.isEmpty==true,active.snapshot?.preedit.isEmpty==true else{return false}
+              active.snapshot?.sourceText.isEmpty==true,active.snapshot?.preedit.isEmpty==true else{return false}
         executing=true;defer{executing=false};let ticket=activation;beginOperation(active)
         guard verify(ticket,owner,active) else{if stillOwned(ticket,owner,active){fail("Client changed before idle passthrough.")};return false}
         retire();outcome = .ready;return true

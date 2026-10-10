@@ -33,6 +33,18 @@ jobs:
           python3 Tools/audit-a2.py
           python3 Tools/audit-resources.py
           python3 Tools/prepare-a1.py | tee evidence/imk-run/inputs.json
+      - name: Prepare existing unbundled research resources
+        run: |
+          set -o pipefail
+          python3 Tools/prepare-a2.py | tee evidence/imk-run/research-inputs.json
+          bash Tools/build-g01.sh 2>&1 | tee evidence/imk-run/extension-build.txt
+          python3 Tools/prepare-b1.py | tee evidence/imk-run/schema-inputs.json
+      - name: Bounded mixed-input native feasibility probe only
+        run: |
+          set -o pipefail
+          bash Tools/probe-mixed.sh 2>&1 | tee evidence/imk-run/mixed-probe.txt
+          grep -Fq 'MIXED_NATIVE_PROBE_TOTAL cases=98' evidence/imk-run/mixed-probe.txt
+          grep -Fq 'MIXED_OWNER_API commits=20' evidence/imk-run/mixed-probe.txt
       - name: Compile uninstalled input-method bundle
         run: |
           set -o pipefail
@@ -47,7 +59,9 @@ jobs:
         run: |
           set -o pipefail
           source .build/a1-env.sh
-          swift test --filter IMKProtocolTests 2>&1 | tee evidence/imk-run/protocol-tests.txt
+          swift test --filter MixedDraftTests 2>&1 | tee evidence/imk-run/mixed-value-tests.txt
+          grep -Fq 'Executed 10 tests, with 0 failures' evidence/imk-run/mixed-value-tests.txt
+          swift test --skip-build --filter IMKProtocolTests 2>&1 | tee evidence/imk-run/protocol-tests.txt
           swift test --skip-build --filter IMKFixtureBasicsTests 2>&1 | tee evidence/imk-run/fixture-basics.txt
       - name: Offline public resource publication and precompiled startup recovery
         run: |
@@ -85,12 +99,20 @@ jobs:
               for index in range(0, len(encoded), 1800):
                   print(f'{prefix}_{index//1800}:{encoded[index:index+1800]}')
           PY_CONTEXT_CAPTURE
-      - name: Prepare existing unbundled research resources
+      - name: Mixed owner through real C ABI and Swift effect gate
         run: |
           set -o pipefail
-          python3 Tools/prepare-a2.py | tee evidence/imk-run/research-inputs.json
-          bash Tools/build-g01.sh 2>&1 | tee evidence/imk-run/extension-build.txt
-          python3 Tools/prepare-b1.py | tee evidence/imk-run/schema-inputs.json
+          source .build/b1-env.sh
+          swift test --skip-build --filter MixedInputTests.MixedInputTests 2>&1 | tee evidence/imk-run/mixed-swift-tests.txt
+          grep -Fq 'Executed 10 tests, with 0 failures' evidence/imk-run/mixed-swift-tests.txt
+          grep -Fq 'MIXED_SWIFT_NATIVE actual owner/shim/engine to one core effect' evidence/imk-run/mixed-swift-tests.txt
+          grep -Fq 'MIXED_MODE_MATRIX native_commits=32 full_source_returns=32' evidence/imk-run/mixed-swift-tests.txt
+          grep -Fq 'MIXED_CHAIN_NATIVE' evidence/imk-run/mixed-swift-tests.txt
+          swift test --skip-build --filter MixedInputTests.MixedIMKTests 2>&1 | tee evidence/imk-run/mixed-imk-tests.txt
+          grep -Fq 'Executed 8 tests, with 0 failures' evidence/imk-run/mixed-imk-tests.txt
+          grep -Fq 'MIXED_IMK_NATIVE ENGINE_NATIVE + APPKIT_HOST' evidence/imk-run/mixed-imk-tests.txt
+          grep -Fq 'MIXED_IMK_LONG 128 genuine suffix selections' evidence/imk-run/mixed-imk-tests.txt
+          grep -Fq 'MIXED_IMK_LIFECYCLE nonempty finish/deactivate' evidence/imk-run/mixed-imk-tests.txt
       - name: Consolidated basic controls through real IMK driver
         run: |
           set -o pipefail

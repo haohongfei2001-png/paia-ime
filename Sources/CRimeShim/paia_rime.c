@@ -14,6 +14,7 @@ static uint64_t monotonic_ns(void) {
 static pthread_mutex_t owner = PTHREAD_MUTEX_INITIALIZER;
 static RimeApi *api;
 static PaiaG01API *g01;
+static PaiaMixedAPI *mixed;
 static size_t live_sessions;
 static int precompiled_mode;
 static uint64_t deployment_calls;
@@ -97,6 +98,7 @@ uint64_t paia_rime_deployment_calls(void) {
 }
 void paia_rime_close(void) {
     pthread_mutex_lock(&owner);
+    if (mixed) {mixed->close_all();mixed=NULL;}
     if (api) { api->cleanup_all_sessions(); api->finalize(); api=NULL; }
     // Keep loaded code resident: some upstream dependency static destructors may outlive finalize.
     // A process may initialize only one runtime in the Swift owner; no runtime hot reload in A1.
@@ -214,7 +216,12 @@ int paia_rime_enable_g01(const char *path) {
         if(handle) {
             PaiaG01API *(*get_api)(void)=(PaiaG01API *(*)(void))dlsym(handle,"paia_g01_get_api");
             PaiaG01API *v=get_api?get_api():NULL;
-            if(v && v->abi==PAIA_G01_ABI && v->data_size==sizeof(*v) && v->initialize && v->anchors && v->candidates && v->prepare && v->free_list && v->alternatives && v->free_alternatives && v->initialize(api)==PG_OK){g01=v;rc=PAIA_OK;}
+            if(v && v->abi==PAIA_G01_ABI && v->data_size==sizeof(*v) && v->initialize && v->anchors && v->candidates && v->prepare && v->free_list && v->alternatives && v->free_alternatives && v->initialize(api)==PG_OK){
+                g01=v;rc=PAIA_OK;
+                PaiaMixedAPI *(*get_mixed)(void)=(PaiaMixedAPI *(*)(void))dlsym(handle,"paia_mixed_get_api");
+                PaiaMixedAPI *m=get_mixed?get_mixed():NULL;
+                if(m && m->abi==PAIA_MIXED_ABI && m->data_size==sizeof(*m) && m->open && m->close && m->close_all && m->project && m->select && m->free_selection && m->commit && m->free_text && m->forget && m->adopt)mixed=m;
+            }
             else dlclose(handle);
         }
     }
@@ -238,7 +245,12 @@ int paia_rime_g01_prepare(uint64_t id,size_t target,const char *replacement,cons
     pthread_mutex_unlock(&owner);return rc;
 }
 void paia_rime_g01_free_list(PaiaG01List *list) {
-    pthread_mutex_lock(&owner);if(g01)g01->free_list(list);pthread_mutex_unlock(&owner);
+    // ABI values contain only malloc-owned copies, never engine pointers. They
+    // remain releasable after the runtime/table has closed.
+    if(!list)return;
+    free(list->raw);free(list->preview);
+    if(list->items){for(size_t i=0;i<list->count;++i)free(list->items[i].text);free(list->items);}
+    memset(list,0,sizeof(*list));
 }
 
 int paia_rime_g01_alternatives(uint64_t id,size_t target,const char *replacement,size_t limit,size_t max_rows,PaiaG01Alternatives *out) {
@@ -249,4 +261,41 @@ int paia_rime_g01_alternatives(uint64_t id,size_t target,const char *replacement
 }
 void paia_rime_g01_free_alternatives(PaiaG01Alternatives *out) {
     pthread_mutex_lock(&owner);if(g01)g01->free_alternatives(out);pthread_mutex_unlock(&owner);
+}
+
+int paia_rime_mixed_open(uint64_t source,uint64_t *out) {
+    if(!out)return PG_INVALID;
+    *out=0;pthread_mutex_lock(&owner);
+    int rc=mixed?mixed->open(source,out):PG_UNSUPPORTED;pthread_mutex_unlock(&owner);return rc;
+}
+void paia_rime_mixed_close(uint64_t id){pthread_mutex_lock(&owner);if(mixed)mixed->close(id);pthread_mutex_unlock(&owner);}
+int paia_rime_mixed_project(uint64_t id,const char *raw,size_t raw_bytes,size_t limit,PaiaMixedPage *out){
+    if(!out)return PG_INVALID;
+    memset(out,0,sizeof(*out));pthread_mutex_lock(&owner);
+    int rc=mixed?mixed->project(id,raw,raw_bytes,limit,out):PG_UNSUPPORTED;pthread_mutex_unlock(&owner);return rc;
+}
+int paia_rime_mixed_select(uint64_t id,uint64_t projection,size_t index,PaiaMixedSelection *out){
+    if(!out)return PG_INVALID;
+    memset(out,0,sizeof(*out));pthread_mutex_lock(&owner);
+    int rc=mixed?mixed->select(id,projection,index,out):PG_UNSUPPORTED;pthread_mutex_unlock(&owner);return rc;
+}
+void paia_rime_mixed_free_selection(PaiaMixedSelection *out){if(out){free(out->surface);memset(out,0,sizeof(*out));}}
+int paia_rime_mixed_commit(uint64_t id,const PaiaMixedPart *parts,size_t count,size_t limit,char **out){
+    if(!out)return PG_INVALID;
+    *out=NULL;pthread_mutex_lock(&owner);
+    int rc=mixed?mixed->commit(id,parts,count,limit,out):PG_UNSUPPORTED;pthread_mutex_unlock(&owner);return rc;
+}
+void paia_rime_mixed_free_text(char *text){free(text);}
+void paia_rime_mixed_forget(uint64_t id,uint64_t proof){pthread_mutex_lock(&owner);if(mixed)mixed->forget(id,proof);pthread_mutex_unlock(&owner);}
+
+int paia_rime_mixed_adopt(uint64_t id,uint64_t source,PaiaMixedImport *out){
+    if(!out)return PG_INVALID;
+    memset(out,0,sizeof(*out));pthread_mutex_lock(&owner);
+    int rc=mixed?mixed->adopt(id,source,out):PG_UNSUPPORTED;pthread_mutex_unlock(&owner);return rc;
+}
+void paia_rime_mixed_free_import(PaiaMixedImport *out){
+    if(!out)return;
+    free(out->raw);
+    if(out->anchors){for(size_t i=0;i<out->count;++i)free(out->anchors[i].surface);free(out->anchors);}
+    memset(out,0,sizeof(*out));
 }

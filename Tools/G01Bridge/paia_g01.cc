@@ -290,3 +290,5 @@ int alternatives(uint64_t source,size_t target,const char *replacement,size_t li
 PaiaG01API extension={sizeof(PaiaG01API),PAIA_G01_ABI,initialize,anchors,candidates,prepare,free_list,alternatives,free_alternatives};
 }
 extern "C" __attribute__((visibility("default"))) PaiaG01API *paia_g01_get_api(){return &extension;}
+
+#include "paia_mixed.cc"

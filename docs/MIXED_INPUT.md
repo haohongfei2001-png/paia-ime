@@ -1,0 +1,202 @@
+# Lossless typed mixed input
+
+## Current bounded implementation
+
+One `InputSession` now owns full source, a typed spelling/literal/engine-proof draft,
+a separate Unicode display map and the existing once-only host effect path. The
+optional pinned native extension issues Chinese proofs only after real selection;
+literal identity is reserved for exact authored literal bytes. The actual IMK
+controller exposes explicit mixed/literal/reopen/commit actions. Tab/Shift-Tab
+walk unresolved spans, Up/Down move real candidate rows, Space selects, and Return
+emits the **whole original source** from any allowed caret. Literal intent is
+explicit; ordinary input does not learn or create persisted expressions.
+
+The qualified code checkpoint `c715add1a9676763f88be58ccc8e003a25c3059b` passed all
+12 existing macOS workflows, including 10 pure tests, 10 actual Swift/C ABI tests
+and seven host-target tests (six real engine/NSTextView paths and one simulated
+panel-footer case). See [consolidated evidence and limits](../evidence/mixed/VALIDATION.md).
+The final increment adds a separate nonempty finish/deactivate test and requires
+its own exact-source run; this text does not claim that new case has already run.
+No installed input-source or production language-quality acceptance is implied.
+
+## Historical investigation and retained failures
+
+The following dated/source-bound sections record the progression from an isolated
+probe to integration. Statements such as “not yet wired” and “pending” describe
+that historical checkpoint only, not the current implementation above.
+
+Original REPORT 6.4/8 and HANDOFF 5 require lossless Chinese mixed with English, code and Unicode. Baseline is resource-startup main df871e48bc3a5df450f7b600280e964c8e1cc511. This branch begins with an isolated **ENGINE_NATIVE feasibility probe**, not an exposed mixed-input product feature. Existing B8 refusals, G01 validators and app/host paths are unchanged.
+
+Pinned librime source a251145d3aafa33871824a40bbec04c966bd8b56 has a relevant boundary: `ConcreteEngine::Compose` normally rebuilds from the prefix before its byte caret, while `GetPreedit` may display the remaining full-input suffix and `GetCommitText` uses composition input. Therefore a correct-looking preedit is not proof of a complete final commit. Native navigation/deletion is byte-wise; ordinary key forwarding cannot safely edit arbitrary Unicode graphemes.
+
+`Tools/probe-mixed.sh` compiles a disposable test executable against the already pinned engine, headers and G01 helpers. It is not linked into the app. It replays actual selected Chinese candidates, preserves their spans/surfaces/phonetic codes, and introduces a distinctly typed identity candidate **only** for explicit authored literal bytes. It never puts the expected Chinese answer into a synthetic candidate. Fresh trials retain the full native caret/input; future logical-caret and typed-layout ownership remain separate implementation work.
+
+The first planned checkpoint uses full/Simplified research data with two genuine Chinese anchors, including a deliberately non-first first-anchor choice. Fourteen literals at start/middle/end exercise English, identifier, URL, path, versions, decimals, times, formula, punctuation, fullwidth Latin, supplementary Han, decomposed acute and skin-tone/ZWJ emoji. Recomposition, five independent whole-literal reconstruction variants, exhausted replay, a genuinely unconfirmed Pinyin suffix and later actual selection are checked. The partial-suffix case also uses the alternate Chinese choice in that run. Every successful case verifies actual native commit text and an empty second commit read; source sessions remain unchanged. Independent whole-span reconstruction is neither a chained mixed-state edit test nor grapheme-caret/backspace UI qualification.
+
+No native result is claimed until the exact-source macOS workflow runs. Keep any failures and unsupported cases. The next integration gate requires typed origin/layout, active-span candidate identity, grapheme-safe editing, complete Return semantics, source leases, bounds and latency, then existing one-effect native AppKit/IMK callback tests. Traditional/filter boundaries, other spelling schemes, editing within unconfirmed spelling, candidate/menu movement and long suffixes are separately required. Do not weaken current safety guards or choose a new multi-engine composition architecture merely to make this initial probe green.
+
+No new corpus/library, system installation, normal IMKServer startup, private input, model/network hot path, payment or public release. Existing unbundled research dictionary provenance and production-license gate remain unchanged.
+
+First checkpoint df8a1b53792f8022128992e31966fa7b7e2f0197 failed the standalone probe's C++ compilation in [IMK run 38063272967](https://github.com/haohongfei2001-png/paia-ime/actions/runs/38063272967). The upstream C-oriented `RIME_STRUCT` macro expands to `{0}`, triggering three missing-field-initializer diagnostics under the probe's unchanged `-Werror`. No mixed native case executed; later basic/repair stages in that workflow were skipped. Full failed log and job/artifact metadata are retained. The fix uses C++ `{}` zero-initialization followed by the same upstream `RIME_STRUCT_INIT` size initialization; no warning suppression or assertion removal.
+
+Checkpoint 9517f16709dfb1e19dc50076ce4bcba8614fe02e compiled but [IMK run 38063636808](https://github.com/haohongfei2001-png/paia-ime/actions/runs/38063636808) stopped before `main`: the official archive filename `librime.1.16.0.dylib` differs from its embedded `@rpath/librime.1.dylib` install-name. The probe now creates only that filename alias in its disposable owned engine directory, with an executable-local rpath. Engine bytes, signatures and system loader settings are unchanged. No mixed case had executed at this failed checkpoint either; skipped downstream stages are retained rather than called passed.
+
+Checkpoint 109663c7819ad32148fddf7944a09065023d4516 entered the native probe but [IMK run 38064040303](https://github.com/haohongfei2001-png/paia-ime/actions/runs/38064040303) failed with `actual Chinese replay failed`; it did not qualify the matrix. Initial mixed input can contain multiple unselected engine segments, whose last menu is not necessarily the intended first Chinese span. The next trial-only change projects the native caret to each intended Chinese anchor end before actual selection, then restores complete native input. It never moves the original source caret. Per-case diagnostics and an explicit unchanged-source rejection of the old unprojected path are added (planned total 100 cases). Native verification of this fix remains required; no failed/skipped stage becomes a pass by this explanation.
+
+In a mixed trial, `Select` itself can restore the full caret and move the last-menu frontier beyond the selected anchor. The probe-specific selection helper therefore checks actual candidate span/text/nonempty phonetic code, calls real `Context::Select`, verifies that exact selected anchor, and ultimately verifies the full typed layout and drained commit. It does not reuse G01's single-frontier postcondition or weaken the production G01 helper.
+
+Checkpoint 938f8b6a90816dafcb3e45e2f19e732fbfb51a2f passed the 42 ordinary-choice literal/position cases, five independent reconstruction variants and exhausted-work test, then [IMK run 38064531605](https://github.com/haohongfei2001-png/paia-ime/actions/runs/38064531605) failed an incorrectly anticipated negative fixture: that specific unprojected RAG-middle case did **not** reproduce the earlier replay failure. The partial-suffix and alternate-choice groups had not run; this is not a 98-case pass. Instead of presuming the failing input, the next checkpoint executes the whole former unprojected algorithm in its own process/user directory with per-case diagnostics. That control must reproduce the specific native replay failure with verified unchanged source (setup failures/crashes do not qualify), followed by all 98 projected cases succeeding in a separate process. The invalid two anticipated negatives are not counted as passing tests. Resource preparation/probe steps move earlier in the same existing job for faster diagnostic feedback; the twelve workflows, runner allocation and existing app/host assertions are unchanged.
+
+## Historical owner API and typed-value checkpoint
+
+The next source checkpoint introduces a separate optional C ABI table in the
+same pinned extension. It keeps the original G01 ABI unchanged. Opaque mixed
+owners hold immutable schema/options, a single active disposable projection,
+and bounded genuine-selection proofs. Projection and proof capabilities use
+process-wide non-reused counters. Chinese proofs can only be issued after
+actual native selection, with exact source coverage, surface and nonempty
+phonetic code. Explicit literals have separate typed provenance.
+
+The full-source replay validates every proof, span, native input and composition
+input before requesting a real commit. It verifies the drained value and an
+empty second drain, then seals the owner against a second commit. Failure before
+success preserves the draft/proofs; Swift publication failure after a sealed
+native result must retire the operation rather than manufacture a second effect.
+This is not yet wired to the Swift input owner or visible IMK controls.
+
+A new native API matrix is configured for 20 full commits: 16 combinations of
+literal and left/right confirmation order, partial raw coverage, foreign/stale
+capabilities, literal-only Unicode, and 128 independently selected suffix proofs.
+It also checks zero-budget rejection and deliberate subsequent success, malformed
+UTF8/embedded NUL rejection, revoked proof and sealed-result replay refusal.
+These new cases have not run until exact-head CI records them.
+
+MixedDraft is a pure typed value with complete original source, a separate
+literal/spelling/verified-surface display, stable span IDs, source-byte and
+host-UTF16 maps, bounded replacement and explicit selected-span reopen.
+Its nine configured tests use simulated proof IDs and are not engine evidence.
+Cross-origin grapheme joins and a caret that would land inside a newly joined
+following grapheme are refused unchanged. Limits are 4096 source bytes,
+256 spans, 16384 display UTF16 units and 65536 display bytes. Linux GNU C11
+syntax checks of the shim pass; Swift/AppKit and the C++ extension still require
+macOS CI. The first strict-C11 Linux attempt lacked POSIX declarations and found
+new misleading indentation; indentation was corrected and GNU C11 used to
+match the existing POSIX source. This was not an engine or macOS execution.
+
+### Exact checkpoint 7277956
+
+All 12 existing workflows succeeded for
+`7277956faa67a0e48bc80fdff179333356f48d05`.
+[IMK run](https://github.com/haohongfei2001-png/paia-ime/actions/runs/38066439154)
+records the native owner implementation's 20 full commits, the previous 98
+scenarios and all nine pure-value tests. The owner probe directly calls the
+native implementation; it does not establish the exported C table, Swift or host
+path. Existing downstream startup/context/basic/repair stages also completed.
+The old matrix's `total_us=110283` excludes the later owner matrix and is not a
+performance percentile. No failures from earlier checkpoints were discarded.
+
+## Historical first Swift and uninstalled IMK integration
+
+The source now routes a complete draft through one InputSession, one SessionCore
+and the existing host effect dispatcher. `sourceText` always carries the entire
+authored source; `rawASCII` remains only the active spelling projection. Ordinary
+engine receive keeps its original ASCII guard. Mixed publication separately
+validates source/display maps and binds every row to owner, span, draft revision,
+projection capability, session, target, input generation and dictionary identity.
+
+A native adopt operation reads existing genuinely selected prefix candidates and
+issues their phonetic proofs without changing the source. The unresolved suffix
+is copied from actual raw input. Swift prepares a full value, then clears the old
+engine composition before making the typed draft authoritative. Unsupported
+preexisting mappings are rejected instead of reconstructing choices from preedit.
+The initial native auto-commit/retention setting is preserved when mixed ends.
+
+The real IMK controller offers bounded native menu actions to enter mixed input,
+choose literal/spelling intent, reopen a confirmed span at its caret endpoint,
+and commit a fully resolved draft. Option-L switches literal intent; in that
+intent letters, digits, punctuation and Space are exact text. Tab selects the
+next unresolved spelling span. Ordinary candidate pages use the existing panel.
+Space selects a candidate, then only commits after all spelling is resolved.
+Return/lifecycle completion emits the entire original source exactly once.
+All text stays marked until one explicit final effect; no implicit learning.
+
+Current configured tests are seven real Swift/ABI-owner tests and four synthetic
+IMK/NSTextView tests, in two separate processes using the existing runtime rule.
+They include ordinary-source and already-confirmed-prefix adoption, partial
+coverage, stale/foreign candidates, reopen preserving another proof, literal
+paths/digits/graphemes, whole-source Return at allowed carets, subsequent normal
+input, target loss and reentrant commit. Four internal validation dependencies
+reject *after actual native success* (project/select/commit/source-clear), checking
+retirement rather than reuse of a consumed native projection or receipt. They
+are not public settings and do not replace engine results with fabricated values.
+
+This checkpoint has not yet passed its own macOS run. It still requires broader
+mode/script matrices, chained edits/long input and final independent review.
+Visible literal input is explicit, not a language detector. No claim is made
+about whole-sentence language ranking across literal boundaries. Default fixture
+bundles without the research extension do not expose this capability, and the
+production-corpus license gate remains separate.
+
+### Broader qualification configured before c715add
+
+The mixed candidate owner now carries a real page/highlight state. Up/Down
+moves the highlighted actual native row across page boundaries, Space selects
+that row, and Shift-Tab walks spelling spans in reverse. Every navigation publish
+still changes input generation, including movement between identical raw spans.
+
+The proposed exact-head gate grows to ten bridge tests and seven host tests. Its
+mode matrix covers all 12 exposed research schemas plus full-Pinyin initials:
+32 fully converted native commits and 32 full-source Return effects. Additional
+cases chain literal combining/emoji edits before 128 distinct suffix proofs,
+exercise non-default candidate navigation and identical-raw reverse span wrap,
+and drive 128 real suffix selections through the same marked NSTextView before
+whole-source Return. Unknown host insertion outcome retains full source and
+issued text without retry. A simulated AppKit presentation test checks that a
+bounded 64-row result cannot be labeled as complete candidate exhaustion. These are configured tests until their own run
+succeeds; no installed input source, OS menu clicking, percentile latency or
+language-quality acceptance follows from them.
+
+The work budget bounds candidate enumeration and replay steps. It does not make
+a C++ engine call safely interruptible. No timeout path abandons a running call,
+unlocks its owner mutex early, or reuses partially mutated state. Installed
+visible latency/energy and full production language quality remain unmeasured.
+
+The existing A1 Address/Undefined sanitizer test also exercises synthetic
+list/selection/import/text output release after runtime closure. Local Linux
+LeakSanitizer could not start under executor ptrace; the same binary passed with
+only leak detection disabled, retaining Address/Undefined checks. This local
+result does not establish leak instrumentation or an engine session. The existing
+macOS sanitizer workflow is unchanged and must run for the final source.
+
+### Exact first integrated checkpoint 0708806
+
+All 12 workflows succeeded for
+`070880643b69c1786dcfbb584c9ac6c026c50ac6`.
+[IMK run](https://github.com/haohongfei2001-png/paia-ime/actions/runs/38067490851)
+records seven real Swift/ABI tests (including all four post-native-success
+rejection points), four real NSTextView/production-action-path tests and the
+complete preexisting regression stages. Source proof import and subsequent
+ordinary input after mixed completion both ran. This checkpoint predates the
+broader local matrix, navigation/footer changes and extra output-lifetime test;
+those still require their own exact-source macOS result.
+
+### Exact broader checkpoint c715add
+
+All 12 workflows succeeded for `c715add1a9676763f88be58ccc8e003a25c3059b`,
+tree `173b07bd341701e6b4eb39d61651e01bef6c6437`.
+[IMK run 38068420577](https://github.com/haohongfei2001-png/paia-ime/actions/runs/38068420577)
+completed every stage, including 10 pure, 10 bridge and seven host-target tests.
+Actual output confirms 32 converted commits and 32 whole-source Returns across
+the 12 research schemas plus full initials, the chained 128-proof bridge case
+and the real 128-selection host suffix. The native 98 scenarios and 20 owner
+commits also passed. [A1 run 38068420612](https://github.com/haohongfei2001-png/paia-ime/actions/runs/38068420612)
+ran the updated synthetic output-free-after-close test with Address/Undefined
+sanitizers. These synthetic allocation checks are not engine execution.
+
+Independent whole-diff source review found no blocking ownership issue. It
+identified that an earlier lifecycle test called Return before finishing an
+already-empty draft. The final increment therefore adds four independent
+**nonempty** cases (finish/deactivate at front/middle), followed by stale-menu
+and duplicate-finish attempts, asserting complete original source and exactly
+one host insert. Source review confirms this closes the coverage gap structurally;
+the configured eight host-target tests still need their own final-head run.

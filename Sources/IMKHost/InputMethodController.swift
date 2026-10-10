@@ -70,6 +70,10 @@ import SessionCore
         status.isEnabled=false;menu.addItem(status)
         let preferences=NSMenuItem(title:"Input settings, terms and expressions…",action:#selector(openPreferences(_:)),keyEquivalent:"")
         preferences.target=self;preferences.isEnabled=InputMethodRuntime.workspace?.isIdle==true;menu.addItem(preferences)
+        for (title,kind) in [("Edit as mixed Chinese and literal composition",MixedActionKind.begin),("Enter exact literal text (Option-L)",.literal),("Resume Pinyin spelling (Option-L)",.spelling),("Reopen confirmed span at caret",.reopen),("Commit fully resolved mixed composition",.commit)] {
+            let action=driver.mixedMenuAction(kind),item=NSMenuItem(title:title,action:#selector(mixedAction(_:)),keyEquivalent:"")
+            item.target=self;item.representedObject=action;item.isEnabled=action != nil;menu.addItem(item)
+        }
         for (title,arm) in [("Retain next composition for segment repair",true),("Commit fully confirmed Chinese",false)] {
             let action=driver.retainedMenuAction(arm:arm),item=NSMenuItem(title:title,action:#selector(retainedAction(_:)),keyEquivalent:"")
             item.target=self;item.representedObject=action;item.isEnabled=action != nil;menu.addItem(item)
@@ -89,6 +93,7 @@ import SessionCore
     @objc private func contextAction(_ item:NSMenuItem){
         guard let action=item.representedObject as? ContextMenuAction else{return};driver.performContextMenuAction(action)
     }
+    @objc private func mixedAction(_ item:NSMenuItem){guard let action=item.representedObject as? MixedMenuAction else{return};driver.performMixedMenuAction(action)}
     @objc private func retainedAction(_ item:NSMenuItem){
         guard let action=item.representedObject as? RetainedMenuAction else{return};driver.performRetainedMenuAction(action)
     }
