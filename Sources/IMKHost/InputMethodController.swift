@@ -32,7 +32,7 @@ import NativeHost
         status.isEnabled=false;menu.addItem(status)
         if driver.recovery?.raw.isEmpty==false {
             let item=NSMenuItem(title:"Inspect retained raw spelling…",action:#selector(inspectRetainedSpelling(_:)),keyEquivalent:"")
-            item.target=self;menu.addItem(item)
+            item.target=self;item.isEnabled=driver.coordinator.session==nil;menu.addItem(item)
         }
         return menu
     }

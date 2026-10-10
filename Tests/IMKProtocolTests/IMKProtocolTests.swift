@@ -178,5 +178,16 @@ final class IMKProtocolTests:XCTestCase {
         XCTAssertTrue(driver.handle(try event("h"),client:client));XCTAssertEqual(shows,validShows);XCTAssertGreaterThan(hides,priorHides)
         XCTAssertNil(driver.coordinator.session);XCTAssertEqual(driver.coordinator.outcome,.ownershipLost)
     }
+    @MainActor func testAutomaticRebindCannotReviveOldEventInNewSameClientActivation()throws {
+        _=NSApplication.shared
+        let client=PAIAIMKTestClient(text:""),bridge=try XCTUnwrap(IMKTextInputBridge(client));weak var target:IMKControllerDriver?;var takeover=false
+        let driver=IMKControllerDriver(makeSession:{try? Self.lab.runtime.makeSession()},hide:{
+            if takeover{takeover=false;client.view.string="new document";client.view.setSelectedRange(NSRange(location:12,length:0));target?.activate(bridge)}
+        },present:{_,_,_ in});target=driver;defer{driver.close()};driver.activate(bridge)
+        XCTAssertFalse(driver.handle(try event(" ",code:49),client:client));client.view.insertText(" ",replacementRange:NSRange(location:NSNotFound,length:0))
+        takeover=true;XCTAssertTrue(driver.handle(try event("n"),client:client))
+        XCTAssertEqual(client.view.string,"new document");XCTAssertEqual(driver.coordinator.snapshot?.rawASCII,"");XCTAssertEqual(client.markCalls,0)
+        XCTAssertTrue(driver.handle(try event("h"),client:client));XCTAssertEqual(driver.coordinator.snapshot?.rawASCII,"h")
+    }
 }
 #endif

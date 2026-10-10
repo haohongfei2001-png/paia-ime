@@ -14,28 +14,35 @@ import SessionCore
     private let hide:()->Void,present:(CandidateSnapshot?,NSRect,String?)->Void
     private var current:AnyObject?,lastRect:NSRect?
     private var generation:UInt64=0
+    private var activationDepth=0
+    public enum ActivationResult {case ready,refused,superseded}
     public init(makeSession:@escaping ()->InputSession?,hide:@escaping ()->Void,present:@escaping (CandidateSnapshot?,NSRect,String?)->Void) {
         self.makeSession=makeSession;self.hide=hide;self.present=present
     }
     private func matches(_ ticket:UInt64,_ owner:IMKSessionCoordinator,_ sender:AnyObject)->Bool {
         generation==ticket && coordinator === owner && current===sender
     }
-    public func activate(_ bridge:IMKClientAccess) {
+    @discardableResult public func activate(_ bridge:IMKClientAccess)->ActivationResult {
+        activationDepth+=1;defer{activationDepth-=1}
         generation &+= 1;let ticket=generation
         coordinator.interrupt("Previous activation ended. No text was replayed or cleared.")
         retainedRecovery=coordinator.recovery ?? retainedRecovery
         let next=IMKSessionCoordinator();coordinator=next;current=nil;lastRect=nil
-        hide();guard generation==ticket,coordinator===next else{return}
-        guard next.activate(bridge,makeSession:makeSession) else{return}
-        guard generation==ticket,coordinator===next else{next.retire();return}
+        hide();guard generation==ticket,coordinator===next else{return .superseded}
+        let accepted=next.activate(bridge,makeSession:makeSession)
+        guard generation==ticket,coordinator===next else{next.retire();return .superseded}
+        guard accepted else{return .refused}
         current=bridge.callbackIdentity
+        return .ready
     }
     public func handle(_ event:NSEvent,client sender:AnyObject)->Bool {
-        guard event.type == .keyDown,current===sender else{return false}
+        guard event.type == .keyDown else{return false}
+        if activationDepth>0{generation &+= 1;coordinator.interrupt("Key event reentered activation. No automatic replay.");return true}
+        guard current===sender else{return false}
         generation &+= 1
         if coordinator.session==nil {
             guard coordinator.outcome == .ready,let bridge=IMKTextInputBridge(sender) else{return true}
-            activate(bridge)
+            switch activate(bridge){case .ready:break;case .refused:return false;case .superseded:return true}
         }
         guard current===sender,coordinator.session != nil else{return false}
         let owner=coordinator,ticket=generation
