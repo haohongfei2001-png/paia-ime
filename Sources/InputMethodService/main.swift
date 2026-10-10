@@ -36,11 +36,15 @@ MainActor.assumeIsolated {
         if preflight{print("IMK_PREFLIGHT_POLICY before=\(before.rawValue) accepted=\(accepted) after=\(after.rawValue)")}
         guard accepted,after == .accessory else{throw EngineError.closed}
         phase="engine-startup"
-        let environment=try IMKServiceEnvironment()
+        let environment=try IMKServiceEnvironment(preflight:preflight)
         defer{InputMethodRuntime.preferences?.close();InputMethodRuntime.preferences=nil;InputMethodRuntime.workspace=nil;environment.close()}
         InputMethodRuntime.workspace=environment.workspace
         InputMethodRuntime.preferences=IMKPreferencesController(workspace:environment.workspace)
         if preflight {
+            if let candidate=environment.candidate {
+                print("IMK_CANDIDATE_STARTUP schemas=32 personal=\(candidate.personalActive) mainAttempts=\(RimeRuntime.startupAttempts) deployments=\(candidate.runtime.deploymentCalls) privateStores=\(environment.productStores?.unavailable.isEmpty==true)")
+                guard candidate.runtime.deploymentCalls==0,RimeRuntime.startupAttempts==1,environment.productStores?.unavailable.isEmpty==true else{throw EngineError.closed}
+            }
             if let resources=environment.publicResources {
                 print("IMK_RESOURCE_STARTUP reason=\(resources.selection.reason.rawValue) generation=\(resources.selection.snapshot.pack.reference.generation) mainAttempts=\(RimeRuntime.startupAttempts) deployments=\(resources.runtime.deploymentCalls)")
                 guard resources.runtime.deploymentCalls==0,RimeRuntime.startupAttempts==1 else{throw EngineError.closed}

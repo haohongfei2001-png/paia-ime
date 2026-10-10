@@ -11,7 +11,12 @@ final class ProductDataTests:XCTestCase {
     func parent()throws->URL {
         let root=FileManager.default.temporaryDirectory.resolvingSymlinksInPath().appendingPathComponent("paia-product-test-"+UUID().uuidString.lowercased())
         try FileManager.default.createDirectory(at:root,withIntermediateDirectories:false,attributes:[.posixPermissions:0o700])
-        addTeardownBlock{try? FileManager.default.removeItem(at:root)};return root
+        addTeardownBlock{try? FileManager.default.removeItem(at:root)}
+        // Darwin's physical spelling, not Foundation's /private path aliases.
+        guard let physical=realpath(root.path,nil) else{throw ResourceError.io};defer{free(physical)}
+        let result=URL(fileURLWithPath:String(cString:physical),isDirectory:true)
+        print("PRODUCT_TEST_PARENT physical=\(result.path) standardized=\(result.standardizedFileURL.path)")
+        return result
     }
     func settings(_ root:ProductDataRoot)throws->SettingsStore {
         let slot=try root.slot(.settings)

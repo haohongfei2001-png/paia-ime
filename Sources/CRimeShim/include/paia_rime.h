@@ -24,6 +24,9 @@ int paia_rime_open(const char *library, const char *shared, const char *isolated
 // and named deploy is disabled for the lifetime of this runtime.
 int paia_rime_open_precompiled(const char *library, const char *shared, const char *isolated_user);
 uint64_t paia_rime_deployment_calls(void);
+// Independent actual loaded-table capabilities: bit 0 G01, bit 1 mixed owner.
+unsigned paia_rime_extension_capabilities(void);
+int paia_rime_mixed_api_compatible(const void *table);
 void paia_rime_close(void);
 uint64_t paia_rime_start_session(void);
 void paia_rime_end_session(uint64_t session);

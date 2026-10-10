@@ -12,7 +12,7 @@ let package = Package(name: "PAIAIME", platforms: [.macOS(.v13)], products: [
     .target(name: "CIMKContext", publicHeadersPath:"include",cSettings:[.unsafeFlags(["-fobjc-arc","-Werror=protocol","-Werror=mismatched-return-types"])]),
     .target(name: "LexiconCore"),
     .target(name: "ResourceCore"),
-    .executableTarget(name:"ResourceTool",dependencies:["ResourceCore","EngineBridge"]),
+    .executableTarget(name:"ResourceTool",dependencies:["ResourceCore","EngineBridge","LexiconCore"]),
     .testTarget(name:"ResourceCoreTests",dependencies:["ResourceCore"]),
     .testTarget(name:"ProductCoreTests",dependencies:["ResourceCore","SettingsCore","LexiconCore","ExpressionCore"]),
     .testTarget(name:"ResourceIMKTests",dependencies:["ResourceCore","IMKHost","IMKTestClient","EngineBridge","LexiconCore","SessionCore"]),

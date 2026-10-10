@@ -11,23 +11,49 @@ import ResourceCore
     public let runtime:RimeRuntime,workspace:IMKWorkspace
     public let personal:PersonalLabEnvironment?
     public let publicResources:PublicResourceEnvironment?
+    public let candidate:CandidateEnvironment?
+    public let productStores:ProductStores?
     public let makeSession:(LabConfiguration)throws->InputSession
-    public init(environment:[String:String]=ProcessInfo.processInfo.environment)throws {
+    public init(environment:[String:String]=ProcessInfo.processInfo.environment,preflight:Bool=false,isolatedDataParent:URL?=nil,applicationBundle:Bundle = .main)throws {
         let factory:(LabConfiguration)throws->InputSession,description:String,supportsPolicies:Bool
-        let bundle=Bundle.main.resourceURL,bundledPack=bundle?.appendingPathComponent("DictionaryFixturePack")
+        let bundle=applicationBundle.resourceURL,bundledPack=bundle?.appendingPathComponent("DictionaryFixturePack")
         let explicitStore=environment["PAIA_RESOURCE_ROOT"]
         // The service's resource contract is chosen by its application metadata,
         // never by a resource file's current existence. Missing packs fail closed.
-        let useBundled=environment["PAIA_FIXTURE_DIR"]==nil && (Bundle.main.bundleIdentifier=="dev.paia.ime.integration" || Bundle.main.object(forInfoDictionaryKey:"PAIAResourceGeneration") != nil)
+        let useBundled=environment["PAIA_FIXTURE_DIR"]==nil && (applicationBundle.bundleIdentifier=="dev.paia.ime.integration" || applicationBundle.object(forInfoDictionaryKey:"PAIAResourceGeneration") != nil)
+        if applicationBundle.object(forInfoDictionaryKey:"PAIACandidateProfile") != nil {
+            guard applicationBundle.object(forInfoDictionaryKey:"PAIACandidateProfile") as? String==CandidateContract.profile,
+                  !environment.keys.contains(where:{$0.hasPrefix("PAIA_") && $0 != "PAIA_SOURCE_SHA"}),
+                  let resources=bundle,let executable=applicationBundle.executableURL,
+                  let generation=applicationBundle.object(forInfoDictionaryKey:"PAIACandidateGeneration") as? String,
+                  let digest=applicationBundle.object(forInfoDictionaryKey:"PAIACandidateManifestSHA") as? String,
+                  let bridgeSHA=applicationBundle.object(forInfoDictionaryKey:"PAIACandidateExtensionSHA") as? String,
+                  let helperSHA=applicationBundle.object(forInfoDictionaryKey:"PAIAResourceHelperSHA") as? String else{throw ResourceError.incompatible}
+            let stores:ProductStores
+            if preflight {stores=try ProductStores.preflight(parent:isolatedDataParent)}
+            else {
+                guard isolatedDataParent==nil else{throw ResourceError.incompatible}
+                stores=ProductStores(parent:FileManager.default.urls(for:.applicationSupportDirectory,in:.userDomainMask).first)
+            }
+            do {
+                let components=try CandidateComponents(library:resources.appendingPathComponent("Engine/librime.1.dylib"),extensionLibrary:resources.appendingPathComponent("Engine/paia-g01.dylib"),helper:executable.deletingLastPathComponent().appendingPathComponent("paia-resources"),extensionSHA:bridgeSHA,helperSHA:helperSHA)
+                let selected=try CandidateEnvironment(pack:resources.appendingPathComponent("CandidatePack"),reference:ResourceReference(generation:generation,manifestSHA:digest),components:components,personalStore:stores.personal)
+                candidate=selected;productStores=stores;personal=nil;publicResources=nil;runtime=selected.runtime
+                factory={try selected.makeSession(configuration:$0)};makeSession=factory
+                workspace=IMKWorkspace(settingsStore:stores.settings,personalStore:stores.personal,expressionStore:stores.expressions,resourceDescription:selected.status+" "+stores.status,supportsSpellingPolicies:true,makeSession:factory,disablePersonal:{selected.disableOverlayUntilRestart()})
+                return
+            } catch {stores.close();throw error}
+        }
+        candidate=nil;productStores=nil
         if explicitStore != nil || useBundled {
             supportsPolicies=false
             guard environment["PAIA_IMK_RESEARCH"] != "1",environment["PAIA_B1_RESEARCH"] != "1",environment["PAIA_B2_RESEARCH"] != "1",
                   explicitStore == nil || !explicitStore!.isEmpty,
                   let library=environment["PAIA_RIME_LIBRARY"] ?? bundle?.appendingPathComponent("Engine/librime.1.16.0.dylib").path,
-                  let helper=environment["PAIA_RESOURCE_HELPER"] ?? Bundle.main.executableURL?.deletingLastPathComponent().appendingPathComponent("paia-resources").path,
-                  let helperSHA=environment["PAIA_RESOURCE_HELPER_SHA"] ?? Bundle.main.object(forInfoDictionaryKey:"PAIAResourceHelperSHA") as? String else{throw ResourceError.incompatible}
-            let generation=Bundle.main.object(forInfoDictionaryKey:"PAIAResourceGeneration") as? String
-            let digest=Bundle.main.object(forInfoDictionaryKey:"PAIAResourceManifestSHA") as? String
+                  let helper=environment["PAIA_RESOURCE_HELPER"] ?? applicationBundle.executableURL?.deletingLastPathComponent().appendingPathComponent("paia-resources").path,
+                  let helperSHA=environment["PAIA_RESOURCE_HELPER_SHA"] ?? applicationBundle.object(forInfoDictionaryKey:"PAIAResourceHelperSHA") as? String else{throw ResourceError.incompatible}
+            let generation=applicationBundle.object(forInfoDictionaryKey:"PAIAResourceGeneration") as? String
+            let digest=applicationBundle.object(forInfoDictionaryKey:"PAIAResourceManifestSHA") as? String
             let reference=(generation != nil && digest != nil) ? ResourceReference(generation:generation!,manifestSHA:digest!):nil
             let selected=try PublicResourceEnvironment(store:explicitStore.map{URL(fileURLWithPath:$0)},bundle:bundledPack,bundleReference:reference,
                 library:URL(fileURLWithPath:library),helper:URL(fileURLWithPath:helper),helperSHA:helperSHA)
@@ -68,6 +94,6 @@ import ResourceCore
         let personal=personal
         workspace=IMKWorkspace(settingsStore:settings,personalStore:personal?.store,expressionStore:expressions,resourceDescription:description,supportsSpellingPolicies:supportsPolicies,makeSession:factory,disablePersonal:{personal?.disableOverlayUntilRestart()})
     }
-    public func close(){workspace.close();_ = runtime.close()}
+    public func close(){workspace.close();_ = runtime.close();productStores?.close()}
 }
 #endif

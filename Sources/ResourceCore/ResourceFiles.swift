@@ -18,7 +18,7 @@ public final class ResourceDirectory {
     // Internal descriptor handoff from a verified ancestor walk. Do not reopen
     // the URL and lose protection against replacement of an intermediate parent.
     init(duplicating descriptor:Int32,url:URL)throws {
-        let selected=url.standardizedFileURL,handle=fcntl(descriptor,F_DUPFD_CLOEXEC,0)
+        let selected=url,handle=fcntl(descriptor,F_DUPFD_CLOEXEC,0)
         guard handle>=0 else{throw ResourceError.io}
         var owned=stat(),linked=stat()
         guard fstat(handle,&owned)==0,lstat(selected.path,&linked)==0,
@@ -91,9 +91,9 @@ public final class ResourceDirectory {
     public func createDirectory(_ name:String)throws->ResourceDirectory {
         try Self.name(name);try check();guard mkdirat(fd,name,0o700)==0 else{throw ResourceError.io};return try child(name)
     }
-    public func writeExclusive(_ name:String,_ data:Data)throws {
+    public func writeExclusive(_ name:String,_ data:Data,maximum:Int=ResourceContract.maximumFile,executable:Bool=false)throws {
         try Self.name(name);try check()
-        guard data.count<=ResourceContract.maximumFile else{throw ResourceError.limit}
+        guard maximum>0,maximum<=128*1024*1024,data.count<=maximum else{throw ResourceError.limit}
         let file=openat(fd,name,O_WRONLY|O_CREAT|O_EXCL|O_NOFOLLOW|O_CLOEXEC,0o600)
         guard file>=0 else{throw ResourceError.io};defer{Darwin.close(file)}
         try data.withUnsafeBytes{bytes in
@@ -103,6 +103,7 @@ public final class ResourceDirectory {
                 if count<0{if errno==EINTR{continue};throw ResourceError.io};guard count>0 else{throw ResourceError.io};offset+=count
             }
         }
+        if executable {guard fchmod(file,0o700)==0 else{throw ResourceError.io}}
         guard fcntl(file,F_FULLFSYNC)==0 else{throw ResourceError.io};try check()
     }
     public func sync()throws {try check();guard fsync(fd)==0 else{throw ResourceError.durabilityUnknown}}

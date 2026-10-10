@@ -14,7 +14,7 @@ public final class ProductDataRoot {
     private struct Ancestor {let url:URL,fd:Int32,device:dev_t,inode:ino_t}
     private var ancestors=[Ancestor](),owner:ResourceDirectory?,writer:Int32 = -1,closed=false,layout=Data()
     public init(parent:URL,create:Bool,fault:ProductDataTestFault?=nil)throws {
-        directory=parent.standardizedFileURL.appendingPathComponent(Self.leaf,isDirectory:true)
+        directory=parent.appendingPathComponent(Self.leaf,isDirectory:true)
         do {
             try openParents(parent)
             guard let verifiedParent=ancestors.last else{throw ResourceError.unsafePath}
@@ -60,7 +60,10 @@ public final class ProductDataRoot {
     }
     deinit{close()}
     private func openParents(_ parent:URL)throws {
-        guard parent.isFileURL,parent.path==parent.standardizedFileURL.path,!parent.path.utf8.contains(0) else{throw ResourceError.unsafePath}
+        // Foundation standardization may shorten /private/var to the /var
+        // symlink on macOS. Preserve the caller's physical spelling; validate
+        // every component below with O_NOFOLLOW instead of normalizing it.
+        guard parent.isFileURL,!parent.path.utf8.contains(0) else{throw ResourceError.unsafePath}
         let components=parent.pathComponents;guard components.first=="/",components.count<=64 else{throw ResourceError.unsafePath}
         var path=URL(fileURLWithPath:"/",isDirectory:true),handle=Darwin.open("/",O_RDONLY|O_DIRECTORY|O_NOFOLLOW|O_CLOEXEC)
         guard handle>=0 else{throw ResourceError.unsafePath}

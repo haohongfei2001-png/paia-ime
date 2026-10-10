@@ -4,7 +4,7 @@ cd "$(dirname "$0")/.."
 source .build/a1-env.sh
 swift build -c release --product PAIAInputMethod
 swift build -c release --product paia-resources
-app=.build/PAIAInputMethod.app
+app=.build/PAIAInputMethodFixture.app
 pack="$app/Contents/Resources/DictionaryFixturePack"
 if test -e "$pack"; then echo "Resource bundle already exists; use a fresh build directory." >&2; exit 1; fi
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources/Engine" "$app/Contents/Resources/Dictionaries"
@@ -37,3 +37,4 @@ PY
 # Never copy into Input Methods directories, invoke TIS/LaunchServices, sign, or
 # alter system settings. The default service entry is NOT run by this build script.
 echo "$app"
+bash Tools/build-candidate.sh

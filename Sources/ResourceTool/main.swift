@@ -2,6 +2,7 @@ import Foundation
 import Darwin
 import ResourceCore
 import EngineBridge
+import LexiconCore
 
 // Offline, fixed authored data only. No network, user/profile discovery, scripts,
 // package import, signatures, registration, or active-engine hot replacement.
@@ -30,6 +31,28 @@ func compile(output:URL,preset:ResourcePreset,library:URL)throws->ResourceRefere
 do {
     let args=Array(CommandLine.arguments.dropFirst())
     switch args.first {
+    case "candidate-compile":
+        guard args.count==5 else{throw ResourceError.format}
+        try emit(CandidateCompiler.compile(sources:URL(fileURLWithPath:args[1]),inputsSHA:args[2],output:URL(fileURLWithPath:args[3]),library:URL(fileURLWithPath:args[4])))
+    case "candidate-personal":
+        guard args.count==7 else{throw ResourceError.format}
+        let base=try VerifiedCandidatePack(directory:ResourceDirectory(URL(fileURLWithPath:args[1])),expected:ResourceReference(generation:args[2],manifestSHA:args[3]))
+        let file=URL(fileURLWithPath:args[4]),bytes=try ResourceDirectory(file.deletingLastPathComponent()).read(file.lastPathComponent,maximum:LexiconRules.maximumBytes)
+        let document=try LexiconCodec.decode(bytes)
+        try emit(CandidateCompiler.compilePersonal(base:base,document:document,output:URL(fileURLWithPath:args[5]),library:URL(fileURLWithPath:args[6])))
+    case "candidate-probe":
+        guard args.count==8 || args.count==9 else{throw ResourceError.format}
+        let directory=try ResourceDirectory(URL(fileURLWithPath:args[1])),expected=ResourceReference(generation:args[2],manifestSHA:args[3])
+        let manifest=try ResourceContract.decode(CandidateManifest.self,directory.read("manifest.json",maximum:ResourceContract.maximumJSON))
+        let pack=try VerifiedCandidatePack(directory:directory,expected:expected,personal:manifest.personal)
+        let snapshot=try CandidateResourceSnapshot(pack);defer{snapshot.close()}
+        let components=try CandidateComponents(library:URL(fileURLWithPath:args[4]),extensionLibrary:URL(fileURLWithPath:args[5]),helper:URL(fileURLWithPath:CommandLine.arguments[0]),extensionSHA:args[6],helperSHA:args[7]);defer{components.close()}
+        var document:LexiconDocument?
+        if args.count==9 {
+            let file=URL(fileURLWithPath:args[8])
+            document=try LexiconCodec.decode(ResourceDirectory(file.deletingLastPathComponent()).read(file.lastPathComponent,maximum:LexiconRules.maximumBytes))
+        }
+        try emit(CandidateNativeProbe.exercise(snapshot,components:components,document:document))
     case "compile":
         guard args.count==4,let preset=ResourcePreset(rawValue:args[2]) else{throw ResourceError.format}
         try emit(compile(output:URL(fileURLWithPath:args[1]),preset:preset,library:URL(fileURLWithPath:args[3])))
