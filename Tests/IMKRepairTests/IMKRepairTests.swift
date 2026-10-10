@@ -104,14 +104,25 @@ final class IMKRepairTests:XCTestCase {
     }
     @MainActor func testOneArmRetiresAfterReturnEscapeCommitAndModifierFinish()throws {
         _=NSApplication.shared
-        for ending in 0..<4 {
+        for ending in 0..<7 {
             let r=try Rig();defer{r.close()};try arm(r);try type("nihao",r);try confirm(["你好"],r)
             let old=try XCTUnwrap(r.driver.coordinator.session)
             if ending==0{try key(r,"\r",36);XCTAssertEqual(r.client.view.string,"existing👩🏽‍💻nihao")}
             if ending==1{try key(r,"",53);XCTAssertEqual(r.client.view.string,"existing👩🏽‍💻")}
             if ending==2{try commit("你好",r)}
             if ending==3{XCTAssertFalse(r.driver.handle(try event("c",modifiers:[.command]),client:r.client));XCTAssertEqual(r.client.view.string,"existing👩🏽‍💻nihao")}
+            if ending==4{r.driver.finish(client:r.client);XCTAssertEqual(r.client.view.string,"existing👩🏽‍💻nihao")}
+            if ending==5{r.driver.deactivate(client:r.client);XCTAssertEqual(r.client.view.string,"existing👩🏽‍💻nihao")}
+            if ending==6 {
+                let before=r.client.view.string,marks=r.client.markCalls;r.driver.close()
+                XCTAssertEqual(r.client.view.string,before);XCTAssertEqual(r.client.markCalls,marks);XCTAssertEqual(r.client.insertCalls,0)
+                XCTAssertThrowsError(try old.refresh());let next=PAIAIMKTestClient(text:"")
+                XCTAssertEqual(r.driver.activate(try XCTUnwrap(IMKTextInputBridge(next))),.ready);XCTAssertFalse(r.driver.coordinator.session!.isRetainedComposition)
+                for c in "nihao"{XCTAssertTrue(r.driver.handle(try event(String(c)),client:next))}
+                XCTAssertTrue(r.driver.handle(try event(" ",code:49),client:next));XCTAssertEqual(next.view.string,"你好");XCTAssertEqual(next.insertCalls,1);continue
+            }
             XCTAssertThrowsError(try old.refresh());XCTAssertNil(r.driver.coordinator.session)
+            if ending==5{XCTAssertEqual(r.driver.activate(try XCTUnwrap(IMKTextInputBridge(r.client))),.ready)}
             let previous=r.client.insertCalls;try type("nihao",r);XCTAssertFalse(r.driver.coordinator.session!.isRetainedComposition)
             try key(r," ",49);XCTAssertEqual(r.client.insertCalls,previous+1)
         }
@@ -180,15 +191,17 @@ final class IMKRepairTests:XCTestCase {
         let app=NSApplication.shared;_ = app.setActivationPolicy(.accessory);let panel=SegmentRepairPanel(),screen=try XCTUnwrap(NSScreen.main).visibleFrame
         let r=try Rig(hide:{panel.orderOut(nil)},present:{state,rect in panel.show(state,below:rect,screen:screen)});defer{r.close();panel.orderOut(nil)}
         let window=NSWindow(contentRect:NSRect(x:40,y:60,width:640,height:240),styleMask:[.titled],backing:.buffered,defer:false);window.isReleasedWhenClosed=false;window.contentView=r.client.view;window.makeKeyAndOrderFront(nil);window.makeFirstResponder(r.client.view);defer{window.close()}
-        try arm(r);let tail=String(repeating:"世界",count:128)+"你"
-        try type("nihao"+String(repeating:"shijie",count:128)+"ni",r);try confirm(["你好"]+Array(repeating:"世界",count:128)+["你"],r);_ = try target(0,r)
+        try arm(r);let tail=String(repeating:"世界",count:200)+"你"
+        try type("nihao"+String(repeating:"shijie",count:200)+"ni",r);try confirm(["你好"]+Array(repeating:"世界",count:200)+["你"],r);_ = try target(0,r)
         let state=try review("拟好",r);panel.displayIfNeeded()
         XCTAssertTrue(panel.isVisible);XCTAssertFalse(panel.canBecomeKey);XCTAssertFalse(panel.isKeyWindow);XCTAssertTrue(window.firstResponder===r.client.view)
         XCTAssertEqual(panel.displayedOriginal,"你好"+tail);XCTAssertEqual(panel.displayedPreview,"拟好"+tail);XCTAssertTrue(panel.textView.string.hasSuffix("拟好"+tail))
         let view=try XCTUnwrap(panel.contentView)
         func capture(_ key:String)throws {let bitmap=try XCTUnwrap(view.bitmapImageRepForCachingDisplay(in:view.bounds));view.cacheDisplay(in:view.bounds,to:bitmap);if let path=ProcessInfo.processInfo.environment[key]{try XCTUnwrap(bitmap.representation(using:.png,properties:[:])).write(to:URL(fileURLWithPath:path),options:.atomic)}}
         try capture("PAIA_REPAIR_CAPTURE")
+        XCTAssertGreaterThan(panel.textView.bounds.height,panel.scroll.contentSize.height)
         for _ in 0..<30{panel.scrollReview(1,token:state.token)}
+        XCTAssertGreaterThan(panel.scroll.contentView.bounds.minY,0)
         let manager=try XCTUnwrap(panel.textView.layoutManager),container=try XCTUnwrap(panel.textView.textContainer)
         XCTAssertEqual(NSMaxRange(manager.glyphRange(forBoundingRect:panel.textView.visibleRect,in:container)),manager.numberOfGlyphs)
         try capture("PAIA_REPAIR_CAPTURE_TAIL")
