@@ -1,11 +1,15 @@
 #if os(macOS)
 import AppKit
 import EngineBridge
+import SessionCore
 @MainActor public final class LabTextView: NSTextView {
     public var dispatcher: HostDispatcher?
     public var literalMode=false
     public var willEdit:(()->Void)?
     public var didChangeState:(()->Void)?
+    public var didRefuseInput:((InputRefusal)->Void)?
+    public private(set) var lastInputRefusal:InputRefusal?
+    private func refuse(_ reason:InputRefusal){lastInputRefusal=reason;didRefuseInput?(reason)}
     public let candidates=CandidatePanel()
     public var makeSession:(()->HostDispatcher?)?
     public func renew() {
@@ -21,6 +25,8 @@ import EngineBridge
     public override func mouseDown(with event:NSEvent) {cancelCompositionForHostEdit();super.mouseDown(with:event);didChangeState?()}
     public override func keyDown(with event:NSEvent) {
         willEdit?()
+        guard window==nil || window?.firstResponder===self else{return}
+        lastInputRefusal=nil
         if literalMode {dispatcher?.invalidate();candidates.orderOut(nil);super.keyDown(with:event);didChangeState?();return}
         defer{didChangeState?()}
         if dispatcher?.isCurrentTarget != true {renew()}
@@ -45,14 +51,28 @@ import EngineBridge
         case 121:key = .code(0xff56)
         case 48:key = .code(0xff09,modifiers:event.modifierFlags.contains(.shift) ? 1 : 0)
         default:
-            guard let chars=event.characters,chars.unicodeScalars.count==1,let scalar=chars.unicodeScalars.first else {super.keyDown(with:event);return}
-            if (48...57).contains(scalar.value) {key = .number(Int(scalar.value-48))}
-            else {key = .code(Int32(scalar.value))}
+            key = .text(event.characters ?? "")
         }
         do {
+            // The minimal A1 factory may return a fresh, uninitialized session.
+            // Establish its real idle snapshot before requiring a successful apply.
+            if dispatcher.session.snapshot==nil {
+                guard dispatcher.apply(try dispatcher.session.refresh()) else{return}
+            }
             let update=try dispatcher.session.process(key)
-            _=dispatcher.apply(update);renderCandidates()
-            if !update.handled {super.keyDown(with:event)}
+            // Refusal is an exact no-op: even applying its unchanged snapshot would
+            // rewrite marked text and invite synchronous host callbacks.
+            if let reason=update.refusal{refuse(reason);return}
+            guard dispatcher.apply(update) else{candidates.orderOut(nil);return}
+            renderCandidates()
+            if !update.handled {
+                guard self.dispatcher===dispatcher,dispatcher.isCurrentTarget else{return}
+                let snapshot=dispatcher.session.snapshot
+                guard !hasMarkedText(),snapshot?.rawASCII.isEmpty != false,snapshot?.preedit.isEmpty != false else{
+                    refuse(.unhandledControlDuringComposition);return
+                }
+                super.keyDown(with:event)
+            }
         } catch {
             candidates.orderOut(nil);dispatcher.invalidate();NSSound.beep()
         }

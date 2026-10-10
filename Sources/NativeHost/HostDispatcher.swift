@@ -6,7 +6,7 @@ import SessionCore
 @MainActor public final class HostDispatcher {
     public let session: InputSession
     private weak var client: NSTextView?
-    private var active=true
+    private var active=true,applying=false
     private var observers:[NSObjectProtocol]=[]
     private var expectedText:String
     private var expectedSelection:NSRange
@@ -71,25 +71,42 @@ import SessionCore
     }
     deinit {for token in observers {NotificationCenter.default.removeObserver(token)}}
     @discardableResult public func apply(_ update: SessionUpdate) -> Bool {
-        guard inspector==nil else{return false}
+        guard !applying,inspector==nil,update.refusal==nil else{return false}
         guard isCurrentTarget else {invalidate();return false}
         guard active, let client=client, let s=update.snapshot, s.session==session.key,
               let current=session.snapshot, s.targetEpoch==current.targetEpoch,
               s.inputGeneration==current.inputGeneration else {return false}
+        applying=true;defer{applying=false}
+        let originalWindow=client.window
+        func stillOwned()->Bool {
+            guard active,inspector==nil,self.client===client,client.window===originalWindow,
+                  let now=session.snapshot,now.session==s.session,now.targetEpoch==s.targetEpoch,
+                  now.inputGeneration==s.inputGeneration else{return false}
+            return originalWindow==nil || originalWindow?.firstResponder===client
+        }
+        func abandon()->Bool {
+            // Do not touch a host again after losing ownership inside a native call.
+            // An already reserved insertion is not replayable, even if its outcome is uncertain.
+            active=false;inspector=nil;session.end();return false
+        }
         if let effect=update.commit {
             guard session.reserve(effect) else {return false}
             // Reservation precedes the only insertText call. No retry even if a real host's outcome is uncertain.
             client.insertText(effect.text,replacementRange:NSRange(location:NSNotFound,length:0))
             insertCount += 1
+            guard stillOwned() else{return abandon()}
         }
         if s.preedit.isEmpty {
             if client.hasMarkedText() {
                 client.setMarkedText("",selectedRange:NSRange(location:0,length:0),replacementRange:NSRange(location:NSNotFound,length:0))
+                guard stillOwned() else{return abandon()}
                 client.unmarkText()
+                guard stillOwned() else{return abandon()}
             }
         } else {
             client.setMarkedText(s.preedit,selectedRange:s.selectedRangeUTF16,replacementRange:NSRange(location:NSNotFound,length:0))
         }
+        guard stillOwned() else{return abandon()}
         expectedText=client.string;expectedSelection=client.selectedRange();expectedMarked=client.markedRange()
         return true
     }

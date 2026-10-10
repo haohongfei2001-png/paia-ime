@@ -50,7 +50,7 @@ public struct EngineTiming {
     public let engineNanoseconds:UInt64, copyNanoseconds:UInt64
 }
 public enum InputKey {
-    case code(Int32, modifiers: Int32 = 0), returnKey, space, number(Int), escape, command
+    case text(String), code(Int32, modifiers: Int32 = 0), returnKey, space, number(Int), escape, command
 }
 public final class InputSession {
     private let runtime: RimeRuntime
@@ -174,9 +174,20 @@ public final class InputSession {
     public func process(_ key: InputKey) throws -> SessionUpdate {
         lock.lock(); defer {lock.unlock()}
         guard !ended, core.active else { throw EngineError.closed }
+        try core.ensureReady()
         let composing=core.isComposing
         func passthrough() -> SessionUpdate { SessionUpdate(handled:false,snapshot:core.snapshot) }
+        func refuse(_ reason:InputRefusal)->SessionUpdate {SessionUpdate(handled:true,snapshot:core.snapshot,refusal:reason)}
         switch key {
+        case .text(let text):
+            // Ordinary Unicode text is never interpreted as a Rime/X11 control keysym.
+            var scalars=text.unicodeScalars.makeIterator()
+            guard let scalar=scalars.next(),scalars.next()==nil,(32...126).contains(scalar.value) else {
+                return composing ? refuse(.unsupportedTextDuringComposition):passthrough()
+            }
+            if scalar.value==32{return try process(.space)}
+            if (48...57).contains(scalar.value){return try process(.number(Int(scalar.value-48)))}
+            return try process(.code(Int32(scalar.value)))
         case .command: return passthrough()
         case .returnKey:
             guard composing else {return passthrough()}
@@ -191,6 +202,16 @@ public final class InputSession {
             guard let s=core.snapshot, (1...5).contains(number), s.rows.indices.contains(number-1) else {return SessionUpdate(handled:true,snapshot:core.snapshot)}
             return try select(s.rows[number-1].ref)
         case .code(let code, let modifiers):
+            if composing {
+                let controls:Set<Int32>=[0xff08,0xffff,0xff51,0xff53,0xff54,0xff52,0xff50,0xff57,0xff55,0xff56,0xff09]
+                if !(32...126).contains(code) && !controls.contains(code){return refuse(.unsupportedTextDuringComposition)}
+                if let snapshot=core.snapshot,snapshot.caretUTF8<snapshot.rawASCII.utf8.count,
+                   (32...126).contains(code),!(97...122).contains(code),!(48...57).contains(code),code != 39 {
+                    // Includes caret zero, punctuation and uppercase; apostrophe is the
+                    // pinned schema's explicit spelling delimiter. No engine mutation.
+                    return refuse(.textBeforeRawSuffix)
+                }
+            }
             // Non-text keys belong to the host when idle. Command/Option are handled by the host adapter.
             if !composing && !(97...122).contains(code) && !(chinesePunctuation && [44,63,33,59].contains(code)) {return passthrough()}
             if composing && (core.snapshot?.rawASCII.utf8.count ?? 0)>=4096 && ((97...122).contains(code) || code==39) {

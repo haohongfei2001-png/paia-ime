@@ -41,10 +41,14 @@ public struct CommitEffect {
     // A1 only changes the synthetic client's own marked range; no surrounding-text replacement.
     public var replacementUTF16: NSRange? { nil }
 }
+public enum InputRefusal:Equatable {
+    case unsupportedTextDuringComposition, textBeforeRawSuffix, unhandledControlDuringComposition
+}
 public struct SessionUpdate {
     public let handled: Bool, snapshot: CandidateSnapshot?, commit: CommitEffect?
-    public init(handled: Bool, snapshot: CandidateSnapshot?, commit: CommitEffect? = nil) {
-        self.handled=handled; self.snapshot=snapshot; self.commit=commit
+    public let refusal:InputRefusal?
+    public init(handled: Bool, snapshot: CandidateSnapshot?, commit: CommitEffect? = nil,refusal:InputRefusal? = nil) {
+        self.handled=handled; self.snapshot=snapshot; self.commit=commit;self.refusal=refusal
     }
 }
 public enum SessionError: Error { case inactive, staleCandidate, pendingCommit, invalidEngineValue, staleExplicitAction }
