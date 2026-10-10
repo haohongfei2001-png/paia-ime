@@ -26,8 +26,9 @@ final class IMKBasicTests:XCTestCase {
         _=NSApplication.shared
         if NSApp.activationPolicy() != .accessory{_ = NSApp.setActivationPolicy(.accessory)}
         variables["PAIA_IMK_RESEARCH"]="1";variables["PAIA_B3_SETTINGS"]="0"
-        if stage=="controls" {
-            let seed=try LexiconStore(directory:URL(fileURLWithPath:personalPath));defer{seed.close()}
+        if stage.hasPrefix("authority_"){variables["PAIA_B2_STORE"]=personalPath+"-"+stage}
+        if stage=="controls" || stage.hasPrefix("authority_") {
+            let seed=try LexiconStore(directory:URL(fileURLWithPath:variables["PAIA_B2_STORE"]!));defer{seed.close()}
             _ = try seed.add(surface:"原生显式甲",reading:"yuan sheng xian shi jia",pin:true,expectedRevision:0)
         }
         let environment=try IMKServiceEnvironment(environment:variables);defer{environment.close()}
@@ -119,6 +120,16 @@ final class IMKBasicTests:XCTestCase {
             XCTAssertThrowsError(try terms.writeSelectedExport(directory.appendingPathComponent("blocked-export.json")))
             XCTAssertTrue(other.handle(try key("\u{1b}",code:53),client:b));send(apply);XCTAssertEqual(try authority.snapshot().revision,prior+1)
             send(apply);XCTAssertEqual(try authority.snapshot().revision,prior+1)
+            // Edit/pin/delete/tombstone-restore use the same guarded manager.
+            let row=try XCTUnwrap(terms.rows.arrangedSubviews.first as? NSButton);send(row)
+            terms.pin.state = .on;let edit=try XCTUnwrap(terms.actions.arrangedSubviews.first as? NSButton);send(edit)
+            let edited=try authority.snapshot();XCTAssertTrue(edited.terms[0].explicitPin)
+            send(try XCTUnwrap(terms.rows.arrangedSubviews.first as? NSButton))
+            let remove=try XCTUnwrap(terms.actions.arrangedSubviews.last as? NSButton);send(remove)
+            XCTAssertTrue(try authority.snapshot().terms[0].isDeleted)
+            send(try XCTUnwrap(terms.rows.arrangedSubviews.first as? NSButton));send(try XCTUnwrap(terms.actions.arrangedSubviews.last as? NSButton))
+            XCTAssertFalse(try authority.snapshot().terms[0].isDeleted)
+            let restoredRevision=try authority.snapshot().revision;send(remove);send(edit);XCTAssertEqual(try authority.snapshot().revision,restoredRevision)
             // A retained framework controller that has closed is no longer a management owner.
             let closed=workspace.makeDriver(hide:{},present:{_,_,_ in}),c=PAIAIMKTestClient(text:"")
             try activate(closed,c);closed.close();XCTAssertTrue(workspace.isIdle);try preferences.applyConfiguration(original)
@@ -144,6 +155,20 @@ final class IMKBasicTests:XCTestCase {
         } else if stage=="restore_failed" {
             XCTAssertEqual(workspace.configuration,LabConfiguration());XCTAssertTrue(preferences.settings.status.stringValue.contains("Saved mode unavailable"))
             try activate(driver,a);try type("nihao",driver,a);XCTAssertTrue(driver.handle(try key(" ",code:49),client:a));XCTAssertEqual(a.view.string,"你好");XCTAssertEqual(try Data(contentsOf:file),before)
+        } else if stage=="authority_oversized" {
+            let personal=try XCTUnwrap(environment.personal);XCTAssertFalse(personal.pendingRestart)
+            preferences.show();preferences.openTerms(nil);let manager=try XCTUnwrap(preferences.terms)
+            try activate(driver,a);let old=try XCTUnwrap(driver.coordinator.session)
+            try Data(repeating:32,count:LexiconRules.maximumBytes+1).write(to:URL(fileURLWithPath:variables["PAIA_B2_STORE"]!).appendingPathComponent("lexicon.json"))
+            manager.surface.stringValue="拒绝过大权威";manager.reading.stringValue="ju jue guo da quan wei";send(manager.addButton)
+            XCTAssertTrue(personal.pendingRestart);XCTAssertThrowsError(try old.refresh());XCTAssertTrue(manager.status.stringValue.contains("authority unavailable"))
+        } else if stage=="authority_changed" {
+            let personal=try XCTUnwrap(environment.personal);XCTAssertFalse(personal.pendingRestart)
+            try activate(driver,a);let old=try XCTUnwrap(driver.coordinator.session)
+            try Data("authored corrupt authority".utf8).write(to:URL(fileURLWithPath:variables["PAIA_B2_STORE"]!).appendingPathComponent("lexicon.json"))
+            preferences.show();preferences.openTerms(nil)
+            XCTAssertNil(preferences.terms);XCTAssertTrue(personal.pendingRestart);XCTAssertThrowsError(try old.refresh())
+            try activate(driver,a);try type("nihao",driver,a);XCTAssertTrue(driver.handle(try key(" ",code:49),client:a));XCTAssertEqual(a.view.string,"你好")
         } else if stage.hasPrefix("verify_") {
             var c=LabConfiguration();c.spelling = .natural;try preferences.applyConfiguration(c)
             send(preferences.settings.saveButton);let bytes=try? Data(contentsOf:file)

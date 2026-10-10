@@ -107,6 +107,11 @@ import LexiconCore
     private func changed()throws {onChange();cancelPreview();try reload();clearForm();status.stringValue="Saved. Personal overlay disabled until next launch; public baseline remains available."}
     private func failed(_ error:Error){
         cancelPreview()
+        // A limit may describe corrupt/oversized authority rather than the user's
+        // entry or selected import. Recheck authority inside the same held lease;
+        // never keep serving an old compiled overlay on that ambiguous failure.
+        do{_ = try store.snapshot()}
+        catch{onChange();status.stringValue="Personal authority unavailable. Overlay disabled; no automatic retry.";return}
         switch error {
         case LexiconError.invalidEntry:status.stringValue="Invalid entry. Check text limits, lowercase reading codes and separators; nothing saved."
         case LexiconError.conflict:status.stringValue="Conflicting identity, alias or pin. Resolve it explicitly; nothing saved."

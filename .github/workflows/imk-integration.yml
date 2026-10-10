@@ -47,6 +47,7 @@ jobs:
           set -o pipefail
           source .build/a1-env.sh
           swift test --filter IMKProtocolTests 2>&1 | tee evidence/imk-run/protocol-tests.txt
+          swift test --skip-build --filter IMKFixtureBasicsTests 2>&1 | tee evidence/imk-run/fixture-basics.txt
       - name: Prepare existing unbundled research resources
         run: |
           set -o pipefail
@@ -60,7 +61,7 @@ jobs:
           export PAIA_IMK_RESEARCH=1 PAIA_B2_RESEARCH=1
           export PAIA_B2_STORE="$PWD/.build/imk-synthetic-personal"
           export PAIA_B3_STORE="$PWD/.build/imk-synthetic-settings"
-          for stage in controls save restore restore_failed verify_previous verify_published verify_unresolved; do
+          for stage in controls save restore restore_failed verify_previous verify_published verify_unresolved authority_changed authority_oversized; do
             PAIA_IMK_BASIC_STAGE="$stage" swift test --skip-build --filter IMKBasicTests 2>&1 | tee "evidence/imk-run/basics-$stage.txt"
           done
       - name: Preserve evidence including failed stages
