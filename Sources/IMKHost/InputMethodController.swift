@@ -3,17 +3,25 @@ import AppKit
 import InputMethodKit
 import EngineBridge
 import NativeHost
+import SessionCore
 
-@MainActor public enum InputMethodRuntime {public static var makeSession:(()->InputSession?)?}
+@MainActor public enum InputMethodRuntime {
+    public static var workspace:IMKWorkspace?
+    public static var preferences:IMKPreferencesController?
+}
 
 // One IMK event path, forwarded into the exact driver exercised by protocol tests.
 @MainActor @objc(PAIAInputMethodController) public final class InputMethodController:IMKInputController {
     private let panel=CandidatePanel()
-    private lazy var driver=IMKControllerDriver(makeSession:{InputMethodRuntime.makeSession?()},hide:{[weak self] in self?.panel.orderOut(nil)},present:{[weak self] snapshot,rect,notice in
-        guard let self=self,let screen=NSScreen.screens.first(where:{$0.frame.intersects(rect)}) else{return}
-        if let snapshot=snapshot,!snapshot.rows.isEmpty{self.panel.show(snapshot,below:rect,screen:screen.visibleFrame,notice:notice)}
-        else if let notice=notice{self.panel.showNotice(notice,below:rect,screen:screen.visibleFrame)}
-    })
+    private lazy var driver:IMKControllerDriver = {
+        let hide:()->Void = {[weak self] in self?.panel.orderOut(nil)}
+        let present:(CandidateSnapshot?,NSRect,String?)->Void = {[weak self] snapshot,rect,notice in
+            guard let self=self,let screen=NSScreen.screens.first(where:{$0.frame.intersects(rect)}) else{return}
+            if let snapshot=snapshot,!snapshot.rows.isEmpty{self.panel.show(snapshot,below:rect,screen:screen.visibleFrame,notice:notice)}
+            else if let notice=notice{self.panel.showNotice(notice,below:rect,screen:screen.visibleFrame)}
+        }
+        return InputMethodRuntime.workspace?.makeDriver(hide:hide,present:present) ?? IMKControllerDriver(makeSession:{nil},hide:hide,present:present)
+    }()
     public override func activateServer(_ sender:Any!) {
         guard let bridge=IMKTextInputBridge(sender) else{driver.close();return}
         panel.choose = {[weak self] ref in self?.driver.choose(ref)}
@@ -30,11 +38,16 @@ import NativeHost
         let menu=NSMenu(title:"PAIA input method integration")
         let status=NSMenuItem(title:driver.coordinator.notice ?? "Uninstalled integration lane; no implicit learning",action:nil,keyEquivalent:"")
         status.isEnabled=false;menu.addItem(status)
+        let preferences=NSMenuItem(title:"Input settings and personal terms…",action:#selector(openPreferences(_:)),keyEquivalent:"")
+        preferences.target=self;preferences.isEnabled=InputMethodRuntime.workspace?.isIdle==true;menu.addItem(preferences)
         if driver.recovery?.raw.isEmpty==false {
             let item=NSMenuItem(title:"Inspect retained raw spelling…",action:#selector(inspectRetainedSpelling(_:)),keyEquivalent:"")
             item.target=self;item.isEnabled=driver.coordinator.session==nil;menu.addItem(item)
         }
         return menu
+    }
+    @objc private func openPreferences(_ sender:Any?){
+        guard InputMethodRuntime.workspace?.isIdle==true else{return};InputMethodRuntime.preferences?.show()
     }
     @objc private func inspectRetainedSpelling(_ sender:Any?) {
         guard driver.coordinator.session==nil,let text=driver.recovery?.raw,!text.isEmpty else{return}

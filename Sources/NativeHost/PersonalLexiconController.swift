@@ -36,11 +36,12 @@ import LexiconCore
     public let status=NSTextField(wrappingLabelWithString:""),importSummary=NSTextField(wrappingLabelWithString:"")
     public let previewDetails=NSTextView(frame:NSRect(x:0,y:0,width:740,height:140))
     private let store:LexiconStore,onChange:()->Void
+    private let access:(()throws->Void)throws->Void
     private weak var window:NSWindow?
     private var document=LexiconDocument(),selected:UUID?,render=UUID(),importRender:UUID?,page=0
     public private(set) var isOpen=false
-    public init(store:LexiconStore,onChange:@escaping()->Void){
-        self.store=store;self.onChange=onChange;super.init()
+    public init(store:LexiconStore,access:@escaping(()throws->Void)throws->Void={try $0()},onChange:@escaping()->Void){
+        self.store=store;self.access=access;self.onChange=onChange;super.init()
         root.orientation = .vertical;root.alignment = .leading;root.spacing=8;root.edgeInsets=NSEdgeInsets(top:16,left:16,bottom:16,right:16)
         root.addArrangedSubview(NSTextField(wrappingLabelWithString:"Only terms explicitly added/imported here are saved. Ordinary input never learns. Changes disable the personal overlay until the next launch. Deleted records remain as tombstones; public dictionary entries are unaffected."))
         rows.orientation = .vertical;rows.alignment = .leading;rows.spacing=4
@@ -67,7 +68,7 @@ import LexiconCore
     private func configure(_ button:NSButton,_ title:String,_ selector:Selector){button.title=title;button.target=self;button.action=selector;button.bezelStyle = .rounded;button.setAccessibilityLabel(title)}
     public func attach(to window:NSWindow)throws {
         self.window=window;window.contentView=root;window.delegate=self;isOpen=true
-        try reload();clearForm();status.stringValue="Explicit store opened. Full/Simplified personal readings only; reading-code shape is validated, pronunciation is not inferred."
+        try access {do{try reload()}catch{onChange();throw error}};clearForm();status.stringValue="Explicit store opened. Full/Simplified personal readings only; reading-code shape is validated, pronunciation is not inferred."
     }
     public func windowWillClose(_ notification:Notification){isOpen=false;render=UUID();cancelPreview()}
     private func reload()throws {
@@ -83,23 +84,34 @@ import LexiconCore
     private func parsedAliases()->[String]{aliases.stringValue.split(separator:";").map{String($0).trimmingCharacters(in:.whitespaces)}}
     public func controlTextDidChange(_ notification:Notification){cancelPreview()}
     @objc private func parametersChanged(_ sender:NSButton){cancelPreview()}
-    @objc private func newTerm(_ sender:NSButton){guard isOpen else{return};render=UUID();clearForm();do{try reload()}catch{failed(error)}}
-    @objc private func previousPage(_ sender:NSButton){guard isOpen,page>0 else{return};page-=1;clearForm();do{try reload()}catch{failed(error)}}
-    @objc private func nextPage(_ sender:NSButton){guard isOpen,(page+1)*50<document.terms.count else{return};page+=1;clearForm();do{try reload()}catch{failed(error)}}
+    @objc private func newTerm(_ sender:NSButton){guard isOpen else{return};render=UUID();clearForm();performAccess{try reload()}}
+    @objc private func previousPage(_ sender:NSButton){guard isOpen,page>0 else{return};page-=1;clearForm();performAccess{try reload()}}
+    @objc private func nextPage(_ sender:NSButton){guard isOpen,(page+1)*50<document.terms.count else{return};page+=1;clearForm();performAccess{try reload()}}
     @objc private func selectTerm(_ sender:TermRowButton){
         guard isOpen,sender.render==render,sender.revision==document.revision else{return}
-        do {
+        performAccess {
             guard try store.snapshot().revision==sender.revision else{throw LexiconError.stale}
             try reload() // A new selection receives fresh immutable row/action identities.
             selected=sender.term.id;surface.stringValue=sender.term.surface;reading.stringValue=sender.term.reading;aliases.stringValue=sender.term.aliases.joined(separator:"; ");pin.state=sender.term.explicitPin ? .on:.off
             addButton.isEnabled=false;clearActions();cancelPreview()
             if !sender.term.isDeleted{actions.addArrangedSubview(TermActionButton(title:"Save explicit changes",termID:sender.term.id,revision:document.revision,render:render,target:self,action:#selector(editTerm(_:))))}
             actions.addArrangedSubview(TermActionButton(title:sender.term.isDeleted ? "Restore this term":"Delete personal contribution",termID:sender.term.id,revision:document.revision,render:render,target:self,action:#selector(toggleDeleted(_:))))
-        }catch{failed(error)}
+        }
+    }
+    // Critical store actions and failure quarantine share one synchronous lease.
+    // Delayed file-panel completions reacquire it; opening the window grants none.
+    private func performAccess(_ action:()throws->Void){
+        do{try access {do{try action()}catch{failed(error)}}}
+        catch{status.stringValue="Finish every input composition before managing personal terms. Nothing retried."}
     }
     private func changed()throws {onChange();cancelPreview();try reload();clearForm();status.stringValue="Saved. Personal overlay disabled until next launch; public baseline remains available."}
     private func failed(_ error:Error){
         cancelPreview()
+        // A limit may describe corrupt/oversized authority rather than the user's
+        // entry or selected import. Recheck authority inside the same held lease;
+        // never keep serving an old compiled overlay on that ambiguous failure.
+        do{_ = try store.snapshot()}
+        catch{onChange();status.stringValue="Personal authority unavailable. Overlay disabled; no automatic retry.";return}
         switch error {
         case LexiconError.invalidEntry:status.stringValue="Invalid entry. Check text limits, lowercase reading codes and separators; nothing saved."
         case LexiconError.conflict:status.stringValue="Conflicting identity, alias or pin. Resolve it explicitly; nothing saved."
@@ -108,36 +120,41 @@ import LexiconCore
         default:onChange();status.stringValue="Authority changed or storage outcome is unavailable. Personal overlay disabled. Restart the lab to verify; no automatic retry."
         }
     }
-    @objc private func addTerm(_ sender:NSButton){guard isOpen,selected==nil else{return};do{_ = try store.add(surface:surface.stringValue,reading:reading.stringValue,aliases:parsedAliases(),pin:pin.state == .on,expectedRevision:document.revision);try changed()}catch{failed(error)}}
+    @objc private func addTerm(_ sender:NSButton){guard isOpen,selected==nil else{return};performAccess{_ = try store.add(surface:surface.stringValue,reading:reading.stringValue,aliases:parsedAliases(),pin:pin.state == .on,expectedRevision:document.revision);try changed()}}
     private func current(_ sender:TermActionButton)->Bool {isOpen && sender.render==render && sender.termID==selected && sender.revision==document.revision}
-    @objc private func editTerm(_ sender:TermActionButton){guard current(sender) else{return};do{try store.edit(id:sender.termID,surface:surface.stringValue,reading:reading.stringValue,aliases:parsedAliases(),pin:pin.state == .on,expectedRevision:sender.revision);try changed()}catch{failed(error)}}
-    @objc private func toggleDeleted(_ sender:TermActionButton){guard current(sender),let term=document.terms.first(where:{$0.id==sender.termID}) else{return};do{try store.setDeleted(id:sender.termID,deleted:!term.isDeleted,expectedRevision:sender.revision);try changed()}catch{failed(error)}}
+    @objc private func editTerm(_ sender:TermActionButton){guard current(sender) else{return};performAccess{try store.edit(id:sender.termID,surface:surface.stringValue,reading:reading.stringValue,aliases:parsedAliases(),pin:pin.state == .on,expectedRevision:sender.revision);try changed()}}
+    @objc private func toggleDeleted(_ sender:TermActionButton){guard current(sender),let term=document.terms.first(where:{$0.id==sender.termID}) else{return};performAccess{try store.setDeleted(id:sender.termID,deleted:!term.isDeleted,expectedRevision:sender.revision);try changed()}}
     public func previewSelectedFile(_ url:URL)throws {
-        guard isOpen else{throw LexiconError.stale};cancelPreview()
+        guard isOpen else{throw LexiconError.stale}
+        try access {
+        cancelPreview()
         let plan=try store.previewImport(SelectedLexiconFile.read(url)),token=UUID();importRender=token
         importSummary.stringValue="Add \(plan.additions.count); unchanged \(plan.unchanged); protected deletions \(plan.protectedDeletions); conflicts \(plan.conflicts). Source bytes frozen for this preview."
         previewDetails.string=(plan.additions.map{($0.isDeleted ? "Add tombstone: ":$0.explicitPin ? "Add pinned: ":"Add: ")+$0.surface+" ["+$0.readings.joined(separator:"; ")+"]"}+plan.notices).joined(separator:"\n")
         previewDetails.sizeToFit()
         importActions.addArrangedSubview(ImportApplyButton(plan,render:token,target:self,action:#selector(applyImport(_:))))
+        }
     }
     public func writeSelectedExport(_ url:URL)throws {
         guard isOpen else{throw LexiconError.stale}
+        try access {
         let parent=url.deletingLastPathComponent().resolvingSymlinksInPath().path,authority=store.directory.resolvingSymlinksInPath().path
         guard parent != authority,!parent.hasPrefix(authority+"/") else{throw LexiconError.unsafePath}
         try SelectedLexiconFile.write(store.exportData(),to:url);status.stringValue="Explicit export saved. It includes tombstones; keep this personal file private."
+        }
     }
     @objc private func cancelImport(_ sender:NSButton){cancelPreview()}
-    @objc private func applyImport(_ sender:ImportApplyButton){guard isOpen,sender.render==importRender else{return};do{try store.applyImport(sender.plan);try changed()}catch{failed(error)}}
+    @objc private func applyImport(_ sender:ImportApplyButton){guard isOpen,sender.render==importRender else{return};performAccess{try store.applyImport(sender.plan);try changed()}}
     @objc private func importFile(_ sender:NSButton){
         guard isOpen,let window=window else{return};let panel=NSOpenPanel();panel.allowedContentTypes=[.json];panel.allowsMultipleSelection=false;panel.canChooseDirectories=false;panel.resolvesAliases=false
         panel.beginSheetModal(for:window){[weak self] response in
-            MainActor.assumeIsolated{guard let self=self,self.isOpen,response == .OK,let url=panel.url else{return};do{try self.previewSelectedFile(url)}catch{self.failed(error)}}
+            MainActor.assumeIsolated{guard let self=self,self.isOpen,response == .OK,let url=panel.url else{return};do{try self.previewSelectedFile(url)}catch{self.performAccess{throw error}}}
         }
     }
     @objc private func exportFile(_ sender:NSButton){
         guard isOpen,let window=window else{return};let panel=NSSavePanel();panel.allowedContentTypes=[.json];panel.nameFieldStringValue="PAIA-personal-lexicon.json"
         panel.beginSheetModal(for:window){[weak self] response in
-            MainActor.assumeIsolated{guard let self=self,self.isOpen,response == .OK,let url=panel.url else{return};do{try self.writeSelectedExport(url)}catch{self.failed(error)}}
+            MainActor.assumeIsolated{guard let self=self,self.isOpen,response == .OK,let url=panel.url else{return};do{try self.writeSelectedExport(url)}catch{self.performAccess{throw error}}}
         }
     }
 }

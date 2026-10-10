@@ -36,12 +36,13 @@ MainActor.assumeIsolated {
         if preflight{print("IMK_PREFLIGHT_POLICY before=\(before.rawValue) accepted=\(accepted) after=\(after.rawValue)")}
         guard accepted,after == .accessory else{throw EngineError.closed}
         phase="engine-startup"
-        let environment=try LabEnvironment()
-        defer{InputMethodRuntime.makeSession=nil;_ = environment.runtime.close()}
-        InputMethodRuntime.makeSession={try? environment.runtime.makeSession()}
+        let environment=try IMKServiceEnvironment()
+        defer{InputMethodRuntime.preferences?.close();InputMethodRuntime.preferences=nil;InputMethodRuntime.workspace=nil;environment.close()}
+        InputMethodRuntime.workspace=environment.workspace
+        InputMethodRuntime.preferences=IMKPreferencesController(workspace:environment.workspace)
         if preflight {
             phase="engine-candidates"
-            let session=try environment.runtime.makeSession();defer{session.end()}
+            let session=try environment.makeSession(environment.workspace.configuration);defer{session.end()}
             let initial=try session.refresh()
             guard initial.commit==nil,initial.snapshot?.rawASCII.isEmpty==true else{throw EngineError.closed}
             for c in "nihao"{_ = try session.process(.text(String(c)))}

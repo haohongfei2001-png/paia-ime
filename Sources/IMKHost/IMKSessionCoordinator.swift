@@ -23,6 +23,11 @@ import SessionCore
     private var hostWriteIssued=false
     public init() {}
     public var snapshot:CandidateSnapshot? {session?.snapshot}
+    // No host callbacks: process-wide management can inspect this without reentry.
+    public var isIdleForManagement:Bool {
+        !executing && ownedText==nil && (snapshot == nil || (snapshot?.rawASCII.isEmpty==true && snapshot?.preedit.isEmpty==true)) &&
+        (outcome == .ready || outcome == .inactive)
+    }
     public var identity:AnyObject? {client?.callbackIdentity}
     private func same(_ other:AnyObject)->Bool {client?.callbackIdentity === other}
     public func retire() {
