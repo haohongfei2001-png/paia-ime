@@ -40,6 +40,8 @@ jobs:
           grep -Fq 'Executed 11 tests, with 0 failures' evidence/imk-run/product-data-tests.txt
           swift test --skip-build --filter CandidatePackTests 2>&1 | tee evidence/imk-run/candidate-pack-tests.txt
           grep -Fq 'Executed 5 tests, with 0 failures' evidence/imk-run/candidate-pack-tests.txt
+          swift test --skip-build --filter InputMethodLaunchTests 2>&1 | tee evidence/imk-run/input-method-launch-tests.txt
+          grep -Fq 'Executed 3 tests, with 0 failures' evidence/imk-run/input-method-launch-tests.txt
           swift test --skip-build --filter CandidateUpdateCoreTests 2>&1 | tee evidence/imk-run/candidate-update-core-tests.txt
           grep -Fq 'Executed 11 tests, with 0 failures' evidence/imk-run/candidate-update-core-tests.txt
           python3 Tools/check-candidate-update-regressions.py 2>&1 | tee evidence/imk-run/candidate-update-regressions.txt

@@ -4,6 +4,7 @@ import InputMethodKit
 import IMKHost
 import EngineBridge
 import NativeHost
+import ResourceCore
 
 @MainActor final class InputMethodDelegate:NSObject,NSApplicationDelegate {
     var server:IMKServer?
@@ -20,10 +21,9 @@ MainActor.assumeIsolated {
     let preflight=CommandLine.arguments.contains("--preflight")
     var phase="metadata"
     do {
-        let arguments=Array(CommandLine.arguments.dropFirst()),isolatedParent:URL?
-        if arguments==["--preflight"]{isolatedParent=nil}
-        else if arguments.count==3,arguments[0]=="--preflight",arguments[1]=="--isolated-parent"{isolatedParent=URL(fileURLWithPath:arguments[2])}
-        else {guard arguments.isEmpty else{throw EngineError.closed};isolatedParent=nil}
+        let launch=try InputMethodLaunchArguments(Array(CommandLine.arguments.dropFirst()))
+        let isolatedParent=launch.isolatedParent
+        guard launch.preflight==preflight else{throw EngineError.closed}
 
         _=InputMethodController.self
         guard Bundle.main.object(forInfoDictionaryKey:"InputMethodServerControllerClass") as? String == "PAIAInputMethodController",
