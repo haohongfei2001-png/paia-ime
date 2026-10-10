@@ -210,7 +210,77 @@ final class KeyboardInputHostTests:XCTestCase {
         let obsolete=HostDispatcher(client:c.editor,session:try Self.environment.runtime.makeSession(schema:LabConfiguration().schema))
         c.editor.makeSession={c.editor.dispatcher=newer;return obsolete}
         c.editor.renew();XCTAssertTrue(c.editor.dispatcher===newer)
+        XCTAssertThrowsError(try obsolete.session.process(.text("a")))
+        XCTAssertFalse(obsolete.isCurrentTarget)
+        try key("a",c.editor);XCTAssertEqual(newer.session.snapshot?.rawASCII,"a")
         obsolete.invalidate();newer.invalidate();c.editor.makeSession=nil
+    }
+
+    @MainActor func testNormalCancellationAndRepeatedLiteralInputStillContinue()throws {
+        let(c,w)=try make();defer{w.close()};c.editor.string="keepword";c.editor.setSelectedRange(NSRange(location:8,length:0));c.editor.renew();try type("n",c.editor)
+        try key("\u{7f}",c.editor,code:51,modifiers:[.option]);XCTAssertEqual(c.editor.string,"");XCTAssertFalse(c.editor.hasMarkedText())
+        try key("a",c.editor);XCTAssertEqual(c.editor.dispatcher?.session.snapshot?.rawASCII,"a")
+        try key("\u{1b}",c.editor,code:53);var config=LabConfiguration();config.literal=true;try c.applyConfiguration(config)
+        try type("Hello ü👩🏽‍💻",c.editor);try type("abc",c.editor)
+        XCTAssertEqual(Array(c.editor.string.utf8),Array("Hello ü👩🏽‍💻abc".utf8));XCTAssertFalse(c.editor.hasMarkedText())
+    }
+
+    @MainActor func testFactoryReentryIsBoundedAndChangedNativeTargetRejectsItsReturn()throws {
+        for changed in [false,true] {
+            let(c,w)=try make();defer{w.close()};let original=c.editor.makeSession
+            let prepared=HostDispatcher(client:c.editor,session:try Self.environment.runtime.makeSession(schema:LabConfiguration().schema))
+            var calls=0,nested:Bool?
+            c.editor.makeSession={
+                calls+=1
+                if changed{c.editor.string="external";c.editor.setSelectedRange(NSRange(location:8,length:0))}
+                else{nested=c.editor.renew()}
+                return prepared
+            }
+            let result=c.editor.renew();XCTAssertEqual(calls,1)
+            if changed {
+                XCTAssertFalse(result);XCTAssertNil(c.editor.dispatcher);XCTAssertEqual(c.editor.string,"external")
+                XCTAssertThrowsError(try prepared.session.process(.text("a")))
+            } else {XCTAssertTrue(result);XCTAssertEqual(nested,false);XCTAssertTrue(c.editor.dispatcher===prepared)}
+            c.editor.makeSession=original
+            try key("a",c.editor);XCTAssertEqual(c.editor.dispatcher?.session.snapshot?.rawASCII,"a")
+        }
+    }
+
+    @MainActor func testNestedWillEditInputSupersedesTheOlderEvent()throws {
+        let(c,w)=try make();defer{w.close()};let original=c.editor.willEdit;var once=false
+        c.editor.willEdit={original?();guard !once else{return};once=true;try? self.key("a",c.editor)}
+        try key("b",c.editor);XCTAssertTrue(once);XCTAssertEqual(c.editor.dispatcher?.session.snapshot?.rawASCII,"a")
+    }
+
+    @MainActor func testPreexistingForeignMarkStaysWithAppKitDuringRenewal()throws {
+        let(_,oracleWindow)=try make(),oracle=NSTextView(frame:NSRect(x:0,y:0,width:400,height:200))
+        oracleWindow.contentView=oracle;XCTAssertTrue(oracleWindow.makeFirstResponder(oracle))
+        oracle.setMarkedText("外部",selectedRange:NSRange(location:2,length:0),replacementRange:NSRange(location:NSNotFound,length:0))
+        try key("q",oracle)
+        let oracleBytes=Array(oracle.string.utf8),oracleMark=oracle.markedRange(),oracleSelection=oracle.selectedRange();oracleWindow.close()
+        let(c,w)=try make();defer{w.close()}
+        c.editor.setMarkedText("外部",selectedRange:NSRange(location:2,length:0),replacementRange:NSRange(location:NSNotFound,length:0))
+        let before=Array(c.editor.string.utf8),mark=c.editor.markedRange(),selection=c.editor.selectedRange()
+        XCTAssertTrue(c.editor.renew());XCTAssertNil(c.editor.dispatcher)
+        XCTAssertEqual(Array(c.editor.string.utf8),before);XCTAssertEqual(c.editor.markedRange(),mark);XCTAssertEqual(c.editor.selectedRange(),selection)
+        try key("q",c.editor);XCTAssertNil(c.editor.dispatcher);XCTAssertEqual(Array(c.editor.string.utf8),oracleBytes)
+        XCTAssertEqual(c.editor.markedRange(),oracleMark);XCTAssertEqual(c.editor.selectedRange(),oracleSelection)
+    }
+
+    @MainActor func testNestedWillEditInputSupersedesTheOlderHostEditBeforeCancellation()throws {
+        let(c,w)=try make();defer{w.close()};let original=c.editor.willEdit;var once=false
+        c.editor.willEdit={original?();guard !once else{return};once=true;try? self.key("a",c.editor)}
+        XCTAssertFalse(c.editor.cancelCompositionForHostEdit());XCTAssertTrue(once)
+        XCTAssertEqual(c.editor.dispatcher?.session.snapshot?.rawASCII,"a");XCTAssertTrue(c.editor.hasMarkedText())
+    }
+
+    @MainActor func testReplacingDispatcherRetiresOldSessionWithoutNativeWrites()throws {
+        let(c,w)=try make();defer{w.close()};let old=try XCTUnwrap(c.editor.dispatcher)
+        let newer=HostDispatcher(client:c.editor,session:try Self.environment.runtime.makeSession(schema:LabConfiguration().schema))
+        let text=Array(c.editor.string.utf8),mark=c.editor.markedRange(),selection=c.editor.selectedRange()
+        c.editor.dispatcher=newer;XCTAssertFalse(old.isCurrentTarget);XCTAssertThrowsError(try old.session.process(.text("a")))
+        XCTAssertEqual(Array(c.editor.string.utf8),text);XCTAssertEqual(c.editor.markedRange(),mark);XCTAssertEqual(c.editor.selectedRange(),selection)
+        try key("a",c.editor);XCTAssertEqual(newer.session.snapshot?.rawASCII,"a")
     }
 
     @MainActor func testApplyNeverAdoptsOrClearsForeignStateInstalledDuringItsNativeWrite()throws {

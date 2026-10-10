@@ -3,6 +3,35 @@ import AppKit
 import EngineBridge
 import SessionCore
 
+// Exact native state, also used to predict the only permitted cancellation write.
+// Never replace this prediction with whatever a synchronous callback left behind.
+@MainActor struct NativeTextState {
+    let text:String,selection:NSRange,marked:NSRange
+    private let hasMarked:Bool,cleared:Bool
+    init(_ client:NSTextView){text=client.string;selection=client.selectedRange();marked=client.markedRange();hasMarked=client.hasMarkedText();cleared=false}
+    private init(text:String,selection:NSRange,marked:NSRange,hasMarked:Bool){self.text=text;self.selection=selection;self.marked=marked;self.hasMarked=hasMarked;cleared = !hasMarked}
+    func replacing(with replacement:String,selectedRange:NSRange?=nil,asMarked:Bool)->NativeTextState? {
+        let range=hasMarked ? marked:selection,length=(text as NSString).length,newLength=(replacement as NSString).length
+        let relative=selectedRange ?? NSRange(location:newLength,length:0)
+        guard range.location != NSNotFound,range.location>=0,range.length>=0,
+              range.location<=length,range.length<=length-range.location,
+              relative.location>=0,relative.length>=0,relative.location<=newLength,relative.length<=newLength-relative.location else{return nil}
+        let (location,overflow)=range.location.addingReportingOverflow(relative.location);guard !overflow else{return nil}
+        let value=(text as NSString).replacingCharacters(in:range,with:replacement),isMarked=asMarked && !replacement.isEmpty
+        return NativeTextState(text:value,selection:NSRange(location:location,length:relative.length),
+                               marked:NSRange(location:isMarked ? range.location:location,length:isMarked ? newLength:0),hasMarked:isMarked)
+    }
+    func removingMark()->NativeTextState? {
+        guard hasMarked else{return nil}
+        return replacing(with:"",asMarked:false)
+    }
+    func matchesDocumentAndSelection(_ client:NSTextView)->Bool {client.string.utf8.elementsEqual(text.utf8) && client.selectedRange()==selection}
+    func matches(_ client:NSTextView)->Bool {
+        guard matchesDocumentAndSelection(client),client.hasMarkedText()==hasMarked else{return false}
+        return client.markedRange()==marked || (cleared && client.markedRange()==NSRange(location:NSNotFound,length:0))
+    }
+}
+
 @MainActor public final class HostDispatcher {
     public let session: InputSession
     private weak var client: NSTextView?
@@ -87,35 +116,50 @@ import SessionCore
         func abandon()->Bool {
             // Do not touch a host again after losing ownership inside a native call.
             // An already reserved insertion is not replayable, even if its outcome is uncertain.
-            active=false;inspector=nil;session.end();return false
+            retireWithoutHostMutation();return false
         }
         if let effect=update.commit {
+            guard let inserted=NativeTextState(client).replacing(with:effect.text,asMarked:false) else{return abandon()}
             guard session.reserve(effect) else {return false}
             // Reservation precedes the only insertText call. No retry even if a real host's outcome is uncertain.
             client.insertText(effect.text,replacementRange:NSRange(location:NSNotFound,length:0))
             insertCount += 1
-            guard stillOwned() else{return abandon()}
+            guard stillOwned(),inserted.matches(client) else{return abandon()}
         }
         if s.preedit.isEmpty {
             if client.hasMarkedText() {
+                guard let cleared=NativeTextState(client).removingMark() else{return abandon()}
                 client.setMarkedText("",selectedRange:NSRange(location:0,length:0),replacementRange:NSRange(location:NSNotFound,length:0))
-                guard stillOwned() else{return abandon()}
-                client.unmarkText()
-                guard stillOwned() else{return abandon()}
+                guard stillOwned(),cleared.matchesDocumentAndSelection(client) else{return abandon()}
+                if client.hasMarkedText() {
+                    guard client.markedRange()==NSRange(location:cleared.selection.location,length:0) else{return abandon()}
+                    client.unmarkText()
+                }
+                guard stillOwned(),cleared.matches(client) else{return abandon()}
             }
         } else {
+            guard let marked=NativeTextState(client).replacing(with:s.preedit,selectedRange:s.selectedRangeUTF16,asMarked:true) else{return abandon()}
             client.setMarkedText(s.preedit,selectedRange:s.selectedRangeUTF16,replacementRange:NSRange(location:NSNotFound,length:0))
+            guard stillOwned(),marked.matches(client) else{return abandon()}
         }
         guard stillOwned() else{return abandon()}
         expectedText=client.string;expectedSelection=client.selectedRange();expectedMarked=client.markedRange()
         return true
     }
+    // Retiring an obsolete dispatcher must not clear the new owner's native text.
+    func retireWithoutHostMutation(){active=false;inspector=nil;session.end()}
     public func invalidate() {
         guard active else {return}
-        active=false; inspector=nil; session.end()
+        retireWithoutHostMutation()
         if let client=client,client.string.utf8.elementsEqual(expectedText.utf8),client.selectedRange()==expectedSelection,client.markedRange()==expectedMarked,client.hasMarkedText() {
+            let originalWindow=client.window,originalResponder=client.window?.firstResponder
+            guard let cancelled=NativeTextState(client).removingMark() else{return}
             client.setMarkedText("",selectedRange:NSRange(location:0,length:0),replacementRange:NSRange(location:NSNotFound,length:0))
-            client.unmarkText()
+            guard client.window===originalWindow,originalWindow?.firstResponder===originalResponder,
+                  cancelled.matchesDocumentAndSelection(client) else{return}
+            // Clearing may already have unmarked. Otherwise only our empty mark is
+            // eligible; a foreign mark installed by the callback must be preserved.
+            if client.hasMarkedText(),client.markedRange()==NSRange(location:expectedMarked.location,length:0){client.unmarkText()}
         }
     }
 }
