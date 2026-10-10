@@ -26,8 +26,8 @@ final class KeyboardInputHostTests:XCTestCase {
         while !w.isKeyWindow && Date()<deadline{if let e=NSApp.nextEvent(matching:.any,until:Date(timeIntervalSinceNow:0.05),inMode:.default,dequeue:true){NSApp.sendEvent(e)};NSApp.updateWindows();w.makeKey()}
         XCTAssertTrue(w.isKeyWindow);return(c,w)
     }
-    @MainActor func key(_ text:String,_ view:NSTextView,code:UInt16=0)throws {
-        view.keyDown(with:try XCTUnwrap(NSEvent.keyEvent(with:.keyDown,location:.zero,modifierFlags:[],timestamp:0,windowNumber:view.window?.windowNumber ?? 0,context:nil,characters:text,charactersIgnoringModifiers:text,isARepeat:false,keyCode:code)))
+    @MainActor func key(_ text:String,_ view:NSTextView,code:UInt16=0,modifiers:NSEvent.ModifierFlags=[])throws {
+        view.keyDown(with:try XCTUnwrap(NSEvent.keyEvent(with:.keyDown,location:.zero,modifierFlags:modifiers,timestamp:0,windowNumber:view.window?.windowNumber ?? 0,context:nil,characters:text,charactersIgnoringModifiers:text,isARepeat:false,keyCode:code)))
     }
     @MainActor func type(_ raw:String,_ view:NSTextView)throws{for c in raw{try key(String(c),view)}}
     @MainActor func trace(_ kind:String,_ c:NativeLabController,_ before:CandidateSnapshot,_ original:String,_ event:String)throws {
@@ -170,6 +170,47 @@ final class KeyboardInputHostTests:XCTestCase {
         XCTAssertFalse(c.editor.string.contains(","));XCTAssertEqual(other.string,"")
         let after=Array(c.editor.string.utf8);try key(",",c.editor)
         XCTAssertEqual(Array(c.editor.string.utf8),after);XCTAssertEqual(other.string,"")
+    }
+
+    @MainActor func testCancellationDoesNotUnmarkANewerNativeOwner()throws {
+        let(_,w)=try make();defer{w.close()}
+        let view=EffectProbeView(frame:NSRect(x:0,y:0,width:400,height:200));w.contentView=view;XCTAssertTrue(w.makeFirstResponder(view))
+        let session=try Self.environment.runtime.makeSession(schema:LabConfiguration().schema),host=HostDispatcher(client:view,session:session)
+        XCTAssertTrue(host.apply(try session.process(.text("n"))));XCTAssertTrue(view.hasMarkedText())
+        var foreignBytes=[UInt8](),foreignMark=NSRange(),foreignSelection=NSRange(),foreignUnmarks=0,called=false
+        view.afterMarked={
+            view.afterMarked=nil;called=true
+            let foreign="外部👩🏽‍💻"
+            view.setMarkedText(foreign,selectedRange:NSRange(location:(foreign as NSString).length,length:0),replacementRange:NSRange(location:NSNotFound,length:0))
+            foreignBytes=Array(view.string.utf8);foreignMark=view.markedRange();foreignSelection=view.selectedRange();foreignUnmarks=view.unmarkCalls
+        }
+        host.invalidate();XCTAssertTrue(called)
+        XCTAssertEqual(Array(view.string.utf8),foreignBytes);XCTAssertEqual(view.markedRange(),foreignMark);XCTAssertEqual(view.selectedRange(),foreignSelection)
+        XCTAssertTrue(view.hasMarkedText());XCTAssertEqual(view.unmarkCalls,foreignUnmarks)
+        XCTAssertFalse(host.isCurrentTarget);XCTAssertThrowsError(try session.process(.text("a")))
+        host.invalidate();XCTAssertEqual(view.unmarkCalls,foreignUnmarks);XCTAssertEqual(view.markedRange(),foreignMark)
+    }
+
+    @MainActor func testOptionCancellationDoesNotResumeAfterFocusChanges()throws {
+        let(c,w)=try make();defer{w.close()};c.editor.string="keepword";c.editor.setSelectedRange(NSRange(location:8,length:0));c.editor.renew();try type("n",c.editor)
+        let old=try XCTUnwrap(c.editor.dispatcher),other=NSTextView(frame:.zero);c.root.addArrangedSubview(other)
+        var called=false
+        let token=NotificationCenter.default.addObserver(forName:NSTextStorage.didProcessEditingNotification,object:c.editor.textStorage,queue:.main){_ in MainActor.assumeIsolated {
+            guard !called else{return};called=true;_ = w.makeFirstResponder(other)
+        }}
+        defer{NotificationCenter.default.removeObserver(token)}
+        try key("\u{7f}",c.editor,code:51,modifiers:[.option])
+        XCTAssertTrue(called);XCTAssertTrue(w.firstResponder===other);XCTAssertFalse(old.isCurrentTarget)
+        XCTAssertEqual(c.editor.string,"keepword");XCTAssertEqual(other.string,"")
+    }
+
+    @MainActor func testRenewDoesNotReplaceADispatcherInstalledDuringFactoryCallback()throws {
+        let(c,w)=try make();defer{w.close()}
+        let newer=HostDispatcher(client:c.editor,session:try Self.environment.runtime.makeSession(schema:LabConfiguration().schema))
+        let obsolete=HostDispatcher(client:c.editor,session:try Self.environment.runtime.makeSession(schema:LabConfiguration().schema))
+        c.editor.makeSession={c.editor.dispatcher=newer;return obsolete}
+        c.editor.renew();XCTAssertTrue(c.editor.dispatcher===newer)
+        obsolete.invalidate();newer.invalidate();c.editor.makeSession=nil
     }
 
 }
