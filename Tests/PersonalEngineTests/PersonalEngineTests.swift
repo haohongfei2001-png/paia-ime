@@ -107,7 +107,7 @@ final class PersonalEngineTests:XCTestCase {
             for _ in 0..<20 {try choose("nihao","你好")}
             environment.disableOverlayUntilRestart()
             XCTAssertThrowsError(try s.refresh()) // Existing overlay capabilities die too, not just future sessions.
-            XCTAssertTrue(try session().supportsRepair);XCTAssertFalse(try candidates("qionghaicelijia").contains(marker))
+            XCTAssertTrue(try session().canRetainForRepair);XCTAssertFalse(try candidates("qionghaicelijia").contains(marker))
             try choose("shurufa","输入法")
         }
         XCTAssertEqual(try? Data(contentsOf:authority),before,"Ordinary engine operations changed explicit authority")

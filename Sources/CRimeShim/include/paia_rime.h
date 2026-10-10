@@ -23,7 +23,8 @@ void paia_rime_close(void);
 uint64_t paia_rime_start_session(void);
 void paia_rime_end_session(uint64_t session);
 // Actions: 0 read/consume, 1 process key, 2 select current-page index, 3 clear,
-// 4 select absolute engine index (validated by caller snapshot), 5 explicit engine commit.
+// 4 select absolute engine index (validated by caller snapshot), 5 explicit engine commit,
+// 6 explicitly arm an idle verified-extension session for one retained composition.
 int paia_rime_step(uint64_t session, int action, int key, int modifiers, PaiaRimeSnapshot *out);
 void paia_rime_free_snapshot(PaiaRimeSnapshot *snapshot);
 // ABI guard is also directly exercised with short/missing function tables.

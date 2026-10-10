@@ -217,6 +217,76 @@ int prepare(uint64_t source,size_t target,const char *replacement,const char *wa
   }catch(const Failure& f){free_list(&out->result);out->examined=budget.used;out->status=f.code;return f.code;}
    catch(...){free_list(&out->result);out->examined=budget.used;out->status=PG_ENGINE;return PG_ENGINE;}
 }
-PaiaG01API extension={sizeof(PaiaG01API),PAIA_G01_ABI,initialize,anchors,candidates,prepare,free_list};
+void free_alternatives(PaiaG01Alternatives *out) {
+  if(!out)return;
+  free(out->raw);
+  if(out->items){for(size_t i=0;i<out->count;++i){free(out->items[i].surface);free(out->items[i].preview);}free(out->items);}
+  std::memset(out,0,sizeof(*out));
+}
+int alternatives(uint64_t source,size_t target,const char *replacement,size_t limit,size_t maxRows,PaiaG01Alternatives *out) {
+  Budget budget{limit};std::string raw;std::vector<std::pair<std::string,std::string>> rows;
+  size_t outputBytes=0;int status=PG_ENGINE;
+  try {
+    if(!replacement || !limit || limit>PAIA_G01_MAX_SEARCH || !maxRows || maxRows>PAIA_G01_MAX_ALTERNATIVES)throw Failure{PG_INVALID};
+    const std::string insert(replacement);
+    if(insert.size()>4096 || !std::all_of(insert.begin(),insert.end(),[](unsigned char c){return (c>='a'&&c<='z')||c=='\''||c==' ';}))throw Failure{PG_INVALID};
+    auto src=session(source);auto original=src->context();
+    if(!src->commit_text().empty())throw Failure{PG_INVALID};
+    auto locks=source_anchors(source,budget);if(target>=locks.size())throw Failure{PG_INVALID};
+    const auto old=locks[target];raw=original->input();raw.replace(old.start,old.end-old.start,insert);
+    if(raw.size()>4096)throw Failure{PG_INVALID};
+    const size_t targetEnd=old.start+insert.size();
+    const ptrdiff_t delta=static_cast<ptrdiff_t>(insert.size())-static_cast<ptrdiff_t>(old.end-old.start);
+    for(size_t i=target+1;i<locks.size();++i){locks[i].start=static_cast<size_t>(static_cast<ptrdiff_t>(locks[i].start)+delta);locks[i].end=static_cast<size_t>(static_cast<ptrdiff_t>(locks[i].end)+delta);}
+    char schema[256]={};if(!api->get_current_schema(source,schema,sizeof(schema)))throw Failure{PG_ENGINE};
+    const auto options=original->options();
+    struct Node {std::vector<Span> path;size_t next=0;};
+    std::deque<Node> paths;paths.push_back({{},0});
+    while(!paths.empty()) {
+      budget.spend();auto node=std::move(paths.front());paths.pop_front();OwnedSession trial;create(trial,schema,options,raw);
+      auto ctx=session(trial.id)->context();bool valid=true;
+      for(size_t i=0;i<target && valid;++i)valid=choose(ctx,locks[i],budget);
+      for(const auto& part:node.path)if(valid)valid=choose(ctx,part,budget);
+      if(!valid)continue;
+      const size_t position=frontier(ctx);std::string surface;for(const auto& part:node.path)surface+=part.text;
+      if(position==targetEnd) {
+        for(size_t i=target+1;i<locks.size() && valid;++i)valid=choose(ctx,locks[i],budget);
+        if(!valid)continue;
+        (void)selected(ctx);std::string expected;
+        for(size_t i=0;i<target;++i)expected+=locks[i].text;expected+=surface;
+        for(size_t i=target+1;i<locks.size();++i)expected+=locks[i].text;
+        const auto preview=ctx->GetCommitText();
+        if(ctx->input()!=raw || preview!=expected || !session(trial.id)->commit_text().empty())throw Failure{PG_ENGINE};
+        auto row=std::make_pair(surface,preview);
+        if(std::find(rows.begin(),rows.end(),row)!=rows.end())continue;
+        if(rows.size()>=maxRows || surface.size()>65536 || preview.size()>65536 ||
+           surface.size()+preview.size()>PAIA_G01_MAX_OUTPUT_BYTES-outputBytes)throw Failure{PG_INCOMPLETE};
+        outputBytes+=surface.size()+preview.size();rows.push_back(std::move(row));continue;
+      }
+      if(position>=targetEnd)continue;
+      if(node.path.size()>=PAIA_G01_MAX_ANCHORS)throw Failure{PG_INCOMPLETE};
+      for(size_t index=node.next;;++index) {
+        budget.spend();auto c=candidate(ctx,index);if(!c)break;
+        if(c->start()!=position || c->end()<=position || c->end()>targetEnd)continue;
+        auto next=node.path;next.push_back({c->start(),c->end(),index,c->text(),candidate_code(c)});
+        paths.push_front({node.path,index+1});paths.push_front({std::move(next),0});break;
+      }
+    }
+    status=rows.empty()?PG_CONFLICT:PG_OK;
+  }catch(const Failure& f){status=f.code;}catch(...){status=PG_ENGINE;}
+  out->status=status;out->examined=budget.used;
+  if(status!=PG_OK && status!=PG_CONFLICT && status!=PG_INCOMPLETE)return status;
+  try {
+    out->raw=copy(raw);out->complete=status!=PG_INCOMPLETE;
+    if(!rows.empty()){
+      out->items=static_cast<PaiaG01Alternative*>(std::calloc(rows.size(),sizeof(PaiaG01Alternative)));
+      if(!out->items)throw std::bad_alloc();out->count=rows.size();
+      for(size_t i=0;i<rows.size();++i){out->items[i].surface=copy(rows[i].first);out->items[i].preview=copy(rows[i].second);}
+    }
+    return status;
+  }catch(...){free_alternatives(out);out->status=PG_ENGINE;out->examined=budget.used;return PG_ENGINE;}
+}
+
+PaiaG01API extension={sizeof(PaiaG01API),PAIA_G01_ABI,initialize,anchors,candidates,prepare,free_list,alternatives,free_alternatives};
 }
 extern "C" __attribute__((visibility("default"))) PaiaG01API *paia_g01_get_api(){return &extension;}

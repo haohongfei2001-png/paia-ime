@@ -2,12 +2,16 @@
 #define PAIA_G01_H
 #include <stdint.h>
 #include <stddef.h>
-#define PAIA_G01_ABI 1
+#define PAIA_G01_ABI 2
+#define PAIA_G01_MAX_ALTERNATIVES 32
+#define PAIA_G01_MAX_OUTPUT_BYTES 524288
 #define PAIA_G01_MAX_ANCHORS 256
 #define PAIA_G01_MAX_SEARCH 2048
 typedef struct {size_t start_utf8,end_utf8,index;char *text;} PaiaG01Span;
 typedef struct {char *raw,*preview;PaiaG01Span *items;size_t count;int complete;} PaiaG01List;
 typedef struct {uint64_t session;PaiaG01List result;size_t examined;int status;} PaiaG01Trial;
+typedef struct {char *surface,*preview;} PaiaG01Alternative;
+typedef struct {char *raw;PaiaG01Alternative *items;size_t count,examined;int complete,status;} PaiaG01Alternatives;
 enum {PG_OK=0,PG_CONFLICT=20,PG_INCOMPLETE=21,PG_UNSUPPORTED=22,PG_INVALID=23,PG_ENGINE=24};
 // Only the CRimeShim owner calls these function pointers, under its global mutex.
 typedef struct {
@@ -17,6 +21,8 @@ typedef struct {
  int (*candidates)(uint64_t id,size_t limit,PaiaG01List *out);
  int (*prepare)(uint64_t source,size_t target,const char *replacement_raw,const char *surface,size_t limit,PaiaG01Trial *out);
  void (*free_list)(PaiaG01List *list);
+ int (*alternatives)(uint64_t source,size_t target,const char *replacement_raw,size_t work_limit,size_t max_rows,PaiaG01Alternatives *out);
+ void (*free_alternatives)(PaiaG01Alternatives *out);
 } PaiaG01API;
 // Public shim functions. None loads code or resources on a key event.
 int paia_rime_enable_g01(const char *verified_extension);
@@ -26,4 +32,6 @@ int paia_rime_g01_anchors(uint64_t id,PaiaG01List *out);
 int paia_rime_g01_candidates(uint64_t id,size_t limit,PaiaG01List *out);
 int paia_rime_g01_prepare(uint64_t id,size_t target,const char *replacement,const char *surface,size_t limit,PaiaG01Trial *out);
 void paia_rime_g01_free_list(PaiaG01List *list);
+int paia_rime_g01_alternatives(uint64_t id,size_t target,const char *replacement,size_t limit,size_t max_rows,PaiaG01Alternatives *out);
+void paia_rime_g01_free_alternatives(PaiaG01Alternatives *out);
 #endif

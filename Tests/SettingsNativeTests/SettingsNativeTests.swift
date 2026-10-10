@@ -104,7 +104,7 @@ final class SettingsNativeTests:XCTestCase {
             try type("uurufa",lab.editor);try key(" ",lab.editor,code:49);XCTAssertEqual(lab.editor.string,"輸入法")
             XCTAssertFalse(settings.saveButton.isEnabled);XCTAssertEqual(try Data(contentsOf:file),published)
         } else if stage=="overlay_disabled" {
-            XCTAssertTrue(environment.pendingRestart);try lab.applyConfiguration(LabConfiguration());XCTAssertTrue(lab.editor.dispatcher!.session.supportsRepair)
+            XCTAssertTrue(environment.pendingRestart);try lab.applyConfiguration(LabConfiguration());XCTAssertTrue(lab.editor.dispatcher!.session.canRetainForRepair)
             try type("nihao",lab.editor);try key(" ",lab.editor,code:49);XCTAssertEqual(lab.editor.string,"你好");XCTAssertEqual(try? Data(contentsOf:file),before)
         } else if ["settings_corrupt","settings_missing"].contains(stage) {
             XCTAssertNil(store);XCTAssertFalse(settings.saveButton.isEnabled);XCTAssertEqual(lab.configuration,LabConfiguration())
@@ -112,7 +112,7 @@ final class SettingsNativeTests:XCTestCase {
             XCTAssertEqual(lab.editor.string,"你好");XCTAssertEqual(try? Data(contentsOf:file),before)
         } else if stage=="personal_corrupt" {
             XCTAssertTrue(environment.authorityUnavailable);XCTAssertTrue(environment.resources.overlaySchemas.isEmpty)
-            try type("nihao",lab.editor);try key(" ",lab.editor,code:49);XCTAssertEqual(lab.editor.string,"你好");XCTAssertTrue(lab.editor.dispatcher!.session.supportsRepair)
+            try type("nihao",lab.editor);try key(" ",lab.editor,code:49);XCTAssertEqual(lab.editor.string,"你好");XCTAssertTrue(lab.editor.dispatcher!.session.canRetainForRepair)
         } else{XCTFail("Unknown stage")}
         print("B3_APPKIT_HOST stage=\(stage); synthetic fixtures only; no input history persisted")
     }
