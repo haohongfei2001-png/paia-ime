@@ -13,3 +13,7 @@ No normal IMKServer startup, framework-created controller, installed source, liv
 ## First native checkpoint ae2f23d
 
 The actual release bundle and authored no-server preflight compiled/ran successfully. Test compilation then failed because two XCTest throwing-autoclosure assertions inferred throwing callback bodies when assigned to nonthrowing hooks. No new basic-control native tests executed at this checkpoint. Explicit do/catch assertions replace those callback bodies; the fix does not suppress failures. A source review also separated the synthetic authority-failure settings directories so prior saved Flypy settings cannot contaminate those baseline-input assertions. Exact run logs and cancellations are preserved in the private recovery evidence.
+
+## Second native checkpoint baa1241
+
+The original 17 IMK protocol tests and actual A1 service-environment fixture test passed. The real research `controls` test passed all 24 mode combinations and its management/race/store assertions. The broad Swift test filter also selected the fixture class in the same module; its attempted second RimeRuntime initialization correctly failed with code 7. Remaining fresh-process stages therefore did not run. The workflow now uses the exact research test identifier, retaining the separate fresh-process fixture invocation. No engine lifetime guard was weakened. The first settings capture's stdout Base64 was interleaved by XCTest output and is not a verified image; capture records now use the same stderr write form as established native tests.

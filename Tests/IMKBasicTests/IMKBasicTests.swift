@@ -144,7 +144,7 @@ final class IMKBasicTests:XCTestCase {
             preferences.show();preferences.root.layoutSubtreeIfNeeded();preferences.root.displayIfNeeded()
             let bitmap=try XCTUnwrap(preferences.root.bitmapImageRepForCachingDisplay(in:preferences.root.bounds));preferences.root.cacheDisplay(in:preferences.root.bounds,to:bitmap)
             let png=try XCTUnwrap(bitmap.representation(using:.png,properties:[:])),encoded=Array(png.base64EncodedString())
-            for i in stride(from:0,to:encoded.count,by:1800){print("PAIA_IMK_SETTINGS_IMAGE_\(i/1800):\(String(encoded[i..<min(i+1800,encoded.count)]))")}
+            for i in stride(from:0,to:encoded.count,by:1800){FileHandle.standardError.write(Data(("PAIA_IMK_SETTINGS_IMAGE_\(i/1800):\(String(encoded[i..<min(i+1800,encoded.count)]))\n").utf8))}
             print("IMK_BASIC 24 real resource/mode combinations; two-client management gate; staged failure and reentry; explicit overlay/store/import actions; no installation")
         } else if stage=="save" {
             var c=LabConfiguration();c.spelling = .flypy;c.traditional=true;c.chinesePunctuation=true

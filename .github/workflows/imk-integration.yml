@@ -62,7 +62,7 @@ jobs:
           export PAIA_B2_STORE="$PWD/.build/imk-synthetic-personal"
           export PAIA_B3_STORE="$PWD/.build/imk-synthetic-settings"
           for stage in controls save restore restore_failed verify_previous verify_published verify_unresolved authority_changed authority_oversized; do
-            PAIA_IMK_BASIC_STAGE="$stage" swift test --skip-build --filter IMKBasicTests 2>&1 | tee "evidence/imk-run/basics-$stage.txt"
+            PAIA_IMK_BASIC_STAGE="$stage" swift test --skip-build --filter 'IMKBasicTests.IMKBasicTests/testResearchModesSettingsAndPersonalTermsThroughIMKDriver' 2>&1 | tee "evidence/imk-run/basics-$stage.txt"
           done
       - name: Preserve evidence including failed stages
         if: always()
