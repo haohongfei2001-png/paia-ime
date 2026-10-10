@@ -95,7 +95,7 @@ jobs:
         run: |
           set -o pipefail
           bash Tools/probe-mixed.sh 2>&1 | tee evidence/imk-run/mixed-probe.txt
-          grep -Fq 'MIXED_NATIVE_PROBE_TOTAL cases=98' evidence/imk-run/mixed-probe.txt
+          grep -Fq 'MIXED_NATIVE_PROBE_TOTAL cases=100' evidence/imk-run/mixed-probe.txt
       - name: Consolidated basic controls through real IMK driver
         run: |
           set -o pipefail

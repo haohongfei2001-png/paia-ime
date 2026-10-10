@@ -86,7 +86,20 @@ void verify_layout(Context* ctx,const std::vector<Part>& parts) {
     start+=part.raw.size();
   }
 }
-void replay(uint64_t source,const std::vector<Part>& parts,size_t work,OwnedSession& trial) {
+bool choose_projected(Context* ctx,const Span& span,Budget& budget) {
+  if(frontier(ctx)!=span.start || span.code.empty())return false;
+  for(size_t index=0;;++index) {
+    budget.spend();auto c=candidate(ctx,index);if(!c)return false;
+    if(c->start()!=span.start || c->end()!=span.end || c->text()!=span.text ||
+       !same_code(candidate_code(c),span.code))continue;
+    if(!ctx->Select(index))throw Failure{PG_ENGINE};
+    // Select itself restores the full caret and can create multiple later guess
+    // segments. The old G01 back-menu frontier invariant does not apply here.
+    // The actual selected candidate is still strictly verified, not synthesized.
+    return confirmed(ctx,span);
+  }
+}
+void replay(uint64_t source,const std::vector<Part>& parts,size_t work,OwnedSession& trial,bool projectChinese=true) {
   std::string raw;bool suffix=false;
   for(const auto& part:parts) {
     require(!suffix,"raw suffix must be last in this bounded probe");
@@ -100,7 +113,17 @@ void replay(uint64_t source,const std::vector<Part>& parts,size_t work,OwnedSess
   size_t offset=0;Budget budget{work};
   for(const auto& part:parts) {
     if(part.kind==Part::chinese) {
-      require(choose(ctx,{offset,offset+part.raw.size(),0,part.text,part.code},budget),"actual Chinese replay failed");
+      // Initial mixed input may contain several unselected native segments. Its
+      // back-menu can belong to a later literal/suffix rather than this anchor.
+      // Only in this disposable trial, project the next intended Chinese end;
+      // previously replayed anchors remain to its left. Select then restores the
+      // native full-input caret before the following typed part is installed.
+      if(projectChinese)ctx->set_caret_pos(offset+part.raw.size());
+      if(frontier(ctx)!=offset)std::cerr<<"MIXED_REPLAY_FRONTIER expected="<<offset<<" actual="<<frontier(ctx)<<" raw_bytes="<<raw.size()<<'\n';
+      const Span expected(offset,offset+part.raw.size(),0,part.text,part.code);
+      const bool chosen=projectChinese ? choose_projected(ctx,expected,budget):choose(ctx,expected,budget);
+      require(chosen,"actual Chinese replay failed");
+      ctx->set_caret_pos(raw.size());
     } else if(part.kind==Part::literal) {
       budget.spend();insert_identity(ctx,offset,part.raw);
     }
@@ -135,7 +158,9 @@ int run(const std::string& schema,const std::string& raw,size_t split,bool alter
   require(anchors.size()==2 && anchors[0].kind==Part::chinese && anchors[1].kind==Part::chinese,"fixture requires two genuine anchors");
   const std::vector<std::string> literals={"RAG","data","user_id","https://example.test/a_b?q=1.2","/tmp/A-b.txt","v1.2.3","3.14","12:30","x != \"a\"","，","ｑ","𠀀","é","👩🏽‍💻"};
   int passed=0;
-  for(const auto& value:literals)for(size_t where=0;where<=2;++where) {
+  for(size_t literalIndex=0;literalIndex<literals.size();++literalIndex)for(size_t where=0;where<=2;++where) {
+    const auto& value=literals[literalIndex];
+    std::cout<<"MIXED_NATIVE_CASE_BEGIN alternate="<<alternate<<" literal="<<literalIndex<<" position="<<where<<std::endl;
     auto parts=anchors;parts.insert(parts.begin()+where,{Part::literal,value,value,{}});
     OwnedSession trial;replay(source.id,parts,2048,trial);
     // A normal full-input recompose must not lose this explicit literal anchor.
@@ -152,6 +177,14 @@ int run(const std::string& schema,const std::string& raw,size_t split,bool alter
   {auto parts=anchors;parts.insert(parts.begin()+1,{Part::literal,"RAG","RAG",{}});bool exhausted=false;
    try{OwnedSession trial;replay(source.id,parts,0,trial);}catch(const Failure& f){exhausted=f.code==PG_INCOMPLETE;}
    require(exhausted && witness(source.id)==before,"exhausted replay mutated source");++passed;}
+  // Retain the original whole-mixed-input back-menu failure as an explicit
+  // negative regression. It must fail without touching the source, not pass by
+  // choosing a later suffix or manufacturing Chinese text.
+  {auto parts=anchors;parts.insert(parts.begin()+1,{Part::literal,"RAG","RAG",{}});bool rejected=false;
+   try{OwnedSession trial;replay(source.id,parts,2048,trial,false);}
+   catch(const CheckFailure& e){rejected=std::string(e.what())=="actual Chinese replay failed";}
+   require(rejected && witness(source.id)==before,"unprojected frontier regression not reproduced");
+   std::cout<<"MIXED_NATIVE_UNPROJECTED expected rejection; source unchanged\n";++passed;}
   // A genuinely unconfirmed suffix stays unconfirmed until an actual later selection.
   {OwnedSession partial;create(partial,schema,{},raw);auto ctx=session(partial.id)->context();choose_prefix(ctx,split,"你好",alternate);
    auto parts=observed_prefix(partial.id);require(parts.size()==2 && parts[1].kind==Part::unconfirmed,"suffix unexpectedly confirmed");
