@@ -1,0 +1,32 @@
+{
+  "formatVersion": 1,
+  "catalogContract": "paia-public-candidate-v2",
+  "baselineInventory": "Resources/candidate-sbom.json",
+  "presets": [
+    "baseline",
+    "updated"
+  ],
+  "sourceAnchor": "verified application-declared bundled reference; never incoming pack/index metadata",
+  "transformation": {
+    "path": "templates/paia_candidate.dict.yaml",
+    "replaceExactUTF8": "呢\tni\t900\n",
+    "withExactUTF8": "离线更新🧭\tli xian geng xin\t900\n",
+    "oldRowSHA256": "e431d5d65b0b2f9313dbb9691f37a21316a6b530ee1e787e4960633309bb4f7c",
+    "newRowSHA256": "75fe0f78db3693ed8c3170fd0138d8fcc8afbb7b4431d8f0dfa33b724f6517b2",
+    "authoredRowsBefore": 46,
+    "authoredRowsAfter": 46,
+    "allOtherSourceFilesByteIdentical": true
+  },
+  "authoredInputs": [
+    {
+      "path": "Resources/Dictionaries/A1Fixture/paia_a1.dict.yaml",
+      "sha256": "13d296cdab50aeb421a18a865872aa6efcc0557823cd78df9f8c610bd37e0924"
+    },
+    {
+      "path": "Resources/Dictionaries/HabitFixture/paia_habit_fixture.dict.yaml",
+      "sha256": "459d90fb3d00ec3aba00e3a2454cd4b49cd4c2d5ea5a053021671933368daac2"
+    }
+  ],
+  "licenseBoundary": "The new row is repository-authored test data; no external vocabulary or license grant is added. Pinned recipe/map licenses and notices remain in the baseline inventory. No production distribution clearance.",
+  "buildEvidence": "Each generated CandidateManifest binds exact selected source and compiled-artifact sizes/SHA256; native receipts bind reference and behavior, not publisher authentication."
+}

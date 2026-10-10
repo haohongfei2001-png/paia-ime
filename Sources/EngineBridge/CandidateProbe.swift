@@ -37,6 +37,20 @@ public enum CandidateNativeProbe {
             try reserve(session,session.commitEngineComposition().commit,text)
         }
     }
+    public static func exerciseUpdate(_ snapshot:CandidateResourceSnapshot,preset:CandidatePublicPreset,components:CandidateComponents)throws->CandidateUpdateProbeReceipt {
+        try snapshot.verify();try components.verify()
+        guard snapshot.pack.manifest.personal==nil else{throw ResourceError.incompatible}
+        let runtime=try RimeRuntime(candidate:snapshot,components:components);defer{_ = runtime.close()}
+        let schemas=CandidateContract.schemas.filter{$0.hasPrefix("paia_candidate_full_") && !$0.contains("_traditional_")}
+        guard schemas.count==8 else{throw ResourceError.incompatible}
+        for schema in schemas {
+            try policy(CandidateSourcePolicy.updateRaw,CandidateSourcePolicy.updateSurface,present:preset == .updated,schema:schema,runtime:runtime)
+            try policy("ni","呢",present:preset == .baseline,schema:schema,runtime:runtime)
+        }
+        guard runtime.deploymentCalls==0,RimeRuntime.startupAttempts==1 else{throw ResourceError.probe}
+        try snapshot.verify();try components.verify()
+        return CandidateUpdateProbeReceipt(reference:snapshot.pack.reference,preset:preset)
+    }
     public static func exercise(_ snapshot:CandidateResourceSnapshot,components:CandidateComponents,document:LexiconDocument?=nil)throws->CandidateProbeReceipt {
         try snapshot.verify();try components.verify()
         let pack=snapshot.pack,personal=pack.manifest.personal
@@ -109,6 +123,14 @@ public enum CandidateNativeProbe {
 }
 
 public enum CandidateHelper {
+    public static func probeUpdate(_ snapshot:CandidateResourceSnapshot,preset:CandidatePublicPreset,components:CandidateComponents,timeout:TimeInterval=30)throws {
+        try snapshot.verify();try components.verify()
+        let reference=snapshot.pack.reference
+        let args=["candidate-update-probe",snapshot.directory.path,reference.generation,reference.manifestSHA,components.library.path,components.extensionLibrary.path,components.extensionSHA,components.helperSHA,preset.rawValue]
+        let output=try ResourceHelper.run(executable:components.helper,arguments:args,home:snapshot.root,timeout:timeout)
+        guard try ResourceContract.decode(CandidateUpdateProbeReceipt.self,output)==CandidateUpdateProbeReceipt(reference:reference,preset:preset) else{throw ResourceError.probe}
+        try snapshot.verify();try components.verify()
+    }
     public static func probe(_ snapshot:CandidateResourceSnapshot,components:CandidateComponents,documentFile:URL?=nil,timeout:TimeInterval=30)throws {
         try snapshot.verify();try components.verify()
         let reference=snapshot.pack.reference

@@ -20,6 +20,11 @@ MainActor.assumeIsolated {
     let preflight=CommandLine.arguments.contains("--preflight")
     var phase="metadata"
     do {
+        let arguments=Array(CommandLine.arguments.dropFirst()),isolatedParent:URL?
+        if arguments==["--preflight"]{isolatedParent=nil}
+        else if arguments.count==3,arguments[0]=="--preflight",arguments[1]=="--isolated-parent"{isolatedParent=URL(fileURLWithPath:arguments[2])}
+        else {guard arguments.isEmpty else{throw EngineError.closed};isolatedParent=nil}
+
         _=InputMethodController.self
         guard Bundle.main.object(forInfoDictionaryKey:"InputMethodServerControllerClass") as? String == "PAIAInputMethodController",
               NSClassFromString("PAIAInputMethodController") != nil,
@@ -36,13 +41,14 @@ MainActor.assumeIsolated {
         if preflight{print("IMK_PREFLIGHT_POLICY before=\(before.rawValue) accepted=\(accepted) after=\(after.rawValue)")}
         guard accepted,after == .accessory else{throw EngineError.closed}
         phase="engine-startup"
-        let environment=try IMKServiceEnvironment(preflight:preflight)
+        let environment=try IMKServiceEnvironment(preflight:preflight,isolatedDataParent:isolatedParent)
         defer{InputMethodRuntime.preferences?.close();InputMethodRuntime.preferences=nil;InputMethodRuntime.workspace=nil;environment.close()}
         InputMethodRuntime.workspace=environment.workspace
         InputMethodRuntime.preferences=IMKPreferencesController(workspace:environment.workspace)
         if preflight {
             if let candidate=environment.candidate {
                 print("IMK_CANDIDATE_STARTUP schemas=32 personal=\(candidate.personalActive) mainAttempts=\(RimeRuntime.startupAttempts) deployments=\(candidate.runtime.deploymentCalls) privateStores=\(environment.productStores?.unavailable.isEmpty==true)")
+                print("IMK_CANDIDATE_PUBLIC reason=\(candidate.publicSelectionReason.rawValue) preset=\(candidate.publicPreset.rawValue) generation=\(candidate.publicReference.generation)")
                 guard candidate.runtime.deploymentCalls==0,RimeRuntime.startupAttempts==1,environment.productStores?.unavailable.isEmpty==true else{throw EngineError.closed}
             }
             if let resources=environment.publicResources {
@@ -50,7 +56,9 @@ MainActor.assumeIsolated {
                 guard resources.runtime.deploymentCalls==0,RimeRuntime.startupAttempts==1 else{throw EngineError.closed}
             }
             phase="engine-candidates"
-            let session=try environment.makeSession(environment.workspace.configuration);defer{session.end()}
+            // The authored preflight smoke uses an explicit Full/Simplified
+            // session. It neither changes nor saves restored user configuration.
+            let session=try environment.makeSession(LabConfiguration());defer{session.end()}
             let initial=try session.refresh()
             guard initial.commit==nil,initial.snapshot?.rawASCII.isEmpty==true else{throw EngineError.closed}
             for c in "nihao"{_ = try session.process(.text(String(c)))}

@@ -132,3 +132,13 @@ qualification. **The default pack contains only 46 authored dictionary rows. Ful
 remains explicitly configured research; installation alone would not make this a
 daily-use input method.** Production source rights, release signing and actual
 installed-client quality/performance remain separate gates.
+
+## Candidate public-resource recovery (Draft qualification)
+
+[Format-2 fixed-source publication and startup recovery](docs/CANDIDATE_RESOURCE_RECOVERY.md)
+continues the original candidate update contract: recorded current/last-good
+selection precedes rebuilding the current explicit personal layer. The actual
+bundle uses a fixed public-resource sibling, with no new management UI or research
+flag. [Commit-bound evidence](evidence/candidate-resource-recovery/VALIDATION.md)
+separates in-progress native checks from the earlier fixture recovery. This remains
+46 authored rows, restart-only activation and uninstalled engineering evidence.

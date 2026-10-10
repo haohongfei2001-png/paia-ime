@@ -31,6 +31,19 @@ func compile(output:URL,preset:ResourcePreset,library:URL)throws->ResourceRefere
 do {
     let args=Array(CommandLine.arguments.dropFirst())
     switch args.first {
+    case "candidate-publish":
+        guard args.count==5,let preset=CandidatePublicPreset(rawValue:args[1]),let revision=UInt64(args[2]),["create","existing"].contains(args[3]) else{throw ResourceError.format}
+        let helper=URL(fileURLWithPath:CommandLine.arguments[0]).standardizedFileURL
+        let app=helper.deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        guard helper.lastPathComponent=="paia-resources",let bundle=Bundle(url:app),bundle.executableURL?.deletingLastPathComponent()==helper.deletingLastPathComponent() else{throw ResourceError.incompatible}
+        try emit(CandidateUpdate.publish(bundle:bundle,preset:preset,parent:URL(fileURLWithPath:args[4]),expectedRevision:revision,create:args[3]=="create"))
+    case "candidate-update-probe":
+        guard args.count==9,let preset=CandidatePublicPreset(rawValue:args[8]) else{throw ResourceError.format}
+        let expected=ResourceReference(generation:args[2],manifestSHA:args[3])
+        let pack=try VerifiedCandidatePack(directory:ResourceDirectory(URL(fileURLWithPath:args[1])),expected:expected)
+        let snapshot=try CandidateResourceSnapshot(pack);defer{snapshot.close()}
+        let components=try CandidateComponents(library:URL(fileURLWithPath:args[4]),extensionLibrary:URL(fileURLWithPath:args[5]),helper:URL(fileURLWithPath:CommandLine.arguments[0]),extensionSHA:args[6],helperSHA:args[7]);defer{components.close()}
+        try emit(CandidateNativeProbe.exerciseUpdate(snapshot,preset:preset,components:components))
     case "candidate-compile":
         guard args.count==5 else{throw ResourceError.format}
         try emit(CandidateCompiler.compile(sources:URL(fileURLWithPath:args[1]),inputsSHA:args[2],output:URL(fileURLWithPath:args[3]),library:URL(fileURLWithPath:args[4])))

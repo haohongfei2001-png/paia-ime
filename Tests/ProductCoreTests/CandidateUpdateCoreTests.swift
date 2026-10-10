@@ -124,6 +124,25 @@ final class CandidateUpdateCoreTests:XCTestCase {
             }
         }
     }
+    func testFirstPublicationFaultNeverRecreatesUnknownEmptyAuthority()throws {
+        for fault in [ResourcePublicationFault.beforeGenerationRename,.afterGenerationRename,.beforeIndexRename,.afterIndexRename] {
+            let base=try pack(),policy=try policy(base),directory=try scratch().appendingPathComponent("catalog")
+            let writer=try CandidateResourceStore(directory:directory,policy:policy,create:true,fault:fault)
+            XCTAssertThrowsError(try writer.publish(base,expectedRevision:0,probe:inspect))
+            if fault != .beforeGenerationRename {
+                XCTAssertThrowsError(try writer.publish(base,expectedRevision:0,probe:inspect)){error in if case ResourceError.durabilityUnknown=error{}else{XCTFail("Unknown first publication was retried")}}
+            }
+            writer.close()
+            let catalog=try CandidateResourceCatalog(directory:directory,policy:policy)
+            if fault == .afterIndexRename {
+                let reopened=try CandidateResourceStore(directory:directory,policy:policy);defer{reopened.close()}
+                let selected=try catalog.select(probe:inspect);defer{selected.snapshot.close()};XCTAssertEqual(selected.snapshot.pack.reference,base.reference)
+            } else {
+                XCTAssertThrowsError(try catalog.select(probe:inspect));XCTAssertThrowsError(try CandidateResourceStore(directory:directory,policy:policy))
+                XCTAssertFalse(FileManager.default.fileExists(atPath:directory.appendingPathComponent("index.json").path))
+            }
+        }
+    }
     func testSecondWriterAndActivePrivateSnapshotRemainIsolated()throws {
         let base=try pack(),policy=try policy(base),updated=try pack(inputs:policy.sources(.updated)),directory=try scratch().appendingPathComponent("catalog")
         let store=try CandidateResourceStore(directory:directory,policy:policy,create:true);defer{store.close()}
