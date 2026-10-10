@@ -47,7 +47,11 @@ public struct SessionUpdate {
         self.handled=handled; self.snapshot=snapshot; self.commit=commit
     }
 }
-public enum SessionError: Error { case inactive, staleCandidate, pendingCommit, invalidEngineValue }
+public enum SessionError: Error { case inactive, staleCandidate, pendingCommit, invalidEngineValue, staleExplicitAction }
+
+public struct CharacterBinding:Hashable {
+    public let session:SessionKey,targetEpoch:UInt64,inputGeneration:UInt64,dictionaryRevision:String
+}
 
 // Pure value state. The only effect reservation gate, with no AppKit, C calls, disk or network.
 public struct SessionCore {
@@ -93,6 +97,17 @@ public struct SessionCore {
                                 text:text,origin:literal == nil ? .engine : .literal)
         }
         return SessionUpdate(handled:v.handled,snapshot:s,commit:effect)
+    }
+    public var idleCharacterBinding:CharacterBinding? {
+        guard active,pendingOperation==nil,let s=snapshot,s.rawASCII.isEmpty,s.preedit.isEmpty,s.rows.isEmpty else{return nil}
+        return CharacterBinding(session:key,targetEpoch:targetEpoch,inputGeneration:inputGeneration,dictionaryRevision:dictionaryRevision)
+    }
+    public mutating func commitKnownCharacter(_ value:KnownCharacter,binding:CharacterBinding)throws->SessionUpdate {
+        try ensureReady()
+        guard let current=idleCharacterBinding,current==binding else{throw SessionError.staleExplicitAction}
+        // The initialized engine snapshot is idle; the explicit literal action does not decode
+        // or fabricate a candidate. Reuse the same generation/effect reservation machinery.
+        return try receive(EngineValue(raw:"",preedit:"",caretUTF8:0),literal:value.text)
     }
     // Reserve BEFORE calling a host. An uncertain host outcome is not replayable.
     public mutating func reserve(_ effect: CommitEffect) -> Bool {

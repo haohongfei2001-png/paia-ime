@@ -2,6 +2,8 @@
 import AppKit
 import EngineBridge
 import ConstraintCore
+import SessionCore
+import TextBoundary
 
 @MainActor final class LabStackView:NSStackView {
     override var isOpaque:Bool {true}
@@ -25,6 +27,17 @@ import ConstraintCore
     }
     required init?(coder:NSCoder){fatalError("not used")}
 }
+@MainActor private final class CharacterPreview {
+    let id:UUID,value:KnownCharacter,binding:CharacterBinding,input:[UInt8],host:HostDispatcher
+    init(id:UUID,value:KnownCharacter,binding:CharacterBinding,input:[UInt8],host:HostDispatcher){self.id=id;self.value=value;self.binding=binding;self.input=input;self.host=host}
+}
+@MainActor private final class CharacterInsertButton:NSButton {
+    let preview:CharacterPreview
+    init(_ preview:CharacterPreview,target:AnyObject,action:Selector){
+        self.preview=preview;super.init(frame:.zero);title="Insert "+preview.value.identifier;self.target=target;self.action=action;bezelStyle = .rounded;setAccessibilityLabel(title)
+    }
+    required init?(coder:NSCoder){fatalError("not used")}
+}
 @MainActor public final class NativeLabController:NSObject,NSTextViewDelegate {
     public let editor=LabTextView(frame:.zero)
     public let root:NSStackView=LabStackView()
@@ -33,6 +46,9 @@ import ConstraintCore
     public let punctuation=NSButton(checkboxWithTitle:"Chinese , ? ! ;",target:nil,action:nil)
     public let hold=NSButton(checkboxWithTitle:"Keep composition for repair",target:nil,action:nil)
     public let commitButton=NSButton(),cancelCompositionButton=NSButton(),repairButton=NSButton()
+    public let characterButton=NSButton(),characterField=RepairInputView(),characterPreviewButton=NSButton(),characterCancelButton=NSButton()
+    public let characterPreviewLabel=NSTextField(wrappingLabelWithString:""),characterActionStack=NSStackView()
+    public var characterInspectorVisible:Bool {inspectorKind == .character && inspectorVisible}
     public let rawField=RepairInputView(),surfaceField=RepairInputView(),previewButton=NSButton(),cancelRepairButton=NSButton()
     public let status=NSTextField(wrappingLabelWithString:""),previewLabel=NSTextField(wrappingLabelWithString:"")
     public let targetStack=NSStackView(),acceptStack=NSStackView()
@@ -41,6 +57,10 @@ import ConstraintCore
     public var inspectorVisible:Bool {focusLease != nil}
     private let runtime:RimeRuntime
     private let configuredSession:((LabConfiguration)throws->InputSession)?
+    private enum InspectorKind:Equatable {case repair,character}
+    private var inspectorKind:InspectorKind?,inspectorDismissing=false,characterApplying=false
+    private let characterInspector=NSStackView()
+    private var characterHost:HostDispatcher?,characterBinding:CharacterBinding?,characterPreview:CharacterPreview?,characterRenderID=UUID()
     private let inspector=NSStackView(),targetScroll=NSScrollView()
     private weak var window:LabWindow?
     private var focusLease:UUID?,selectedTarget:RepairTarget?,proposal:RepairProposal?
@@ -69,7 +89,16 @@ import ConstraintCore
         configure(repairButton,"Repair confirmed segment",#selector(beginRepair(_:)),refusesFocus:true)
         commitButton.keyEquivalent="\r";commitButton.keyEquivalentModifierMask=[.control]
         repairButton.keyEquivalent="r";repairButton.keyEquivalentModifierMask=[.control,.option]
-        root.addArrangedSubview(NSStackView(views:[commitButton,cancelCompositionButton,repairButton]))
+        configure(characterButton,"Enter Unicode character…",#selector(beginCharacter(_:)),refusesFocus:true)
+        root.addArrangedSubview(NSStackView(views:[commitButton,cancelCompositionButton,repairButton,characterButton]))
+        characterInspector.orientation = .vertical;characterInspector.alignment = .leading;characterInspector.spacing=6;characterInspector.isHidden=true
+        characterField.setAccessibilityLabel("One character or U+ hexadecimal code");characterField.delegate=self
+        configure(characterPreviewButton,"Preview",#selector(previewCharacter(_:)))
+        configure(characterCancelButton,"Cancel character",#selector(cancelCharacter(_:)))
+        characterInspector.addArrangedSubview(NSStackView(views:[NSTextField(labelWithString:"Character or U+ code"),characterField,characterPreviewButton,characterCancelButton]))
+        characterPreviewLabel.font = .systemFont(ofSize:14);characterPreviewLabel.setAccessibilityLabel("Explicit character identity and glyph preview")
+        characterInspector.addArrangedSubview(characterPreviewLabel);characterInspector.addArrangedSubview(characterActionStack)
+        root.addArrangedSubview(characterInspector)
         inspector.orientation = .vertical;inspector.alignment = .leading;inspector.spacing=8;inspector.isHidden=true
         targetStack.orientation = .horizontal;targetStack.spacing=6
         targetScroll.hasHorizontalScroller=true;targetScroll.hasVerticalScroller=false;targetScroll.documentView=targetStack
@@ -97,6 +126,7 @@ import ConstraintCore
             do {_=host.apply(try host.session.select(ref));self.editor.renderCandidates();self.updateControls()}
             catch {self.status.stringValue="Candidate rejected for the current snapshot.";self.editor.renderCandidates()}
         }
+        registerIdleControl(characterButton)
         updateControls()
     }
     deinit {for observer in observers {NotificationCenter.default.removeObserver(observer)}}
@@ -178,6 +208,7 @@ import ConstraintCore
     }
     @objc private func beginRepair(_ sender:NSButton){
         guard configuration.deferredCommit,let host=editor.dispatcher,host.session.supportsRepair,host.isCurrentTarget,!inspectorVisible else{return}
+        inspectorKind = .repair
         do {
             try refreshTargets(preserving:nil);guard selectedTarget != nil else{throw ConstraintError.invalidSpan}
             inspector.isHidden=false;focusLease=host.beginInspector(views:ownedInspectorViews())
@@ -185,9 +216,12 @@ import ConstraintCore
             editor.candidates.orderOut(nil);guard window?.makeFirstResponder(rawField)==true,host.isInspectorSuspended else{throw ConstraintError.stale};status.stringValue="Preview searches real engine paths. The document is unchanged until Accept.";updateControls()
         } catch {dismissInspector(resume:true);status.stringValue=message(error)}
     }
-    private func ownedInspectorViews()->[NSView] {[rawField,surfaceField,previewButton,cancelRepairButton]+targetStack.arrangedSubviews+acceptStack.arrangedSubviews}
+    private func ownedInspectorViews()->[NSView] {
+        if inspectorKind == .character {return [characterField,characterPreviewButton,characterCancelButton]+characterActionStack.arrangedSubviews}
+        return [rawField,surfaceField,previewButton,cancelRepairButton]+targetStack.arrangedSubviews+acceptStack.arrangedSubviews
+    }
     private func rebuildInspectorKeyLoop(){
-        let views=targetStack.arrangedSubviews+[rawField,surfaceField,previewButton]+acceptStack.arrangedSubviews+[cancelRepairButton]
+        let views:[NSView] = inspectorKind == .character ? [characterField,characterPreviewButton]+characterActionStack.arrangedSubviews+[characterCancelButton] : targetStack.arrangedSubviews+[rawField,surfaceField,previewButton]+acceptStack.arrangedSubviews+[cancelRepairButton]
         for (index,view) in views.enumerated(){view.nextKeyView=views[(index+1)%views.count]}
     }
     private func refreshTargets(preserving old:RawAnchor?)throws {
@@ -204,7 +238,7 @@ import ConstraintCore
         if let token=focusLease {_=host.updateInspectorViews(token,views:ownedInspectorViews())}
     }
     @objc private func selectTarget(_ sender:TargetButton){
-        guard inspectorVisible,sender.renderID==targetRenderID else{return}
+        guard inspectorKind == .repair,!inspectorDismissing,inspectorVisible,sender.renderID==targetRenderID else{return}
         guard let host=editor.dispatcher,host.permitsInspectorFocus(window?.firstResponder),
               sender.binding.lease.matches(host.session.snapshot,revision:runtime.dictionaryRevision,request:sender.binding.lease.request) else{
             editor.dispatcher?.invalidate();dismissInspector(resume:false);return
@@ -214,9 +248,16 @@ import ConstraintCore
             rawField.stringValue=String(decoding:Array(raw.utf8)[sender.binding.anchor.bytes],as:UTF8.self);surfaceField.stringValue=sender.binding.anchor.text
         }
     }
-    public func textDidChange(_ notification:Notification){discardProposal();status.stringValue="Edit changed. Preview again before accepting."}
+    public func textDidChange(_ notification:Notification){
+        if inspectorKind == .character,(notification.object as AnyObject?) === characterField {
+            discardCharacterPreview();status.stringValue="Character input changed. Preview again before inserting."
+        } else if inspectorKind == .repair,((notification.object as AnyObject?) === rawField || (notification.object as AnyObject?) === surfaceField) {
+            discardProposal();status.stringValue="Edit changed. Preview again before accepting."
+        }
+    }
     private func discardProposal(){proposal?.cancel();proposal=nil;previewParameters=nil;previewLabel.stringValue="";for view in acceptStack.arrangedSubviews {acceptStack.removeArrangedSubview(view);view.removeFromSuperview()};rebuildInspectorKeyLoop()}
     @objc private func preparePreview(_ sender:NSButton){
+        guard inspectorKind == .repair,!inspectorDismissing else{return}
         guard let host=editor.dispatcher,let token=focusLease,let target=selectedTarget,host.permitsInspectorFocus(window?.firstResponder) else{editor.dispatcher?.invalidate();dismissInspector(resume:false);return}
         discardProposal()
         guard !rawField.hasMarkedText(),!surfaceField.hasMarkedText() else{status.stringValue="Finish editing the repair inputs before previewing.";return}
@@ -230,6 +271,7 @@ import ConstraintCore
         } catch {discardProposal();status.stringValue=message(error);try? refreshTargets(preserving:target.anchor)}
     }
     @objc private func acceptPreview(_ sender:AcceptButton){
+        guard inspectorKind == .repair,!inspectorDismissing else{return}
         guard let current=proposal,current===sender.proposal else{return}
         guard let parameters=previewParameters,parameters.raw==rawField.stringValue,parameters.surface==surfaceField.stringValue,
               !rawField.hasMarkedText(),!surfaceField.hasMarkedText() else{discardProposal();status.stringValue="Repair inputs changed; preview again.";return}
@@ -240,15 +282,89 @@ import ConstraintCore
             let update=try host.session.applyRepair(sender.proposal)
             guard host.apply(update) else{throw ConstraintError.stale}
             dismissInspector(resume:false);editor.renderCandidates();status.stringValue="Marked text updated. Commit Chinese when ready.";updateControls()
-        } catch {discardProposal();focusLease=nil;inspector.isHidden=true;status.stringValue=message(error);updateControls()}
+        } catch {dismissInspector(resume:false);status.stringValue=message(error);updateControls()}
     }
     @objc private func cancelRepair(_ sender:NSButton){
+        guard inspectorKind == .repair,!inspectorDismissing else{return}
         dismissInspector(resume:true)
         status.stringValue=editor.dispatcher?.isCurrentTarget==true ? "Repair cancelled; original composition retained." : "Repair closed after a target change; no commit was made."
     }
     private func dismissInspector(resume:Bool){
-        discardProposal();if resume,let token=focusLease {_=editor.dispatcher?.resumeInspector(token)}
-        focusLease=nil;selectedTarget=nil;inspector.isHidden=true;updateControls()
+        guard !inspectorDismissing else{return};inspectorDismissing=true;defer{inspectorDismissing=false}
+        // Revoke every acceptance capability before focus restoration can reenter.
+        // Keep the shared kind/lease alive so mode/settings guards remain closed.
+        discardProposal();discardCharacterPreview()
+        if resume,let token=focusLease {_=editor.dispatcher?.resumeInspector(token)}
+        focusLease=nil;inspectorKind=nil;selectedTarget=nil;characterHost=nil;characterBinding=nil
+        characterField.stringValue="";inspector.isHidden=true;characterInspector.isHidden=true;updateControls()
+    }
+    private var validCharacterCaret:Bool {
+        let range=editor.selectedRange()
+        return editor.selectedRanges.count==1 && range.length==0 && TextBoundary.validGraphemeRange(range,in:editor.string)
+    }
+    @objc private func beginCharacter(_ sender:NSButton){
+        guard !isClosed,!hasComposition,!inspectorVisible,window?.firstResponder===editor else{return}
+        guard validCharacterCaret else{status.stringValue="Place one caret where you want to insert; selections are not replaced.";return}
+        // Literal typing ends its dispatcher. Only this explicit action, while the same editor
+        // already owns focus and has no marked text, may prepare a fresh idle session.
+        if editor.dispatcher?.isCurrentTarget != true {editor.renew()}
+        guard let host=editor.dispatcher,host.isCurrentTarget,let binding=host.session.idleCharacterBinding else{return}
+        inspectorKind = .character;characterHost=host;characterBinding=binding;characterField.stringValue="";discardCharacterPreview();characterInspector.isHidden=false
+        focusLease=host.beginInspector(views:ownedInspectorViews());rebuildInspectorKeyLoop()
+        guard focusLease != nil,window?.makeFirstResponder(characterField)==true,host.isInspectorSuspended else{host.invalidate();dismissInspector(resume:false);return}
+        status.stringValue="Enter one character or U+ code. Preview does not insert or save it.";updateControls()
+    }
+    private func discardCharacterPreview(){
+        characterPreview=nil;characterRenderID=UUID();characterPreviewLabel.stringValue=""
+        for view in characterActionStack.arrangedSubviews {characterActionStack.removeArrangedSubview(view);view.removeFromSuperview()}
+        rebuildInspectorKeyLoop()
+    }
+    @objc private func previewCharacter(_ sender:NSButton){
+        guard inspectorKind == .character,!inspectorDismissing,!characterApplying else{return}
+        guard !isClosed,let host=characterHost,host===editor.dispatcher,let token=focusLease,let binding=characterBinding,
+              host.permitsInspectorFocus(window?.firstResponder),host.session.idleCharacterBinding==binding else{
+            characterHost?.invalidate();dismissInspector(resume:false);return
+        }
+        discardCharacterPreview()
+        guard !characterField.hasMarkedText() else{status.stringValue="Finish editing the character field before previewing.";return}
+        do {
+            let value=try KnownCharacter(characterField.stringValue)
+            guard value.canInsert(at:editor.selectedRange(),in:editor.string) else{status.stringValue="This scalar would join adjacent text. Choose a separate character boundary.";return}
+            let request=CharacterPreview(id:characterRenderID,value:value,binding:binding,input:Array(characterField.stringValue.utf8),host:host)
+            characterPreview=request
+            characterPreviewLabel.stringValue="\(value.identifier) · \(value.name)\nGlyph: \(value.text)\nSystem fonts may show a missing-glyph box; the U+ identity stays explicit."
+            characterActionStack.addArrangedSubview(CharacterInsertButton(request,target:self,action:#selector(insertCharacter(_:))))
+            rebuildInspectorKeyLoop()
+            guard host.updateInspectorViews(token,views:ownedInspectorViews()) else{host.invalidate();dismissInspector(resume:false);return}
+            status.stringValue="Preview only. Insert this exact scalar at the original caret when ready."
+        }catch{status.stringValue="Use one supported standalone character or U+ with 1–6 hex digits. Invisible/control values and sequences are refused."}
+    }
+    @objc private func insertCharacter(_ sender:CharacterInsertButton){
+        guard inspectorKind == .character,!inspectorDismissing,!characterApplying,let request=characterPreview,request===sender.preview else{return}
+        guard characterField.stringValue.utf8.elementsEqual(request.input),!characterField.hasMarkedText() else{discardCharacterPreview();status.stringValue="Input changed. Preview again.";return}
+        guard !isClosed,let token=focusLease,request.host===editor.dispatcher,request.host===characterHost,
+              request.host.permitsInspectorFocus(window?.firstResponder),validCharacterCaret else{
+            request.host.invalidate();dismissInspector(resume:false);status.stringValue="Character target changed; nothing inserted.";return
+        }
+        characterApplying=true;defer{characterApplying=false}
+        // Latch before focus restoration: nested/repeated callbacks cannot issue another effect.
+        characterPreview=nil;sender.isEnabled=false
+        guard request.host.resumeInspector(token),inspectorKind == .character,focusLease==token,
+              characterRenderID==request.id,request.host===editor.dispatcher,request.host===characterHost,
+              !isClosed,characterField.stringValue.utf8.elementsEqual(request.input),!characterField.hasMarkedText(),
+              validCharacterCaret,request.value.canInsert(at:editor.selectedRange(),in:editor.string),request.host.isCurrentTarget else{
+            request.host.invalidate();dismissInspector(resume:false);status.stringValue="Character preview or target changed; nothing inserted.";return
+        }
+        do {
+            let update=try request.host.session.commitKnownCharacter(request.value,binding:request.binding)
+            guard request.host.apply(update) else{throw SessionError.staleExplicitAction}
+            dismissInspector(resume:false);editor.renderCandidates();status.stringValue="Inserted \(request.value.identifier) once. Nothing saved or learned."
+        }catch{request.host.invalidate();dismissInspector(resume:false);status.stringValue="Character insertion rejected; no automatic retry."}
+        updateControls()
+    }
+    @objc private func cancelCharacter(_ sender:NSButton){
+        guard inspectorKind == .character,!inspectorDismissing else{return}
+        dismissInspector(resume:!characterApplying);status.stringValue="Character entry cancelled; nothing inserted or saved."
     }
     private func message(_ error:Error)->String {
         if case ConstraintError.native(let code,_)=error {

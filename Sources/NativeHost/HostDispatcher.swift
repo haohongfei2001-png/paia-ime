@@ -21,7 +21,7 @@ import SessionCore
     }
     private var unchangedTarget:Bool {
         guard active,let client=client else{return false}
-        return client.string==expectedText && client.selectedRange()==expectedSelection && client.markedRange()==expectedMarked
+        return client.string.utf8.elementsEqual(expectedText.utf8) && client.selectedRange()==expectedSelection && client.markedRange()==expectedMarked
     }
     public init(client: NSTextView, session: InputSession) {
         self.client=client; self.session=session
@@ -96,7 +96,7 @@ import SessionCore
     public func invalidate() {
         guard active else {return}
         active=false; inspector=nil; session.end()
-        if let client=client,client.string==expectedText,client.selectedRange()==expectedSelection,client.markedRange()==expectedMarked,client.hasMarkedText() {
+        if let client=client,client.string.utf8.elementsEqual(expectedText.utf8),client.selectedRange()==expectedSelection,client.markedRange()==expectedMarked,client.hasMarkedText() {
             client.setMarkedText("",selectedRange:NSRange(location:0,length:0),replacementRange:NSRange(location:NSNotFound,length:0))
             client.unmarkText()
         }

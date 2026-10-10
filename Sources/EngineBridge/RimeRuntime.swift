@@ -2,6 +2,7 @@ import Foundation
 import CRimeShim
 import SessionCore
 import ConstraintCore
+import TextBoundary
 
 public enum EngineError: Error { case code(Int32), invalidUTF8, closed }
 public final class RimeRuntime {
@@ -161,6 +162,11 @@ public final class InputSession {
             let old=id;id=trialID;core=next;repairRequest += 1;paia_rime_end_session(old)
             return update
         }
+    }
+    public var idleCharacterBinding:CharacterBinding? {lock.lock();defer{lock.unlock()};return ended ? nil:core.idleCharacterBinding}
+    public func commitKnownCharacter(_ value:KnownCharacter,binding:CharacterBinding)throws->SessionUpdate {
+        lock.lock();defer{lock.unlock()};guard !ended else{throw EngineError.closed}
+        return try core.commitKnownCharacter(value,binding:binding)
     }
     public func commitEngineComposition() throws -> SessionUpdate {
         lock.lock();defer{lock.unlock()};return try step(5)
