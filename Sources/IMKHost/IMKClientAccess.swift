@@ -1,6 +1,8 @@
 #if os(macOS)
 import AppKit
 import InputMethodKit
+import TextBoundary
+import CIMKContext
 
 // C0 only: read the span written by this activation, never the entire document.
 // Object identity is a callback identity, not a claim of stable document identity.
@@ -12,13 +14,45 @@ import InputMethodKit
     func mark(_ text:String,selection:NSRange,replacing:NSRange)
     func insert(_ text:String,replacing:NSRange)
     func lineRect(at index:Int)->NSRect?
+    var offersContext:Bool {get}
+    func contextAuthority()->ContextAuthority?
+    func contextualLength()->Int?
+    func boundedText(in range:NSRange)->BoundedTextRead?
 }
 
+// No automatic qualification based on bundle ID, selector presence or successful
+// reads. The production controller uses the default nil provider. At present only
+// authored test adapters supply a revocable, cost-qualified metadata contract.
+public struct ContextAuthority:Equatable {
+    public let permissionEpoch:UInt64,documentRevision:UInt64,canRead:Bool,canReplace:Bool,cheapReliableLength:Bool
+    public init(permissionEpoch:UInt64,documentRevision:UInt64,canRead:Bool=true,canReplace:Bool=true,cheapReliableLength:Bool=true) {
+        self.permissionEpoch=permissionEpoch;self.documentRevision=documentRevision;self.canRead=canRead;self.canReplace=canReplace;self.cheapReliableLength=cheapReliableLength
+    }
+}
+public extension IMKClientAccess {
+    var offersContext:Bool {false}
+    func contextAuthority()->ContextAuthority? {nil}
+    func contextualLength()->Int? {nil}
+    func boundedText(in range:NSRange)->BoundedTextRead? {nil}
+}
 @MainActor public final class IMKTextInputBridge:IMKClientAccess {
     private let input:IMKTextInput
     public var callbackIdentity:AnyObject {input as AnyObject}
-    public init?(_ sender:Any?) {
-        guard let input=sender as? IMKTextInput else{return nil};self.input=input
+    private let qualifiedContext:(()->ContextAuthority?)?
+    public var offersContext:Bool {qualifiedContext != nil}
+    public init?(_ sender:Any?,qualifiedContext:(()->ContextAuthority?)?=nil) {
+        guard let input=sender as? IMKTextInput else{return nil};self.input=input;self.qualifiedContext=qualifiedContext
+    }
+    public func contextAuthority()->ContextAuthority? {qualifiedContext?()}
+    public func contextualLength()->Int? {
+        guard offersContext,let value=PAIAReadIMKLength(input) else{return nil}
+        let length=value.intValue;return length>=0 && length<=ContextBudget.document ? length:nil
+    }
+    public func boundedText(in range:NSRange)->BoundedTextRead? {
+        guard offersContext,let value=PAIAReadIMKContext(input,range,UInt(ContextBudget.read)) else{return nil}
+        let bytes=Array(value.utf16LE);guard bytes.count%2==0 else{return nil}
+        let units=stride(from:0,to:bytes.count,by:2).map{UInt16(bytes[$0]) | (UInt16(bytes[$0+1])<<8)}
+        return try? BoundedTextRead(requested:range,actual:value.actualRange,units:units)
     }
     public func selectedRange()->NSRange {input.selectedRange()}
     public func markedRange()->NSRange {input.markedRange()}

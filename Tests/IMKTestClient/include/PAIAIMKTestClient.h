@@ -11,6 +11,10 @@ NS_ASSUME_NONNULL_BEGIN
 @property(nonatomic,copy,nullable) void (^onMark)(void);
 @property(nonatomic,copy,nullable) void (^onInsert)(void);
 @property(nonatomic,copy,nullable) void (^onGeometry)(void);
+@property(nonatomic,copy,nullable) void (^onLength)(void);
+@property(nonatomic) BOOL ignoreReplacementRange;
+@property(nonatomic) NSInteger contextReadFault;
+@property(nonatomic,readonly) NSUInteger contextRevision;
 @property(nonatomic) BOOL truncateReads;
 @property(nonatomic) BOOL invalidGeometry;
 @property(nonatomic,readonly) NSInteger insertCalls;

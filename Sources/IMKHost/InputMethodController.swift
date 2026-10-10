@@ -15,8 +15,9 @@ import SessionCore
     private let panel=CandidatePanel()
     private let expressionPanel=ExpressionPanel()
     private let repairPanel=SegmentRepairPanel()
+    private let contextPanel=ContextEditPanel()
     private lazy var driver:IMKControllerDriver = {
-        let hide:()->Void = {[weak self] in self?.panel.orderOut(nil);self?.expressionPanel.orderOut(nil);self?.repairPanel.orderOut(nil)}
+        let hide:()->Void = {[weak self] in self?.panel.orderOut(nil);self?.expressionPanel.orderOut(nil);self?.repairPanel.orderOut(nil);self?.contextPanel.orderOut(nil)}
         let present:(CandidateSnapshot?,NSRect,String?)->Void = {[weak self] snapshot,rect,notice in
             guard let self=self,let screen=NSScreen.screens.first(where:{$0.frame.intersects(rect)}) else{return}
             if let snapshot=snapshot,!snapshot.rows.isEmpty{self.panel.show(snapshot,below:rect,screen:screen.visibleFrame,notice:notice)}
@@ -33,7 +34,13 @@ import SessionCore
             guard self.driver.repair?.token==state.token else{return false}
             return self.repairPanel.show(state,below:rect,screen:screen.visibleFrame,isCurrent:{[weak self] in self?.driver.repair?.token==state.token})
         }
-        return InputMethodRuntime.workspace?.makeDriver(hide:hide,present:present,presentRecall:presentRecall,scrollRecall:{[weak self] direction,token in self?.expressionPanel.scrollReview(direction,token:token)},presentRepair:presentRepair,scrollRepair:{[weak self] direction,token in self?.repairPanel.scrollReview(direction,token:token)}) ?? IMKControllerDriver(makeSession:{nil},hide:hide,present:present)
+        let presentContext:(ContextEditState,NSRect)->Bool = {[weak self] state,rect in
+            guard let self=self,let screen=NSScreen.screens.first(where:{$0.frame.intersects(rect)}),self.driver.contextEdit?.token==state.token else{return false}
+            self.panel.orderOut(nil);self.expressionPanel.orderOut(nil);self.repairPanel.orderOut(nil)
+            guard self.driver.contextEdit?.token==state.token else{return false}
+            return self.contextPanel.show(state,below:rect,screen:screen.visibleFrame,isCurrent:{[weak self] in self?.driver.contextEdit?.token==state.token})
+        }
+        return InputMethodRuntime.workspace?.makeDriver(hide:hide,present:present,presentRecall:presentRecall,scrollRecall:{[weak self] direction,token in self?.expressionPanel.scrollReview(direction,token:token)},presentRepair:presentRepair,scrollRepair:{[weak self] direction,token in self?.repairPanel.scrollReview(direction,token:token)},presentContext:presentContext,scrollContext:{[weak self] direction,token in self?.contextPanel.scrollReview(direction,token:token)}) ?? IMKControllerDriver(makeSession:{nil},hide:hide,present:present)
     }()
     public override func activateServer(_ sender:Any!) {
         guard let bridge=IMKTextInputBridge(sender) else{driver.close();return}
@@ -45,6 +52,9 @@ import SessionCore
         repairPanel.review = {[weak self] row,token in self?.driver.reviewRepair(row:row,token:token)}
         repairPanel.apply = {[weak self] token in self?.driver.applyRepair(token:token)}
         repairPanel.cancel = {[weak self] token in self?.driver.cancelRepair(token:token)}
+        contextPanel.review = {[weak self] token in self?.driver.reviewContext(token:token)}
+        contextPanel.apply = {[weak self] token in self?.driver.applyContext(token:token)}
+        contextPanel.cancel = {[weak self] token in self?.driver.cancelContext(token:token)}
         driver.activate(bridge)
     }
     public override func recognizedEvents(_ sender:Any!)->Int {Int(NSEvent.EventTypeMask.keyDown.rawValue)}
@@ -64,11 +74,20 @@ import SessionCore
             let action=driver.retainedMenuAction(arm:arm),item=NSMenuItem(title:title,action:#selector(retainedAction(_:)),keyEquivalent:"")
             item.target=self;item.representedObject=action;item.isEnabled=action != nil;menu.addItem(item)
         }
-        if driver.recovery?.raw.isEmpty==false || driver.recovery?.issuedText != nil {
+        for (title,kind) in [("Insert a known Unicode character…",ContextEditKind.knownCharacter),("Capture selected text for manual review…",ContextEditKind.selectedText)] {
+            let action=driver.contextMenuAction(kind:kind),item=NSMenuItem(title:title,action:#selector(contextAction(_:)),keyEquivalent:"")
+            item.target=self;item.representedObject=action;item.isEnabled=action != nil;menu.addItem(item)
+        }
+        let qualification=NSMenuItem(title:"Context editing requires separately qualified client capabilities",action:nil,keyEquivalent:"")
+        qualification.isEnabled=false;menu.addItem(qualification)
+        if driver.recovery?.hasContent==true {
             let item=NSMenuItem(title:"Inspect retained input…",action:#selector(inspectRetainedSpelling(_:)),keyEquivalent:"")
             item.target=self;item.isEnabled=driver.coordinator.session==nil;menu.addItem(item)
         }
         return menu
+    }
+    @objc private func contextAction(_ item:NSMenuItem){
+        guard let action=item.representedObject as? ContextMenuAction else{return};driver.performContextMenuAction(action)
     }
     @objc private func retainedAction(_ item:NSMenuItem){
         guard let action=item.representedObject as? RetainedMenuAction else{return};driver.performRetainedMenuAction(action)
@@ -78,9 +97,9 @@ import SessionCore
     }
     @objc private func inspectRetainedSpelling(_ sender:Any?) {
         guard driver.coordinator.session==nil,let recovery=driver.recovery else{return}
-        let text=recovery.issuedText ?? recovery.raw;guard !text.isEmpty else{return}
-        let alert=NSAlert();alert.messageText="Retained input; insertion outcome may be unknown"
-        alert.informativeText="Check the original document before manually using this text. It may already have been inserted. Closing does not write to the client."
+        let text=recovery.inspectionText;guard recovery.hasContent else{return}
+        let alert=NSAlert();alert.messageText="Retained input; no automatic replay"
+        alert.informativeText="Check the original document. An issued replacement may already have happened, including deletion. Closing this read-only view does not write to the client."
         let scroll=NSScrollView(frame:NSRect(x:0,y:0,width:440,height:160));scroll.hasVerticalScroller=true
         let textView=NSTextView(frame:scroll.bounds);textView.isEditable=false;textView.isSelectable=true;textView.isRichText=false;textView.string=text
         scroll.documentView=textView;alert.accessoryView=scroll;alert.addButton(withTitle:"Close");alert.runModal()
