@@ -45,10 +45,10 @@ public enum IMKManagementError:Error {case busy,unavailable,interrupted}
         if managing{interrupted=true;return false}
         return !closed
     }
-    public func makeDriver(hide:@escaping()->Void,present:@escaping(CandidateSnapshot?,NSRect,String?)->Void,presentRecall:@escaping(ExpressionRecallState,NSRect)->Bool={_,_ in false},scrollRecall:@escaping(Int,UUID)->Void={_,_ in},presentRepair:@escaping(SegmentRepairState,NSRect)->Bool={_,_ in false},scrollRepair:@escaping(Int,UUID)->Void={_,_ in},presentContext:@escaping(ContextEditState,NSRect)->Bool={_,_ in false},scrollContext:@escaping(Int,UUID)->Void={_,_ in})->IMKControllerDriver {
+    public func makeDriver(hide:@escaping()->Void,present:@escaping(CandidateSnapshot?,NSRect,String?)->Void,presentRecall:@escaping(ExpressionRecallState,NSRect)->Bool={_,_ in false},scrollRecall:@escaping(Int,UUID)->Void={_,_ in},presentRepair:@escaping(SegmentRepairState,NSRect)->Bool={_,_ in false},scrollRepair:@escaping(Int,UUID)->Void={_,_ in},presentContext:@escaping(ContextEditState,NSRect)->Bool={_,_ in false},scrollContext:@escaping(Int,UUID)->Void={_,_ in},showCharacters:@escaping()->Void={NSApp.orderFrontCharacterPalette(nil)})->IMKControllerDriver {
         let driver=IMKControllerDriver(makeSession:{[weak self] in
             guard let self=self,!self.closed,!self.managing else{return nil};return try? self.factory(self.configuration)
-        },expressions:{[weak self] in self?.expressionCatalog},literal:{[weak self] in self?.configuration.literal==true},permitOperation:{[weak self] in self?.permitInput()==true},hide:hide,present:present,presentRecall:presentRecall,scrollRecall:scrollRecall,presentRepair:presentRepair,scrollRepair:scrollRepair,presentContext:presentContext,scrollContext:scrollContext)
+        },expressions:{[weak self] in self?.expressionCatalog},literal:{[weak self] in self?.configuration.literal==true},permitOperation:{[weak self] in self?.permitInput()==true},initialLiteral:{[weak self] application in self?.configuration.preferences.initialLiteral(for:application)==true},showCharacters:showCharacters,hide:hide,present:present,presentRecall:presentRecall,scrollRecall:scrollRecall,presentRepair:presentRepair,scrollRepair:scrollRepair,presentContext:presentContext,scrollContext:scrollContext)
         drivers.removeAll{$0.value==nil};drivers.append(WeakDriver(driver))
         if managing{interrupted=true}
         return driver
@@ -56,13 +56,14 @@ public enum IMKManagementError:Error {case busy,unavailable,interrupted}
     public func applyConfiguration(_ next:LabConfiguration)throws {
         try withIdleAccess {
             guard !next.deferredCommit else{throw IMKManagementError.unavailable}
+            try SettingsCodec.validate(next.preferences)
             let prepared=try factory(next);defer{prepared.end()}
             let initial=try prepared.refresh()
             guard !interrupted,live.allSatisfy({$0.isIdleForManagement}),initial.commit==nil,
                   initial.snapshot?.sourceText.isEmpty==true,initial.snapshot?.preedit.isEmpty==true else{throw IMKManagementError.interrupted}
             // No callbacks between global publication and all-owner retirement.
             configuration=next;configurationRevision &+= 1
-            let owners=live;for driver in owners{driver.retireIdleForManagement()}
+            let owners=live;for driver in owners{driver.retireIdleForManagement(resetInitialMode:true)}
             for driver in owners{driver.dismissCandidatesForManagement()}
         }
     }

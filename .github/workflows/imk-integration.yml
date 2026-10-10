@@ -37,8 +37,15 @@ jobs:
         run: |
           set -o pipefail
           python3 Tools/prepare-a2.py | tee evidence/imk-run/research-inputs.json
+          python3 Tools/test-spelling-policy.py | tee evidence/imk-run/spelling-recipe.txt
           bash Tools/build-g01.sh 2>&1 | tee evidence/imk-run/extension-build.txt
           python3 Tools/prepare-b1.py | tee evidence/imk-run/schema-inputs.json
+          python3 Tools/prepare-habit-fixture.py | tee evidence/imk-run/habit-inputs.json
+      - name: Finite authored spelling-policy engine control
+        run: |
+          set -o pipefail
+          bash Tools/probe-habits.sh 2>&1 | tee evidence/imk-run/habit-native-probe.txt
+          grep -Fq 'HABIT_NATIVE_TOTAL schemas=32 commits=928 exhaustive_negatives=144 single_key_diagnostics=48' evidence/imk-run/habit-native-probe.txt
       - name: Bounded mixed-input native feasibility probe only
         run: |
           set -o pipefail
@@ -99,6 +106,18 @@ jobs:
               for index in range(0, len(encoded), 1800):
                   print(f'{prefix}_{index//1800}:{encoded[index:index+1800]}')
           PY_CONTEXT_CAPTURE
+      - name: Input habits through actual engine and IMK owner
+        run: |
+          set -o pipefail
+          source .build/b1-env.sh
+          swift test --skip-build --filter InputHabitNativeTests 2>&1 | tee evidence/imk-run/habit-research-tests.txt
+          grep -Fq 'Executed 4 tests, with 0 failures' evidence/imk-run/habit-research-tests.txt
+          grep -Fq 'HABIT_RESEARCH_NATIVE schemas=32 actual_commits=272' evidence/imk-run/habit-research-tests.txt
+          grep -Fq 'HABIT_POLICY_RESEARCH_NATIVE actual_commits=28' evidence/imk-run/habit-research-tests.txt
+          swift test --skip-build --filter InputHabitHostTests 2>&1 | tee evidence/imk-run/habit-host-tests.txt
+          grep -Fq 'Executed 8 tests, with 0 failures' evidence/imk-run/habit-host-tests.txt
+          grep -Fq 'HABIT_APPLICATION_NATIVE' evidence/imk-run/habit-host-tests.txt
+          grep -Fq 'HABIT_CHARACTER_ENTRY' evidence/imk-run/habit-host-tests.txt
       - name: Mixed owner through real C ABI and Swift effect gate
         run: |
           set -o pipefail

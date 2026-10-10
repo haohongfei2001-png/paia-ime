@@ -36,7 +36,7 @@ import LexiconCore
     public func disableOverlayUntilRestart(){pendingRestart=true;for session in sessions{session.value?.end()};sessions=[]}
     public func makeSession(configuration:LabConfiguration)throws->InputSession {
         var schema=configuration.schema
-        if pendingRestart && configuration.spelling == .full && !configuration.traditional {schema=PersonalResources.baselineSchema(punctuation:configuration.chinesePunctuation)}
+        if pendingRestart && configuration.spelling == .full && !configuration.traditional {schema=PersonalResources.baselineSchema(punctuation:configuration.chinesePunctuation,fuzzy:configuration.fuzzyInitials,correction:configuration.fullPinyinCorrection)}
         let session=try runtime.makeSession(schema:schema,deferredCommit:configuration.deferredCommit,chinesePunctuation:configuration.chinesePunctuation)
         sessions.removeAll{$0.value==nil};sessions.append(WeakSession(session));return session
     }

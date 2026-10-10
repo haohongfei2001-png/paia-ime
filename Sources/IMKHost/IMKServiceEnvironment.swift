@@ -32,7 +32,7 @@ import ResourceCore
                 library:URL(fileURLWithPath:library),helper:URL(fileURLWithPath:helper),helperSHA:helperSHA)
             publicResources=selected;personal=nil;runtime=selected.runtime
             factory={configuration in
-                guard configuration.spelling == .full,!configuration.traditional,!configuration.chinesePunctuation,!configuration.deferredCommit else{throw IMKManagementError.unavailable}
+                guard configuration.spelling == .full,!configuration.traditional,!configuration.chinesePunctuation,!configuration.deferredCommit,!configuration.fuzzyInitials,configuration.fullPinyinCorrection else{throw IMKManagementError.unavailable}
                 return try selected.runtime.makeSession()
             }
             description=selected.status
@@ -50,7 +50,7 @@ import ResourceCore
         } else {
             let selected=try LabEnvironment(environment:environment);publicResources=nil;personal=nil;runtime=selected.runtime
             factory={configuration in
-                guard configuration.spelling == .full,!configuration.traditional,!configuration.chinesePunctuation,!configuration.deferredCommit else{throw IMKManagementError.unavailable}
+                guard configuration.spelling == .full,!configuration.traditional,!configuration.chinesePunctuation,!configuration.deferredCommit,!configuration.fuzzyInitials,configuration.fullPinyinCorrection else{throw IMKManagementError.unavailable}
                 return try selected.runtime.makeSession()
             }
             description="Authored tiny fixture only. Full/Simplified and literal mode; double pinyin, Traditional and Chinese punctuation require the separately prepared research lane."
