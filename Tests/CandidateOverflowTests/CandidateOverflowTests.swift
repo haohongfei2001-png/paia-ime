@@ -76,7 +76,13 @@ final class CandidateOverflowTests:XCTestCase {
         w.isReleasedWhenClosed=false;try c.attach(to:w)
         XCTAssertTrue(NSApp.setActivationPolicy(.regular));NSApp.finishLaunching();NSApp.activate(ignoringOtherApps:true)
         w.makeKeyAndOrderFront(nil);XCTAssertTrue(w.makeFirstResponder(c.editor));defer{w.close()}
-        for _ in 0..<20 {if w.isKeyWindow{break};RunLoop.current.run(until:Date(timeIntervalSinceNow:0.05))}
+        // Activation notifications arrive as AppKit events, not merely Foundation run-loop work.
+        for _ in 0..<40 {
+            if let event=NSApp.nextEvent(matching:.any,until:Date(timeIntervalSinceNow:0.05),inMode:.default,dequeue:true){NSApp.sendEvent(event)}
+            NSApp.updateWindows();w.makeKey()
+            if w.isKeyWindow{break}
+        }
+        print("B6_APPKIT_HOST activation active=\(NSApp.isActive) canBecomeKey=\(w.canBecomeKey) isKey=\(w.isKeyWindow)")
         XCTAssertTrue(w.isKeyWindow,"Establish an active synthetic host before testing retained key ownership")
         for character in "qionghaicelijia" {try key(String(character),c.editor)}
         let host=try XCTUnwrap(c.editor.dispatcher)
