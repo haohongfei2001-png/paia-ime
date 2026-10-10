@@ -213,5 +213,28 @@ final class KeyboardInputHostTests:XCTestCase {
         obsolete.invalidate();newer.invalidate();c.editor.makeSession=nil
     }
 
+    @MainActor func testApplyNeverAdoptsOrClearsForeignStateInstalledDuringItsNativeWrite()throws {
+        for kind in 0..<3 {
+            let(_,w)=try make();defer{w.close()};let view=EffectProbeView(frame:NSRect(x:0,y:0,width:400,height:200))
+            w.contentView=view;XCTAssertTrue(w.makeFirstResponder(view))
+            let session=try Self.environment.runtime.makeSession(schema:LabConfiguration().schema),host=HostDispatcher(client:view,session:session)
+            for c in "nihao"{XCTAssertTrue(host.apply(try session.process(.text(String(c)))))}
+            let update=try session.process(kind==0 ? .escape:(kind==1 ? .text("a"):.space))
+            var bytes=[UInt8](),mark=NSRange(),selection=NSRange(),counts=(0,0),called=false
+            let install:()->Void={
+                view.afterMarked=nil;view.afterInsert=nil;called=true
+                let foreign="外部👩🏽‍💻"
+                view.setMarkedText(foreign,selectedRange:NSRange(location:(foreign as NSString).length,length:0),replacementRange:NSRange(location:NSNotFound,length:0))
+                bytes=Array(view.string.utf8);mark=view.markedRange();selection=view.selectedRange();counts=(view.markCalls,view.unmarkCalls)
+            }
+            if kind==2{view.afterInsert=install}else{view.afterMarked=install}
+            XCTAssertFalse(host.apply(update));XCTAssertTrue(called);XCTAssertFalse(host.isCurrentTarget)
+            XCTAssertEqual(Array(view.string.utf8),bytes);XCTAssertEqual(view.markedRange(),mark);XCTAssertEqual(view.selectedRange(),selection)
+            XCTAssertEqual(view.markCalls,counts.0);XCTAssertEqual(view.unmarkCalls,counts.1);XCTAssertTrue(view.hasMarkedText())
+            XCTAssertThrowsError(try session.process(.text("a")))
+            XCTAssertFalse(host.apply(update));XCTAssertEqual(host.insertCount,kind==2 ? 1:0)
+        }
+    }
+
 }
 #endif
