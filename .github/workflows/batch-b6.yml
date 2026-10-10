@@ -1,0 +1,47 @@
+name: Batch B6 fully readable long candidates
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: b6-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  controls:
+    runs-on: macos-15
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Machine and source
+        run: |
+          mkdir -p evidence/b6-run
+          echo "PAIA_SOURCE_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+          { git rev-parse HEAD; sw_vers; uname -a; swift --version; } | tee evidence/b6-run/environment.txt
+      - name: Prepare verified research cache and typed bridge
+        run: |
+          set -o pipefail
+          python3 Tools/audit-a1.py
+          python3 Tools/audit-a2.py
+          python3 Tools/prepare-a1.py | tee evidence/b6-run/a1-inputs.json
+          python3 Tools/prepare-a2.py | tee evidence/b6-run/a2-inputs.json
+          bash Tools/build-g01.sh 2>&1 | tee evidence/b6-run/extension-build.txt
+          python3 Tools/prepare-b1.py | tee evidence/b6-run/b1-inputs.json
+      - name: Build native executable and exercise real AppKit controls
+        run: |
+          set -o pipefail
+          source .build/b1-env.sh
+          export PAIA_B2_RESEARCH=1
+          swift test --filter CandidateOverflowTests 2>&1 | tee evidence/b6-run/overflow-tests.txt
+          swift build --product PAIANativeLab 2>&1 | tee evidence/b6-run/app-build.txt
+      - name: Preserve evidence only
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: b6-evidence-${{ env.PAIA_SOURCE_SHA }}
+          path: evidence/b6-run/
+          retention-days: 14
