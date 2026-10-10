@@ -200,6 +200,8 @@ int run(const std::string& schema,const std::string& raw,size_t split,bool alter
 }
 } // namespace mixed_probe
 
+#include "owner_api.cc"
+
 int main(int argc,char** argv) {
   using namespace mixed_probe;
   if(argc!=4 || (std::string(argv[3])!="unprojected" && std::string(argv[3])!="projected")){std::cerr<<"usage: mixed-probe verified-shared fresh-owned-user unprojected|projected\n";return 2;}
@@ -217,9 +219,10 @@ int main(int argc,char** argv) {
     require(api->deploy_schema(file.c_str()),"declared probe schema deploy failed");
     const auto start=std::chrono::steady_clock::now();const int total=run(schema,"nihaoshijie",5,false,projected)+run(schema,"nihaoshijie",5,true,projected);
     auto micros=std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now()-start).count();
-    api->finalize();initialized=false;
+    if(projected)owner_api_probe();
+    mixed::close_all();api->finalize();initialized=false;
     std::cout<<"MIXED_NATIVE_PROBE_TOTAL cases="<<total<<" total_us="<<micros<<" ENGINE_NATIVE only; no production path/host integration\n";return 0;
   }catch(const Failure& f){std::cerr<<"MIXED_NATIVE_PROBE_FAILED native_code="<<f.code<<'\n';}
    catch(const std::exception& e){std::cerr<<"MIXED_NATIVE_PROBE_FAILED "<<e.what()<<'\n';}
-  if(initialized)api->finalize();return 1;
+  if(initialized){mixed::close_all();api->finalize();}return 1;
 }

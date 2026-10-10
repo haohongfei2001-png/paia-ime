@@ -21,3 +21,39 @@ Checkpoint 109663c7819ad32148fddf7944a09065023d4516 entered the native probe but
 In a mixed trial, `Select` itself can restore the full caret and move the last-menu frontier beyond the selected anchor. The probe-specific selection helper therefore checks actual candidate span/text/nonempty phonetic code, calls real `Context::Select`, verifies that exact selected anchor, and ultimately verifies the full typed layout and drained commit. It does not reuse G01's single-frontier postcondition or weaken the production G01 helper.
 
 Checkpoint 938f8b6a90816dafcb3e45e2f19e732fbfb51a2f passed the 42 ordinary-choice literal/position cases, five independent reconstruction variants and exhausted-work test, then [IMK run 38064531605](https://github.com/haohongfei2001-png/paia-ime/actions/runs/38064531605) failed an incorrectly anticipated negative fixture: that specific unprojected RAG-middle case did **not** reproduce the earlier replay failure. The partial-suffix and alternate-choice groups had not run; this is not a 98-case pass. Instead of presuming the failing input, the next checkpoint executes the whole former unprojected algorithm in its own process/user directory with per-case diagnostics. That control must reproduce the specific native replay failure with verified unchanged source (setup failures/crashes do not qualify), followed by all 98 projected cases succeeding in a separate process. The invalid two anticipated negatives are not counted as passing tests. Resource preparation/probe steps move earlier in the same existing job for faster diagnostic feedback; the twelve workflows, runner allocation and existing app/host assertions are unchanged.
+
+## Owner API and typed-value checkpoint (implementation in progress)
+
+The next source checkpoint introduces a separate optional C ABI table in the
+same pinned extension. It keeps the original G01 ABI unchanged. Opaque mixed
+owners hold immutable schema/options, a single active disposable projection,
+and bounded genuine-selection proofs. Projection and proof capabilities use
+process-wide non-reused counters. Chinese proofs can only be issued after
+actual native selection, with exact source coverage, surface and nonempty
+phonetic code. Explicit literals have separate typed provenance.
+
+The full-source replay validates every proof, span, native input and composition
+input before requesting a real commit. It verifies the drained value and an
+empty second drain, then seals the owner against a second commit. Failure before
+success preserves the draft/proofs; Swift publication failure after a sealed
+native result must retire the operation rather than manufacture a second effect.
+This is not yet wired to the Swift input owner or visible IMK controls.
+
+A new native API matrix is configured for 20 full commits: 16 combinations of
+literal and left/right confirmation order, partial raw coverage, foreign/stale
+capabilities, literal-only Unicode, and 128 independently selected suffix proofs.
+It also checks zero-budget rejection and deliberate subsequent success, malformed
+UTF8/embedded NUL rejection, revoked proof and sealed-result replay refusal.
+These new cases have not run until exact-head CI records them.
+
+MixedDraft is a pure typed value with complete original source, a separate
+literal/spelling/verified-surface display, stable span IDs, source-byte and
+host-UTF16 maps, bounded replacement and explicit selected-span reopen.
+Its nine configured tests use simulated proof IDs and are not engine evidence.
+Cross-origin grapheme joins and a caret that would land inside a newly joined
+following grapheme are refused unchanged. Limits are 4096 source bytes,
+256 spans, 16384 display UTF16 units and 65536 display bytes. Linux GNU C11
+syntax checks of the shim pass; Swift/AppKit and the C++ extension still require
+macOS CI. The first strict-C11 Linux attempt lacked POSIX declarations and found
+new misleading indentation; indentation was corrected and GNU C11 used to
+match the existing POSIX source. This was not an engine or macOS execution.

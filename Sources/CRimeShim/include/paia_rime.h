@@ -3,6 +3,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include "paia_g01.h"
+#include "paia_mixed.h"
 // All engine calls, including initialization and lifetime, use one process-wide mutex.
 // Return codes carry no input text. No callbacks, network or body logging.
 #define PAIA_MAX_CANDIDATES 64

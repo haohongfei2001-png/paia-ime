@@ -44,6 +44,7 @@ jobs:
           set -o pipefail
           bash Tools/probe-mixed.sh 2>&1 | tee evidence/imk-run/mixed-probe.txt
           grep -Fq 'MIXED_NATIVE_PROBE_TOTAL cases=98' evidence/imk-run/mixed-probe.txt
+          grep -Fq 'MIXED_OWNER_API commits=20' evidence/imk-run/mixed-probe.txt
       - name: Compile uninstalled input-method bundle
         run: |
           set -o pipefail
@@ -58,7 +59,9 @@ jobs:
         run: |
           set -o pipefail
           source .build/a1-env.sh
-          swift test --filter IMKProtocolTests 2>&1 | tee evidence/imk-run/protocol-tests.txt
+          swift test --filter MixedDraftTests 2>&1 | tee evidence/imk-run/mixed-value-tests.txt
+          grep -Fq 'Executed 9 tests, with 0 failures' evidence/imk-run/mixed-value-tests.txt
+          swift test --skip-build --filter IMKProtocolTests 2>&1 | tee evidence/imk-run/protocol-tests.txt
           swift test --skip-build --filter IMKFixtureBasicsTests 2>&1 | tee evidence/imk-run/fixture-basics.txt
       - name: Offline public resource publication and precompiled startup recovery
         run: |
