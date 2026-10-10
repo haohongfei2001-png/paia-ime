@@ -17,19 +17,19 @@ public final class SettingsStore {
     private struct PendingSave {let bytes:Data,document:SettingsDocument}
     private var pending:PendingSave?
     private let marker=Data("paia.settings.v1\n".utf8)
-    public init(directory:URL,fault:SettingsTestFault?=nil,preopenedDirectory:Int32?=nil,authorityGuard:@escaping()throws->Void={})throws {
+    public init(directory:URL,fault:SettingsTestFault?=nil,preopenedDirectory:Int32?=nil,allowCreateLock:Bool=true,authorityGuard:@escaping()throws->Void={})throws {
         self.directory=directory.standardizedFileURL;self.fault=fault;self.authorityGuard=authorityGuard
         do {
             try authorityGuard()
             if let descriptor=preopenedDirectory {rootFD=fcntl(descriptor,F_DUPFD_CLOEXEC,0)}
             else {
-                try FileManager.default.createDirectory(at:self.directory,withIntermediateDirectories:true,attributes:[.posixPermissions:0o700])
+                if allowCreateLock{try FileManager.default.createDirectory(at:self.directory,withIntermediateDirectories:true,attributes:[.posixPermissions:0o700])}
                 rootFD=Darwin.open(self.directory.path,O_RDONLY|O_DIRECTORY|O_NOFOLLOW|O_CLOEXEC)
             }
             var rootInfo=stat(),linkedRoot=stat();guard rootFD>=0,fstat(rootFD,&rootInfo)==0,lstat(self.directory.path,&linkedRoot)==0,
                   (rootInfo.st_mode&S_IFMT)==S_IFDIR,(linkedRoot.st_mode&S_IFMT)==S_IFDIR,rootInfo.st_dev==linkedRoot.st_dev,rootInfo.st_ino==linkedRoot.st_ino else{throw SettingsError.unsafePath}
             try authorityGuard()
-            writerFD=openat(rootFD,".writer.lock",O_RDWR|O_CREAT|O_NOFOLLOW|O_NONBLOCK|O_CLOEXEC,0o600)
+            writerFD=openat(rootFD,".writer.lock",O_RDWR|(allowCreateLock ? O_CREAT:0)|O_NOFOLLOW|O_NONBLOCK|O_CLOEXEC,0o600)
             var info=stat();guard writerFD>=0,fstat(writerFD,&info)==0,(info.st_mode & S_IFMT)==S_IFREG,info.st_nlink==1 else{throw SettingsError.unsafePath}
             guard flock(writerFD,LOCK_EX|LOCK_NB)==0 else{throw SettingsError.busy}
             let initialized=try read(".initialized");expected=try read("settings.json")

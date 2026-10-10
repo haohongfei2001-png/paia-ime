@@ -10,7 +10,7 @@ for stage in public save restore delete deleted; do
   grep -Fq "PRODUCT_RESTART_STAGE $stage ENGINE_NATIVE + APPKIT_HOST main_attempts=1 deployments=0" "evidence/imk-run/product-$stage.txt"
   grep -Fq 'Executed 1 test, with 0 failures' "evidence/imk-run/product-$stage.txt"
 done
-for stage in bad_settings missing_personal second_writer helper_failure changed_authority replaced_root; do
+for stage in bad_settings missing_personal erased_personal second_writer helper_failure changed_authority replaced_root; do
   parent="$PWD/.build/product-fault-$stage"
   test ! -e "$parent"
   mkdir -m 700 "$parent"

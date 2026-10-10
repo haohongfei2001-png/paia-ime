@@ -163,7 +163,7 @@ final class ProductCandidateTests:XCTestCase {
     }
     @MainActor func testOptionalStoreAndPersonalPreparationFaultStage()throws {
         _=NSApplication.shared;let stage=try required("PAIA_PRODUCT_STAGE"),parent=URL(fileURLWithPath:try required("PAIA_PRODUCT_PARENT"))
-        XCTAssertTrue(["bad_settings","missing_personal","second_writer","helper_failure","changed_authority","replaced_root"].contains(stage))
+        XCTAssertTrue(["bad_settings","missing_personal","erased_personal","second_writer","helper_failure","changed_authority","replaced_root"].contains(stage))
         let seed=ProductStores(parent:parent);XCTAssertTrue(seed.unavailable.isEmpty)
         _=try seed.settings!.save(SettingsValues(),expectedRevision:0)
         _=try seed.personal!.add(surface:"故障自造词",reading:"gu zhang zi zao ci",pin:true,expectedRevision:0)
@@ -172,6 +172,9 @@ final class ProductCandidateTests:XCTestCase {
         let root=parent.appendingPathComponent(ProductDataRoot.leaf)
         if stage=="bad_settings"{try Data("invalid authored fault".utf8).write(to:root.appendingPathComponent("settings/settings.json"))}
         if stage=="missing_personal"{try FileManager.default.removeItem(at:root.appendingPathComponent("personal/lexicon.json"))}
+        if stage=="erased_personal" {
+            for name in [".initialized",".writer.lock","lexicon.json"]{try FileManager.default.removeItem(at:root.appendingPathComponent("personal/"+name))}
+        }
         let before=try authorities(parent)
         if ["helper_failure","changed_authority","replaced_root"].contains(stage) {
             let stores=ProductStores(parent:parent);defer{stores.close()};let bundle=try bundle(),resources=try XCTUnwrap(bundle.resourceURL),executable=try XCTUnwrap(bundle.executableURL)
@@ -203,7 +206,8 @@ final class ProductCandidateTests:XCTestCase {
             let environment=try IMKServiceEnvironment(environment:[:],preflight:true,isolatedDataParent:parent,applicationBundle:bundle());defer{environment.close()}
             let stores=try XCTUnwrap(environment.productStores)
             if stage=="bad_settings"{XCTAssertNil(stores.settings);XCTAssertNotNil(stores.personal);XCTAssertNotNil(stores.expressions)}
-            if stage=="missing_personal"{XCTAssertNil(stores.personal);XCTAssertNotNil(stores.settings);XCTAssertNotNil(stores.expressions)}
+            if stage=="missing_personal" || stage=="erased_personal"{XCTAssertNil(stores.personal);XCTAssertNotNil(stores.settings);XCTAssertNotNil(stores.expressions)}
+            if stage=="erased_personal"{XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath:root.appendingPathComponent("personal").path),[".slot"])}
             if stage=="second_writer"{XCTAssertNil(stores.root);XCTAssertFalse(environment.candidate!.personalActive)}
             try commit("nihao","你好",workspace:environment.workspace);XCTAssertEqual(try authorities(parent),before)
         }

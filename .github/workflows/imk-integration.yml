@@ -37,13 +37,14 @@ jobs:
         run: |
           set -o pipefail
           swift test --filter ProductDataTests 2>&1 | tee evidence/imk-run/product-data-tests.txt
-          grep -Fq 'Executed 10 tests, with 0 failures' evidence/imk-run/product-data-tests.txt
+          grep -Fq 'Executed 11 tests, with 0 failures' evidence/imk-run/product-data-tests.txt
           swift test --skip-build --filter CandidatePackTests 2>&1 | tee evidence/imk-run/candidate-pack-tests.txt
           grep -Fq 'Executed 5 tests, with 0 failures' evidence/imk-run/candidate-pack-tests.txt
           python3 Tools/check-personal-read-regression.py 2>&1 | tee evidence/imk-run/personal-read-regression.txt
+          python3 Tools/check-product-empty-regression.py 2>&1 | tee evidence/imk-run/product-empty-regression.txt
           git diff --exit-code
           swift test --filter ProductDataTests 2>&1 | tee evidence/imk-run/product-data-after-regression.txt
-          grep -Fq 'Executed 10 tests, with 0 failures' evidence/imk-run/product-data-after-regression.txt
+          grep -Fq 'Executed 11 tests, with 0 failures' evidence/imk-run/product-data-after-regression.txt
           cc -std=c11 -Wall -Wextra -Werror -ISources/CRimeShim/include -ISources/CRimeShim Sources/CRimeShim/paia_rime.c Tools/test-candidate-abi.c -lpthread -o .build/candidate-abi-test
           .build/candidate-abi-test | tee evidence/imk-run/candidate-abi-tests.txt
       - name: Prepare existing unbundled research resources

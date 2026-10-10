@@ -10,6 +10,7 @@ public final class ProductDataRoot {
     private static let prefix="paia.product-data.v1\n"
     public enum Slot:String,CaseIterable {case settings,personal,expressions}
     public let directory:URL
+    public private(set) var createdThisLaunch=false
     private let lock=NSRecursiveLock()
     private struct Ancestor {let url:URL,fd:Int32,device:dev_t,inode:ino_t}
     private var ancestors=[Ancestor](),owner:ResourceDirectory?,writer:Int32 = -1,closed=false,layout=Data()
@@ -35,6 +36,7 @@ public final class ProductDataRoot {
                 try staging.writeExclusive(".layout",layout);try staging.sync()
                 try checkParents();try staging.check();try parent.check()
                 guard renameatx_np(parent.fd,stagingName,parent.fd,Self.leaf,UInt32(RENAME_EXCL))==0 else{throw ResourceError.io}
+                createdThisLaunch=true
                 if fault == .afterPublication{throw ResourceError.durabilityUnknown}
                 try parent.sync()
             }

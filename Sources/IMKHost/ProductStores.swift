@@ -21,9 +21,9 @@ import ExpressionCore
             self.root=nil;self.settings=nil;self.personal=nil;self.expressions=nil;unavailable=["product data root"];return
         }
         self.root=root
-        func settings()throws->SettingsStore {let slot=try root.slot(.settings);return try slot.withDescriptor{try SettingsStore(directory:slot.directory,preopenedDirectory:$0,authorityGuard:{try slot.verify()})}}
-        func personal()throws->LexiconStore {let slot=try root.slot(.personal);return try slot.withDescriptor{try LexiconStore(directory:slot.directory,preopenedDirectory:$0,authorityGuard:{try slot.verify()})}}
-        func expressions()throws->ExpressionStore {let slot=try root.slot(.expressions);return try slot.withDescriptor{try ExpressionStore(directory:slot.directory,preopenedDirectory:$0,authorityGuard:{try slot.verify()})}}
+        func settings()throws->SettingsStore {let slot=try root.slot(.settings);return try slot.withDescriptor{try SettingsStore(directory:slot.directory,preopenedDirectory:$0,allowCreateLock:root.createdThisLaunch,authorityGuard:{try slot.verify()})}}
+        func personal()throws->LexiconStore {let slot=try root.slot(.personal);return try slot.withDescriptor{try LexiconStore(directory:slot.directory,preopenedDirectory:$0,allowCreateLock:root.createdThisLaunch,authorityGuard:{try slot.verify()})}}
+        func expressions()throws->ExpressionStore {let slot=try root.slot(.expressions);return try slot.withDescriptor{try ExpressionStore(directory:slot.directory,preopenedDirectory:$0,allowCreateLock:root.createdThisLaunch,authorityGuard:{try slot.verify()})}}
         self.settings=try? settings();self.personal=try? personal();self.expressions=try? expressions()
         var missing=[String]();if self.settings==nil{missing.append("settings")};if self.personal==nil{missing.append("personal terms")};if self.expressions==nil{missing.append("expressions")};unavailable=missing
     }

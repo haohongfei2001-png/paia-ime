@@ -20,15 +20,15 @@ final class ProductDataTests:XCTestCase {
     }
     func settings(_ root:ProductDataRoot)throws->SettingsStore {
         let slot=try root.slot(.settings)
-        return try slot.withDescriptor{try SettingsStore(directory:slot.directory,preopenedDirectory:$0,authorityGuard:{try slot.verify()})}
+        return try slot.withDescriptor{try SettingsStore(directory:slot.directory,preopenedDirectory:$0,allowCreateLock:root.createdThisLaunch,authorityGuard:{try slot.verify()})}
     }
     func personal(_ root:ProductDataRoot)throws->LexiconStore {
         let slot=try root.slot(.personal)
-        return try slot.withDescriptor{try LexiconStore(directory:slot.directory,preopenedDirectory:$0,authorityGuard:{try slot.verify()})}
+        return try slot.withDescriptor{try LexiconStore(directory:slot.directory,preopenedDirectory:$0,allowCreateLock:root.createdThisLaunch,authorityGuard:{try slot.verify()})}
     }
     func expressions(_ root:ProductDataRoot)throws->ExpressionStore {
         let slot=try root.slot(.expressions)
-        return try slot.withDescriptor{try ExpressionStore(directory:slot.directory,preopenedDirectory:$0,authorityGuard:{try slot.verify()})}
+        return try slot.withDescriptor{try ExpressionStore(directory:slot.directory,preopenedDirectory:$0,allowCreateLock:root.createdThisLaunch,authorityGuard:{try slot.verify()})}
     }
     func testPrivateAtomicLayoutAndCloseOnExecDescriptors()throws {
         let parent=try parent(),root=try ProductDataRoot(parent:parent,create:true);defer{root.close()}
@@ -121,7 +121,7 @@ final class ProductDataTests:XCTestCase {
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath:slot.directory.path),[".slot"])
         let moved=parent.appendingPathComponent("moved");try FileManager.default.moveItem(at:root.directory,to:moved)
         try FileManager.default.createSymbolicLink(at:root.directory,withDestinationURL:moved)
-        XCTAssertThrowsError(try slot.withDescriptor{try SettingsStore(directory:slot.directory,preopenedDirectory:$0,authorityGuard:{try slot.verify()})})
+        XCTAssertThrowsError(try slot.withDescriptor{try SettingsStore(directory:slot.directory,preopenedDirectory:$0,allowCreateLock:root.createdThisLaunch,authorityGuard:{try slot.verify()})})
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath:moved.appendingPathComponent("settings").path),[".slot"])
     }
     func testPostPublicationGuardFailureKeepsUnknownSaveUntilExplicitVerify()throws {
@@ -149,6 +149,42 @@ final class ProductDataTests:XCTestCase {
         let root=try ProductDataRoot(parent:parent,create:false);defer{root.close()}
         XCTAssertNoThrow(try root.verify());XCTAssertEqual(try Data(contentsOf:path.appendingPathComponent(".layout")),marker)
         for slot in ProductDataRoot.Slot.allCases{XCTAssertNoThrow(try root.slot(slot))}
+    }
+    func testEstablishedSlotLosingAllStoreFilesCannotBecomeFresh()throws {
+        for kind in ProductDataRoot.Slot.allCases {for eraseAll in [false,true] {
+            let parent=try parent(),root=try ProductDataRoot(parent:parent,create:true)
+            XCTAssertTrue(root.createdThisLaunch)
+            let s=try settings(root),p=try personal(root),e=try expressions(root)
+            _=try s.save(SettingsValues(),expectedRevision:0)
+            _=try p.add(surface:"保留词条",reading:"bao liu ci tiao",expectedRevision:0)
+            _=try e.saveExact("保留原话",aliases:[],expectedRevision:0)
+            s.close();p.close();e.close();root.close()
+            let path=root.directory.appendingPathComponent(kind.rawValue)
+            let marker=try Data(contentsOf:path.appendingPathComponent(".slot"))
+            for name in try FileManager.default.contentsOfDirectory(atPath:path.path) where name != ".slot" && (eraseAll || name==".writer.lock") {
+                try FileManager.default.removeItem(at:path.appendingPathComponent(name))
+            }
+            let remaining=try FileManager.default.contentsOfDirectory(atPath:path.path).sorted()
+            let reopened=try ProductDataRoot(parent:parent,create:true);defer{reopened.close()}
+            XCTAssertFalse(reopened.createdThisLaunch)
+            switch kind {
+            case .settings:XCTAssertThrowsError(try settings(reopened))
+            case .personal:XCTAssertThrowsError(try personal(reopened))
+            case .expressions:XCTAssertThrowsError(try expressions(reopened))
+            }
+            XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath:path.path).sorted(),remaining)
+            XCTAssertEqual(try Data(contentsOf:path.appendingPathComponent(".slot")),marker)
+            if kind != .settings{let value=try settings(reopened);XCTAssertEqual(try value.snapshot()?.revision,1);value.close()}
+            if kind != .personal{let value=try personal(reopened);XCTAssertEqual(try value.snapshot().activeTerms.count,1);value.close()}
+            if kind != .expressions{let value=try expressions(reopened);XCTAssertEqual(try value.snapshot()?.records.first?.exactText,"保留原话");value.close()}
+        }}
+        // Empty settings/expressions are legitimate until their first explicit
+        // Save, but an established product root still needs its original locks.
+        let parent=try parent(),root=try ProductDataRoot(parent:parent,create:true)
+        let s=try settings(root),e=try expressions(root);s.close();e.close();root.close()
+        let reopened=try ProductDataRoot(parent:parent,create:true),s2=try settings(reopened),e2=try expressions(reopened)
+        defer{s2.close();e2.close();reopened.close()}
+        XCTAssertNil(try s2.snapshot());XCTAssertNil(try e2.snapshot())
     }
     func testPersonalAuthorityReplacedDuringReadCannotReturnOldSnapshot()throws {
         let root=try ProductDataRoot(parent:parent(),create:true),store=try personal(root);defer{store.close();root.close()}
