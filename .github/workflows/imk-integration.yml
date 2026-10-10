@@ -1,0 +1,56 @@
+name: Uninstalled IMK client integration
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: imk-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  native:
+    runs-on: macos-15
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Source, machine and official SDK contract
+        run: |
+          mkdir -p evidence/imk-run
+          echo "PAIA_SOURCE_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+          { git rev-parse HEAD; sw_vers; uname -a; swift --version; } | tee evidence/imk-run/environment.txt
+          set -o pipefail
+          sdk="$(xcrun --show-sdk-path)"
+          { cat "$sdk/System/Library/Frameworks/InputMethodKit.framework/Headers/"*.h;
+            cat "$sdk/System/Library/Frameworks/Carbon.framework/Frameworks/HIToolbox.framework/Headers/IMKInputSession.h";
+          } | tee evidence/imk-run/official-sdk-headers.txt
+      - name: Prepare immutable original fixture and engine
+        run: |
+          python3 Tools/audit-a1.py
+          python3 Tools/audit-a2.py
+          python3 Tools/prepare-a1.py | tee evidence/imk-run/inputs.json
+      - name: Compile uninstalled input-method bundle
+        run: |
+          set -o pipefail
+          bash Tools/build-imk.sh 2>&1 | tee evidence/imk-run/build.txt
+          cp .build/imk-bundle-manifest.json evidence/imk-run/
+          cat .build/imk-bundle-manifest.json
+      - name: Preflight only, no IMKServer construction
+        run: |
+          set -o pipefail
+          env -u PAIA_RIME_LIBRARY -u PAIA_FIXTURE_DIR -u PAIA_DICTIONARY_REVISION .build/PAIAInputMethod.app/Contents/MacOS/PAIAInputMethod --preflight 2>&1 | tee evidence/imk-run/preflight.txt
+      - name: Real engine and synthetic IMK protocol client
+        run: |
+          set -o pipefail
+          source .build/a1-env.sh
+          swift test --filter IMKProtocolTests 2>&1 | tee evidence/imk-run/protocol-tests.txt
+      - name: Preserve evidence including failed stages
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: imk-evidence-${{ env.PAIA_SOURCE_SHA }}
+          path: evidence/imk-run/
+          retention-days: 14
