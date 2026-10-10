@@ -110,8 +110,13 @@ final class AppKitHostTests:XCTestCase {
         let client=NSTextView();client.string="A👩🏽‍💻B";client.setSelectedRange(NSRange(location:1,length:"👩🏽‍💻".utf16.count))
         let session=try Self.lab.runtime.makeSession(),host=HostDispatcher(client:client,session:session);defer{host.invalidate()}
         for c in "nihao".utf8 {_=host.apply(try session.process(.code(Int32(c))))}
-        let u=try session.process(.returnKey);XCTAssertTrue(u.handled);XCTAssertTrue(host.apply(u))
+        let before:[String:Any]=["text":client.string,"selection":NSStringFromRange(client.selectedRange()),"mark":NSStringFromRange(client.markedRange()),"hasMark":client.hasMarkedText()]
+        let u=try session.process(.returnKey);XCTAssertTrue(u.handled);let applied=host.apply(u)
+        let diagnostic:[String:Any]=["before":before,"afterText":client.string,"afterSelection":NSStringFromRange(client.selectedRange()),"afterMark":NSStringFromRange(client.markedRange()),"afterHasMark":client.hasMarkedText(),"applied":applied]
+        print("B8_NATIVE_RETURN_PROBE "+String(decoding:try JSONSerialization.data(withJSONObject:diagnostic,options:[.sortedKeys]),as:UTF8.self))
+        XCTAssertTrue(applied)
         XCTAssertEqual(client.string,"AnihaoB");XCTAssertEqual(host.insertCount,1)
+        XCTAssertEqual(client.selectedRange(),NSRange(location:6,length:0));XCTAssertFalse(client.hasMarkedText());XCTAssertEqual(client.markedRange().length,0)
         XCTAssertFalse(try session.process(.returnKey).handled)
     }
     @MainActor func testCanonicallyEquivalentExternalTextIsStillAChangedTarget()throws {

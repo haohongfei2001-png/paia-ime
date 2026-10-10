@@ -28,7 +28,10 @@ import SessionCore
     func matchesDocumentAndSelection(_ client:NSTextView)->Bool {client.string.utf8.elementsEqual(text.utf8) && client.selectedRange()==selection}
     func matches(_ client:NSTextView)->Bool {
         guard matchesDocumentAndSelection(client),client.hasMarkedText()==hasMarked else{return false}
-        return client.markedRange()==marked || (cleared && client.markedRange()==NSRange(location:NSNotFound,length:0))
+        // NSTextView can retain finite empty-mark metadata after a completed write.
+        // Only a projected unmarked result may ignore that empty location; entry
+        // snapshots and every actual marked composition still compare exact ranges.
+        return cleared ? client.markedRange().length==0 : client.markedRange()==marked
     }
 }
 
