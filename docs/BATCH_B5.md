@@ -22,6 +22,6 @@ Existing B1/B2/B3 launch configuration is unchanged. No input, candidate, repair
 
 ## Verification and limits
 
-[Evidence](../evidence/b5/VALIDATION.md) separates eight store/fault tests from six real-engine/AppKit control tests. Store tests cover previous-empty/previous-saved/published outcomes, orphan/corrupt/missing/unexpected authority, unsafe paths and one-writer continuity. Native tests use the existing strong-corpus engine, prove input still works before/after verification, and preserve single-commit and target identity. Captures contain authored synthetic text only.
+[Evidence](../evidence/b5/VALIDATION.md) separates eight store/fault tests from seven real-engine/AppKit control tests. Store tests cover previous-empty/previous-saved/published outcomes, orphan/corrupt/missing/unexpected authority, unsafe paths and one-writer continuity. Native tests use the existing strong-corpus engine, prove input still works before/after verification, and preserve single-commit and target identity. Captures contain authored synthetic text only.
 
 Faults are injected; these are not power-loss experiments. The same process keeps the original lock throughout verification. Full app launch, physical keyboard/pointer, VoiceOver, installed/live clients, real disk-failure durability, encryption, secure deletion, signed updates, migration and corrupt-file restoration remain unverified or out of this slice. Existing corpus redistribution and general language-quality limits remain open.

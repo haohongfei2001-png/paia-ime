@@ -97,6 +97,17 @@ final class SettingsRecoveryHostTests:XCTestCase {
         XCTAssertEqual(try Data(contentsOf:file),foreign);try type("nihao ",lab.editor);XCTAssertEqual(lab.editor.string,"你好")
         XCTAssertFalse(settings.verifyButton.isEnabled);XCTAssertEqual(try Data(contentsOf:file),foreign)
     }
+    @MainActor func testClosedOrResolvedStoreCannotReenableVerificationDuringInput()throws {
+        for close in [false,true] {
+            let(lab,window,store,settings,directory)=try make(.afterPublication);defer{window.close();store.close();try? FileManager.default.removeItem(at:directory)}
+            send(settings.saveButton);XCTAssertTrue(settings.verifyButton.isEnabled)
+            let file=directory.appendingPathComponent("settings.json"),before=try Data(contentsOf:file)
+            if close{store.close()}else{_ = try store.verifyLastSave()}
+            send(settings.verifyButton);XCTAssertFalse(settings.verifyButton.isEnabled)
+            try type("nihao ",lab.editor);XCTAssertEqual(lab.editor.string,"你好");XCTAssertEqual(lab.editor.dispatcher?.insertCount,1)
+            XCTAssertFalse(settings.verifyButton.isEnabled);XCTAssertFalse(settings.saveButton.isEnabled);XCTAssertEqual(try Data(contentsOf:file),before)
+        }
+    }
     @MainActor func testUnavailableStartupDoesNotOfferVerificationOrCreateStore()throws {
         _=NSApplication.shared
         let lab=NativeLabController(runtime:try XCTUnwrap(Self.environment?.runtime)),window=LabWindow(contentRect:NSRect(x:0,y:0,width:1000,height:800),styleMask:[.titled],backing:.buffered,defer:false)

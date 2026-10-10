@@ -18,7 +18,7 @@ import SettingsCore
         status.setAccessibilityLabel("Explicit settings persistence status")
         lab.root.addArrangedSubview(root);lab.registerIdleControl(defaultsButton)
         lab.registerIdleControl(saveButton,available:{[weak self] in self?.store != nil && self?.persistenceSuspended==false})
-        lab.registerIdleControl(verifyButton,available:{[weak self] in self?.store != nil && self?.saveFailed==true})
+        lab.registerIdleControl(verifyButton,available:{[weak self] in self?.store?.hasUnverifiedSave==true && self?.saveFailed==true})
     }
     public func restoreAtStartup(){
         guard !restored else{return};restored=true
@@ -48,7 +48,7 @@ import SettingsCore
             let verified=try store.verifyLastSave();savedRevision=verified.document?.revision ?? 0
             saveFailed=false;persistenceSuspended=false;verifyButton.isEnabled=false;saveButton.isEnabled=true
             status.stringValue=verified.resolution == .published ? "Attempted settings save verified. Current mode unchanged; nothing retried." : "Previous saved state verified. Attempted changes were not saved; nothing retried."
-        }catch{verifyButton.isEnabled=store.hasUnverifiedSave;status.stringValue="Saved outcome cannot be verified. Saving remains blocked; authority unchanged."}
+        }catch{saveFailed=store.hasUnverifiedSave;verifyButton.isEnabled=saveFailed;status.stringValue="Saved outcome cannot be verified. Saving remains blocked; authority unchanged."}
     }
     @objc private func defaults(_ sender:NSButton){
         guard !lab.isClosed,!lab.hasComposition,!lab.inspectorVisible else{status.stringValue="Commit or cancel composition before restoring defaults.";return}
