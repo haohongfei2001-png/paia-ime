@@ -6,7 +6,7 @@ This stage implements the original REPORT sections 10/16 and HANDOFF C0 service 
 
 ## Boundaries
 
-`Tools/build-imk.sh` compiles and assembles an unsigned bundle inside `.build/`. `PAIAInputMethod --preflight` verifies Objective-C controller discovery, bundle metadata and the actual bundled engine/fixture without constructing IMKServer or entering its service event loop. Normal entry contains an IMKServer startup path, but it is not run in this stage. IMKServer construction publishes a service connection; it is not a pure no-side-effect object test. Neither path installs an input source. Do not copy into Input Methods folders, invoke TIS/LaunchServices registration, sign, alter preferences/security or use private profiles.
+`Tools/build-imk.sh` compiles and assembles an unsigned bundle inside `.build/`. `PAIAInputMethod --preflight` verifies Objective-C controller discovery, bundle metadata and the actual bundled engine/fixture plus accessory-agent policy and a real non-key candidate panel without constructing IMKServer or entering its service event loop. Normal entry contains an IMKServer startup path, but it is not run in this stage. IMKServer construction publishes a service connection; it is not a pure no-side-effect object test. Neither path installs an input source. Do not copy into Input Methods folders, invoke TIS/LaunchServices registration, sign, alter preferences/security or use private profiles.
 
 The bundled original A1 fixture is intentionally tiny. The full research corpus remains unbundled and its production redistribution clearance remains unresolved. This artifact is engineering integration, not general Chinese input quality certification.
 

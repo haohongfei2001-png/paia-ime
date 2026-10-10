@@ -16,7 +16,7 @@ let package = Package(name: "PAIAIME", platforms: [.macOS(.v13)], products: [
     .target(name: "NativeHost", dependencies: ["EngineBridge", "SessionCore", "TextBoundary", "ConstraintCore", "LexiconCore", "SettingsCore"]),
     .executableTarget(name: "NativeIME", dependencies: ["NativeHost", "EngineBridge", "SettingsCore"]),
     .target(name: "IMKHost", dependencies: ["NativeHost", "EngineBridge", "SessionCore"]),
-    .executableTarget(name: "InputMethodService", dependencies: ["IMKHost", "EngineBridge"]),
+    .executableTarget(name: "InputMethodService", dependencies: ["IMKHost", "EngineBridge", "NativeHost"]),
     .target(name: "IMKTestClient",path:"Tests/IMKTestClient",publicHeadersPath:"include",cSettings:[.unsafeFlags(["-fobjc-arc","-Werror=protocol","-Werror=mismatched-return-types"])]),
     .testTarget(name: "IMKProtocolTests",dependencies:["IMKHost","IMKTestClient","EngineBridge","SessionCore"]),
     .executableTarget(name: "BenchmarkCLI", dependencies: ["EngineBridge", "SessionCore"]),
