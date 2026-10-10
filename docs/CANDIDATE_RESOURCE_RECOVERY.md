@@ -1,6 +1,6 @@
 # Candidate public-resource publication and startup recovery
 
-This original-scope node extends the **format-2 authored candidate**, not the v1 two-schema fixture store. The first Draft checkpoint is `816e651`; integration code below requires its own exact-source native acceptance. The vocabulary is still 46 authored rows, not a production language model. Full corpora remain explicit unbundled research configuration.
+This original-scope node extends the **format-2 authored candidate**, not the v1 two-schema fixture store. The complete native code checkpoint is `6ecb4eb`, with all twelve existing Mac workflows successful; final documentation-head and merged-main verification are separately required. The vocabulary is still 46 authored rows, not a production language model. Full corpora remain explicit unbundled research configuration.
 
 ## Fixed source and command contract
 
