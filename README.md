@@ -88,3 +88,7 @@ No ordinary keystroke or commit may silently create a second PAIA archive event.
 ## Distribution
 
 Public repository visibility is not a blanket open-source license. Review dependencies, dictionaries, fonts, model weights and platform requirements before copying or distributing production components.
+
+## Recoverable fixture-resource startup (native verification pending)
+
+The next original resource-update node adds offline two-schema fixture compilation, complete artifact verification, isolated native probes, versioned current/last-good publication and precompiled startup selection. Existing sessions keep their resource snapshot until the next launch. The default uninstalled bundle uses only the authored fixture; no production corpus, personal rollback, hot reload or signed updater claim. See [resource startup contract and evidence boundary](docs/RESOURCE_STARTUP.md). This changed source requires its own macOS CI; previous green runs do not qualify it.

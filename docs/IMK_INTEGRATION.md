@@ -50,3 +50,7 @@ The C node adds an optional isolated `PAIA_C_STORE` at startup and an explicit e
 ## Explicit bounded-context capability slice
 
 [Contextual known-character input and manual selected-text review](IMK_BOUNDED_CONTEXT.md) now have a separate explicitly invoked context-only session route. This does not loosen C0 activation: ordinary nonempty selections still do not acquire a writing session. Only an authored, revision/permission-aware adapter is currently qualified for the advanced route; the production controller never infers capability from client ID or selectors. C2/C3 live qualification and Chinese manual-rewrite composition remain open. The corresponding [checkpoint record](../evidence/imk-context/VALIDATION.md) includes failed and exact-source native evidence. Candidate geometry now follows the public SDK's inline-relative index contract, with zero for idle capture.
+
+## Precompiled public-resource startup checkpoint
+
+The bundled fixture now has a distinct no-deploy initialization route with an isolated all-schema helper probe and bounded manifest/artifact verification before the main engine attempt. Explicit developer resource stores may select current or verified last-good at a new startup. Missing bundled data does not select the legacy compiling lab path. Existing explicitly configured A1/research labs stay separate; there is no same-process reinitialization or installed updater. Source/native evidence is tracked separately in [RESOURCE_STARTUP.md](RESOURCE_STARTUP.md).

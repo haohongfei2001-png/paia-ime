@@ -11,7 +11,8 @@
       "dist/lib/librime.1.16.0.dylib",
       "dist/include/rime_api.h"
     ],
-    "excluded": "all optional plugins and all bundled dictionaries"
+    "excluded": "all optional plugins and all bundled dictionaries",
+    "binarySha256": "922aad7de56473dd13e25836b0eecfa3698e07506154f418cf27e1f5e268e8b3"
   },
   "headerSha256": "6eb5629162c44761e7b878f1b122f464de5c8685bd3cd5ac1e8519badc6d6424",
   "dictionaryRevision": "19d473ca96ab0c18457b5576784e88125201cd8fdda56b25dd4d460bb92d73a7",

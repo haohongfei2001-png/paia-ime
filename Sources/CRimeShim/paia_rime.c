@@ -15,6 +15,8 @@ static pthread_mutex_t owner = PTHREAD_MUTEX_INITIALIZER;
 static RimeApi *api;
 static PaiaG01API *g01;
 static size_t live_sessions;
+static int precompiled_mode;
+static uint64_t deployment_calls;
 static void *library_handle;
 static char *shared_path, *user_path;
 // Require the whole function pointer, not only its first byte. data_size excludes itself.
@@ -45,7 +47,7 @@ void paia_rime_free_snapshot(PaiaRimeSnapshot *s) {
     if (s->candidates) { for (int i=0; i<s->count; i++) free(s->candidates[i]); free(s->candidates); }
     memset(s, 0, sizeof(*s));
 }
-int paia_rime_open(const char *library, const char *shared, const char *isolated_user) {
+static int open_runtime(const char *library, const char *shared, const char *isolated_user, int precompiled) {
     pthread_mutex_lock(&owner);
     int rc = PAIA_UNAVAILABLE;
     if (api) { rc = PAIA_BUSY; goto done; }
@@ -64,13 +66,16 @@ int paia_rime_open(const char *library, const char *shared, const char *isolated
     traits.distribution_name="PAIA A1 isolated lab"; traits.distribution_code_name="paia_a1";
     traits.distribution_version="0.1.0"; traits.app_name="rime.paia_a1";
     traits.min_log_level=3; traits.log_dir="";
-    api->setup(&traits); api->initialize(&traits); api->deployer_initialize(&traits);
+    api->setup(&traits); api->initialize(&traits);
+    precompiled_mode = precompiled;
+    if (precompiled) { rc=PAIA_OK; goto done; }
+    api->deployer_initialize(&traits);
     // One declared schema, compiled before any session or key. Never call deploy on the hot path.
     size_t n = strlen(shared_path)+sizeof("/paia_a1.schema.yaml");
     char *schema = malloc(n);
     if (!schema) { rc=PAIA_ALLOCATION; goto finalize; }
     snprintf(schema, n, "%s/paia_a1.schema.yaml", shared_path);
-    int deployed=api->deploy_schema(schema); free(schema);
+    deployment_calls++; int deployed=api->deploy_schema(schema); free(schema);
     if (!deployed) { rc=PAIA_DEPLOY; goto finalize; }
     rc=PAIA_OK; goto done;
 finalize:
@@ -80,6 +85,15 @@ fail:
     library_handle=NULL; free(shared_path); free(user_path); shared_path=NULL; user_path=NULL;
 done:
     pthread_mutex_unlock(&owner); return rc;
+}
+int paia_rime_open(const char *library, const char *shared, const char *isolated_user) {
+    return open_runtime(library,shared,isolated_user,0);
+}
+int paia_rime_open_precompiled(const char *library, const char *shared, const char *isolated_user) {
+    return open_runtime(library,shared,isolated_user,1);
+}
+uint64_t paia_rime_deployment_calls(void) {
+    pthread_mutex_lock(&owner);uint64_t count=deployment_calls;pthread_mutex_unlock(&owner);return count;
 }
 void paia_rime_close(void) {
     pthread_mutex_lock(&owner);
@@ -178,9 +192,9 @@ static int valid_schema(const char *s) {
 }
 int paia_rime_deploy_named(const char *schema) {
     pthread_mutex_lock(&owner);int rc=PAIA_DEPLOY;
-    if(api && !live_sessions && valid_schema(schema)) {
+    if(api && !precompiled_mode && !live_sessions && valid_schema(schema)) {
         size_t n=strlen(shared_path)+strlen(schema)+sizeof("/.schema.yaml");char *path=malloc(n);
-        if(path) {snprintf(path,n,"%s/%s.schema.yaml",shared_path,schema);rc=api->deploy_schema(path)?PAIA_OK:PAIA_DEPLOY;free(path);}
+        if(path) {snprintf(path,n,"%s/%s.schema.yaml",shared_path,schema);deployment_calls++;rc=api->deploy_schema(path)?PAIA_OK:PAIA_DEPLOY;free(path);}
     }
     pthread_mutex_unlock(&owner);return rc;
 }

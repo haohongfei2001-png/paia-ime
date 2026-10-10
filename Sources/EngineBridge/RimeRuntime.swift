@@ -10,6 +10,9 @@ public final class RimeRuntime {
     public let version = "1.16.0"
     private static let lifetime = NSLock()
     private static var created = false
+    private static var attempts:UInt64=0
+    public static var startupAttempts:UInt64 {lifetime.lock();defer{lifetime.unlock()};return attempts}
+    public var deploymentCalls:UInt64 {paia_rime_deployment_calls()}
     private let repairDisabledSchemas:Set<String>
     private let repairExtensionLoaded:Bool
     private final class WeakSession {weak var value:InputSession?;init(_ value:InputSession){self.value=value}}
@@ -17,13 +20,17 @@ public final class RimeRuntime {
     private var sessions=[WeakSession](),closed=false,cleanupSucceeded=true
     private let cleanup:(()throws->Void)?
     // Explicit directories only: callers must create a fresh isolated user directory.
-    public init(library: String, shared: String, isolatedUser: String, dictionaryRevision: String, schemas:[String] = [], g01Library:String? = nil,repairDisabledSchemas:Set<String> = [],cleanup:(()throws->Void)?=nil) throws {
+    public init(library: String, shared: String, isolatedUser: String, dictionaryRevision: String, schemas:[String] = [], g01Library:String? = nil,repairDisabledSchemas:Set<String> = [],precompiled:Bool=false,cleanup:(()throws->Void)?=nil) throws {
         self.repairDisabledSchemas=repairDisabledSchemas;self.cleanup=cleanup;repairExtensionLoaded=g01Library != nil
         Self.lifetime.lock(); defer { Self.lifetime.unlock() }
         guard !Self.created else { throw EngineError.code(Int32(PAIA_BUSY)) }
-        let rc=paia_rime_open(library,shared,isolatedUser)
+        guard !precompiled || (schemas.isEmpty && g01Library==nil) else{throw EngineError.code(Int32(PAIA_ABI))}
+        // A failed C entry can already initialize/finalize upstream state. The
+        // startup attempt is consumed before C; retry requires a new process.
+        Self.created=true;Self.attempts+=1
+        let rc=precompiled ? paia_rime_open_precompiled(library,shared,isolatedUser):paia_rime_open(library,shared,isolatedUser)
         guard rc==PAIA_OK else { throw EngineError.code(rc) }
-        Self.created=true; self.dictionaryRevision=dictionaryRevision
+        self.dictionaryRevision=dictionaryRevision
         do {
             for schema in schemas {let code=paia_rime_deploy_named(schema);guard code==PAIA_OK else{throw EngineError.code(code)}}
             if let path=g01Library {let code=paia_rime_enable_g01(path);guard code==PAIA_OK else{throw EngineError.code(code)}}
