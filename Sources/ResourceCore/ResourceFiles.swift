@@ -111,7 +111,7 @@ public struct VerifiedResourcePack {
         guard ResourceContract.digest(bytes)==expected.manifestSHA else{throw ResourceError.integrity}
         let value=try ResourceContract.decode(ResourceManifest.self,bytes);try value.validate()
         guard value.generation==expected.generation,try directory.names()==["build","default.yaml","manifest.json"],
-              try directory.child("build").names()==value.preset.requiredArtifacts.filter{$0.hasPrefix("build/")}.map{String($0.dropFirst(6))}.sorted() else{throw ResourceError.integrity}
+              try directory.child("build").names()==value.preset.requiredArtifacts.filter({$0.hasPrefix("build/")}).map({String($0.dropFirst(6))}).sorted() else{throw ResourceError.integrity}
         var copied=[String:Data]()
         for item in value.artifacts {
             let data=try directory.readPath(item.path)

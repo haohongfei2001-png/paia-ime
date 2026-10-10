@@ -11,10 +11,12 @@ def publish(path,preset,revision,mode):
     result=subprocess.run([str(helper),'publish',str(path),preset,str(library),str(revision),mode],capture_output=True,text=True,timeout=120,check=True)
     value=json.loads(result.stdout);assert value['revision']==revision+1
     return value
+evidence=[]
 for path in [store,active]:
     first=publish(path,'baseline',0,'create')
     second=publish(path,'extended',1,'existing')
     assert second['lastGood']==first['current'] and second['current']!=first['current']
+    evidence.append({'store':path.name,'index':second,'manifests':[json.loads((path/'generations'/reference['generation']/'manifest.json').read_text()) for reference in [second['current'],second['lastGood']]]})
 variables={'PAIA_RESOURCE_HELPER':str(helper),'PAIA_RESOURCE_HELPER_SHA':hashlib.sha256(helper.read_bytes()).hexdigest(),'PAIA_RESOURCE_TEST_STORE':str(store),'PAIA_RESOURCE_ACTIVE_STORE':str(active)}
 (root/'.build/resource-test-env.sh').write_text(''.join('export '+key+'='+shlex.quote(value)+'\n' for key,value in variables.items()))
-print(json.dumps({'prepared':'two independent public stores','schemasPerGeneration':2,'generationsPerStore':2,'realCompileAndProbe':True,'network':False,'personalData':False}))
+print(json.dumps({'prepared':'two independent public stores','schemasPerGeneration':2,'generationsPerStore':2,'realCompileAndProbe':True,'network':False,'personalData':False,'stores':evidence}))

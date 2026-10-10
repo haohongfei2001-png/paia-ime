@@ -69,6 +69,7 @@ final class ResourceIMKTests:XCTestCase {
         XCTAssertEqual(selected.selection.reason,["fallback","semantic"].contains(stage) ? .lastGood:.current)
         XCTAssertEqual(selected.selection.snapshot.pack.reference,["fallback","semantic"].contains(stage) ? prior:original.current)
         if stage=="after_publication"{XCTAssertEqual(manifest.preset,.baseline)}
+        print("RESOURCE_SELECTED_REFERENCE "+String(decoding:try ResourceContract.encode(selected.selection.snapshot.pack.reference),as:UTF8.self))
         let privatePack=try ResourceDirectory(selected.selection.snapshot.directory)
         let before=Dictionary(uniqueKeysWithValues:try manifest.artifacts.map{($0.path,try privatePack.readPath($0.path))})
         let driver=service.workspace.makeDriver(hide:{},present:{_,_,_ in}),client=PAIAIMKTestClient(text:"Existing𠀀")
@@ -90,6 +91,8 @@ final class ResourceIMKTests:XCTestCase {
             XCTAssertEqual(session.snapshot?.inputGeneration,held.inputGeneration);XCTAssertEqual(session.snapshot?.rawASCII,held.rawASCII)
             XCTAssertEqual(client.insertCalls,0);XCTAssertEqual(try Data(contentsOf:personal.appendingPathComponent("lexicon.json")),bytes)
             let new=try ResourceCatalog(directory:path).pack(published.current)
+            print("RESOURCE_PUBLISHED_INDEX "+String(decoding:try ResourceContract.encode(published),as:UTF8.self))
+            print("RESOURCE_PUBLISHED_MANIFEST "+String(decoding:new.manifestBytes,as:UTF8.self))
             XCTAssertTrue(new.files.values.allSatisfy{$0.range(of:Data("SyntheticDeletedResourceWord".utf8))==nil})
         }
         for character in raw.dropFirst(2){XCTAssertTrue(driver.handle(try key(String(character)),client:client))}
