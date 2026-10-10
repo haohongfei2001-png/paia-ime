@@ -32,6 +32,7 @@ import LexiconCore
             try PersonalSchemaBuilder.verifyCompiled(resources,userDirectory:user)
         } catch {if let engine=started{_ = engine.close()}else{try? scratch.remove()};authority?.close();throw error}
     }
+    // Caller already retired all idle owners under its process-wide mutation gate.
     public func disableOverlayUntilRestart(){pendingRestart=true;for session in sessions{session.value?.end()};sessions=[]}
     public func makeSession(configuration:LabConfiguration)throws->InputSession {
         var schema=configuration.schema

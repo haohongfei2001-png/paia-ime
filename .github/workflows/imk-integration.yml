@@ -11,7 +11,7 @@ concurrency:
 jobs:
   native:
     runs-on: macos-15
-    timeout-minutes: 25
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
@@ -47,6 +47,22 @@ jobs:
           set -o pipefail
           source .build/a1-env.sh
           swift test --filter IMKProtocolTests 2>&1 | tee evidence/imk-run/protocol-tests.txt
+      - name: Prepare existing unbundled research resources
+        run: |
+          set -o pipefail
+          python3 Tools/prepare-a2.py | tee evidence/imk-run/research-inputs.json
+          bash Tools/build-g01.sh 2>&1 | tee evidence/imk-run/extension-build.txt
+          python3 Tools/prepare-b1.py | tee evidence/imk-run/schema-inputs.json
+      - name: Consolidated basic controls through real IMK driver
+        run: |
+          set -o pipefail
+          source .build/b1-env.sh
+          export PAIA_IMK_RESEARCH=1 PAIA_B2_RESEARCH=1
+          export PAIA_B2_STORE="$PWD/.build/imk-synthetic-personal"
+          export PAIA_B3_STORE="$PWD/.build/imk-synthetic-settings"
+          for stage in controls save restore restore_failed verify_previous verify_published verify_unresolved; do
+            PAIA_IMK_BASIC_STAGE="$stage" swift test --skip-build --filter IMKBasicTests 2>&1 | tee "evidence/imk-run/basics-$stage.txt"
+          done
       - name: Preserve evidence including failed stages
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02

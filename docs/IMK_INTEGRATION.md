@@ -34,3 +34,9 @@ The original service/host milestone precedes complete B integration: existing mo
 4. **D/E admission:** actual application compatibility, physical keyboard/VoiceOver, long-run and human-efficiency/quality evidence; license-cleared signed distribution, update/migration/rollback and uninstall. These gates cannot be closed by synthetic tests or a new UI slice.
 
 The original REPORT/HANDOFF remain authoritative. This is a consolidated critical path, not new product scope or a claim that A2's language-quality/efficiency questions are answered.
+
+## Consolidated basic controls (implementation in progress)
+
+`IMKWorkspace` is shared by every production controller. The menu opens the same explicit settings and term governance components used by the native lab, with a process-wide action-time idle boundary. A failed mode preparation leaves the prior idle session/configuration intact; a callback during preparation invalidates the attempted transition. No management action commits, clears or replays host text. A closed controller is excluded from management ownership while retaining its transient recovery.
+
+The default bundle has only the authored fixture. To exercise the existing unbundled research schemas, explicitly prepare A1/A2/G01/B1 resources and set `PAIA_IMK_RESEARCH=1` before startup. `PAIA_B2_RESEARCH=1` and an explicit `PAIA_B2_STORE` select the personal store; `PAIA_B3_SETTINGS=1` and an explicit `PAIA_B3_STORE` select settings. These are isolated development paths, not profile discovery or production installation. Missing/corrupt authority does not trigger an automatic overwrite or second engine initialization. Do not start the normal service merely to exercise this lane: CI uses protocol fixtures and the preflight branch only.
