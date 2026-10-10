@@ -111,10 +111,10 @@ void replay(uint64_t source,const std::vector<Part>& parts,size_t work,OwnedSess
 void drain_exact(uint64_t id,const std::string& expected) {
   require(session(id)->commit_text().empty(),"commit already pending");
   require(api->commit_composition(id),"explicit native commit refused");
-  RIME_STRUCT(RimeCommit,c);require(api->get_commit(id,&c),"native commit missing");
+  RimeCommit c{};RIME_STRUCT_INIT(RimeCommit,c);require(api->get_commit(id,&c),"native commit missing");
   const std::string actual=c.text?c.text:"";api->free_commit(&c);
   require(actual==expected,"final native commit differs (preedit alone is insufficient)");
-  RIME_STRUCT(RimeCommit,again);const bool duplicate=api->get_commit(id,&again);if(duplicate)api->free_commit(&again);
+  RimeCommit again{};RIME_STRUCT_INIT(RimeCommit,again);const bool duplicate=api->get_commit(id,&again);if(duplicate)api->free_commit(&again);
   require(!duplicate,"second native commit read not empty");
 }
 Span choose_prefix(Context* ctx,size_t end,const std::string& wanted,bool alternate=false) {
@@ -171,7 +171,7 @@ int main(int argc,char** argv) {
   bool initialized=false;
   try {
     api=rime_get_api();require(api && std::strcmp(api->get_version(),"1.16.0")==0,"wrong engine version");
-    RIME_STRUCT(RimeTraits,traits);traits.shared_data_dir=argv[1];traits.user_data_dir=argv[2];
+    RimeTraits traits{};RIME_STRUCT_INIT(RimeTraits,traits);traits.shared_data_dir=argv[1];traits.user_data_dir=argv[2];
     traits.distribution_name="PAIA authored mixed probe";traits.distribution_code_name="paia_mixed_probe";
     traits.distribution_version="0";traits.app_name="rime.paia_mixed_probe";traits.min_log_level=3;traits.log_dir="";
     api->setup(&traits);api->initialize(&traits);initialized=true;api->deployer_initialize(&traits);
