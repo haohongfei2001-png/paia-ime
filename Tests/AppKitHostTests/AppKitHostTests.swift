@@ -6,6 +6,7 @@ import NativeHost
 import SessionCore
 // Run separately from EngineTests, because librime has one process-global lifecycle owner.
 final class AppKitHostTests:XCTestCase {
+    @MainActor func descendants(_ view:NSView)->[NSView] {[view]+view.subviews.flatMap{descendants($0)}}
     static var lab:LabEnvironment!
     override class func setUp() {super.setUp();do {lab=try LabEnvironment()} catch {XCTFail("APPKIT_HOST startup failed: \(error)")}}
     @MainActor func testNativeMarkedThenSingleCommitAcrossUnicodePrefixes() throws {
@@ -68,8 +69,7 @@ final class AppKitHostTests:XCTestCase {
         let panel=CandidatePanel();defer{panel.orderOut(nil);window.close()}
         let old=s.snapshot!,rect=NSRect(x:100,y:200,width:100,height:20),screen=NSRect(x:0,y:0,width:800,height:600)
         panel.show(old,below:rect,screen:screen)
-        let stack=try XCTUnwrap(panel.contentView?.subviews.first as? NSStackView)
-        let button=try XCTUnwrap(stack.arrangedSubviews.first as? NSButton)
+        let button=try XCTUnwrap(descendants(try XCTUnwrap(panel.contentView)).compactMap{$0 as? NSButton}.first)
         _=host.apply(try s.process(.code(0xff08)))
         panel.show(s.snapshot!,below:rect,screen:screen)
         var clicked:CandidateRef?

@@ -4,6 +4,7 @@ import AppKit
 import NativeHost
 import EngineBridge
 final class NativeControlTests:XCTestCase {
+    @MainActor func descendants(_ view:NSView)->[NSView] {[view]+view.subviews.flatMap{descendants($0)}}
     static var environment:ResearchLabEnvironment!
     override class func setUp(){super.setUp();do{environment=try ResearchLabEnvironment()}catch{XCTFail("B1 native startup: \(error)")}}
     @MainActor func make()throws->(NativeLabController,LabWindow){
@@ -128,8 +129,7 @@ final class NativeControlTests:XCTestCase {
         let(d,x)=try make();defer{x.close()};try type("nihao",d.editor)
         let snapshot=try XCTUnwrap(d.editor.dispatcher?.session.snapshot)
         d.editor.candidates.show(snapshot,below:NSRect(x:10,y:100,width:100,height:20),screen:NSRect(x:0,y:0,width:1000,height:800))
-        let stack=try XCTUnwrap(d.editor.candidates.contentView?.subviews.first as? NSStackView)
-        let oldCandidate=try XCTUnwrap(stack.arrangedSubviews.first as? NSButton)
+        let oldCandidate=try XCTUnwrap(descendants(try XCTUnwrap(d.editor.candidates.contentView)).compactMap{$0 as? NSButton}.first)
         d.cancelCompositionButton.performClick(nil);d.spelling.selectItem(at:1);configurationAction(d)
         oldCandidate.performClick(nil);XCTAssertEqual(d.editor.string,"");XCTAssertEqual(d.editor.dispatcher?.insertCount,0)
     }
