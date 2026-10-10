@@ -49,8 +49,9 @@ public enum CandidateCompiler {
     public static func compile(sources directory:URL,inputsSHA:String,output:URL,library:URL)throws->ResourceReference {
         try ResourceHelper.checkLibrary(library)
         let inputs=try sources(ResourceDirectory(directory),expectedSHA:inputsSHA)
-        let root=try scratch();defer{try? FileManager.default.removeItem(at:root)}
-        let owner=try ResourceDirectory(root),shared=try owner.createDirectory("shared"),user=try owner.createDirectory("user")
+        let root=try scratch(),owner=try ResourceDirectory(root)
+        defer{if (try? owner.check()) != nil{try? FileManager.default.removeItem(at:root)}}
+        let shared=try owner.createDirectory("shared"),user=try owner.createDirectory("user")
         let maps=try shared.createDirectory("opencc")
         for name in CandidateContract.templates{try shared.writeExclusive(name,inputs["templates/"+name]!)}
         for name in CandidateContract.opencc{try maps.writeExclusive(name,inputs["opencc/"+name]!)}
@@ -60,8 +61,9 @@ public enum CandidateCompiler {
     }
     public static func compilePersonal(base:VerifiedCandidatePack,document:LexiconDocument,output:URL,library:URL)throws->ResourceReference {
         try ResourceHelper.checkLibrary(library);let personal=try binding(base:base,document:document)
-        let root=try scratch();defer{try? FileManager.default.removeItem(at:root)}
-        let owner=try ResourceDirectory(root),source=try owner.createDirectory("source"),user=try owner.createDirectory("user")
+        let root=try scratch(),owner=try ResourceDirectory(root)
+        defer{if (try? owner.check()) != nil{try? FileManager.default.removeItem(at:root)}}
+        let source=try owner.createDirectory("source"),user=try owner.createDirectory("user")
         // Only already verified closed source bytes are copied to this new,
         // private baseline before the legacy fixed-template builder sees them.
         try base.writeSources(to:source)

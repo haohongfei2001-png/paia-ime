@@ -10,12 +10,14 @@ import ExpressionCore
     public let root:ProductDataRoot?,settings:SettingsStore?,personal:LexiconStore?,expressions:ExpressionStore?
     public let unavailable:[String]
     private let temporaryParent:URL?
+    private let temporaryOwner:ResourceDirectory?
     // Tests/preflight supply an explicit isolated parent or create a new private
     // one. Only the normal service asks for the fixed application-support root.
     public init(parent:URL?,temporaryParent:URL?=nil) {
         self.temporaryParent=temporaryParent
+        temporaryOwner=temporaryParent.flatMap{try? ResourceDirectory($0)}
         guard let parent=parent,let root=try? ProductDataRoot(parent:parent,create:true) else {
-            root=nil;settings=nil;personal=nil;expressions=nil;unavailable=["product data root"];return
+            self.root=nil;self.settings=nil;self.personal=nil;self.expressions=nil;unavailable=["product data root"];return
         }
         self.root=root
         func settings()throws->SettingsStore {let slot=try root.slot(.settings);return try slot.withDescriptor{try SettingsStore(directory:slot.directory,preopenedDirectory:$0,authorityGuard:{try slot.verify()})}}
@@ -30,7 +32,7 @@ import ExpressionCore
         return ProductStores(parent:temporary,temporaryParent:temporary)
     }
     public var status:String {unavailable.isEmpty ? "Private settings, explicit terms and expressions are available; saves remain explicit.":"Unavailable stores: "+unavailable.joined(separator:", ")+". Public input remains available; no lost authority is recreated."}
-    public func close(){settings?.close();personal?.close();expressions?.close();root?.close();if let path=temporaryParent{try? FileManager.default.removeItem(at:path)}}
+    public func close(){settings?.close();personal?.close();expressions?.close();root?.close();if let path=temporaryParent,let owner=temporaryOwner,(try? owner.check()) != nil{try? FileManager.default.removeItem(at:path)}}
 }
 public enum CandidateProductScratch {
     public static func create()throws->URL {

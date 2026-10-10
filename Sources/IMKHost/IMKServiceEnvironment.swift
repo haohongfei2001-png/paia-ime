@@ -21,7 +21,8 @@ import ResourceCore
         // The service's resource contract is chosen by its application metadata,
         // never by a resource file's current existence. Missing packs fail closed.
         let useBundled=environment["PAIA_FIXTURE_DIR"]==nil && (applicationBundle.bundleIdentifier=="dev.paia.ime.integration" || applicationBundle.object(forInfoDictionaryKey:"PAIAResourceGeneration") != nil)
-        if applicationBundle.object(forInfoDictionaryKey:"PAIACandidateProfile") != nil {
+        let candidateMarkers=["PAIACandidateProfile","PAIACandidateGeneration","PAIACandidateManifestSHA","PAIACandidateExtensionSHA"]
+        if applicationBundle.bundleIdentifier=="dev.paia.ime.candidate" || candidateMarkers.contains(where:{applicationBundle.object(forInfoDictionaryKey:$0) != nil}) {
             guard applicationBundle.object(forInfoDictionaryKey:"PAIACandidateProfile") as? String==CandidateContract.profile,
                   !environment.keys.contains(where:{$0.hasPrefix("PAIA_") && $0 != "PAIA_SOURCE_SHA"}),
                   let resources=bundle,let executable=applicationBundle.executableURL,

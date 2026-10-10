@@ -6,6 +6,7 @@ import TextBoundary
 import ResourceCore
 
 public enum EngineError: Error { case code(Int32), invalidUTF8, closed }
+public enum CandidateStartupError:Error {case authorityChangedBeforeEntry}
 public final class RimeRuntime {
     public let dictionaryRevision: String
     public let version = "1.16.0"
@@ -24,9 +25,12 @@ public final class RimeRuntime {
     public convenience init(library: String, shared: String, isolatedUser: String, dictionaryRevision: String, schemas:[String] = [], g01Library:String? = nil,repairDisabledSchemas:Set<String> = [],precompiled:Bool=false,cleanup:(()throws->Void)?=nil) throws {
         try self.init(library:library,shared:shared,isolatedUser:isolatedUser,dictionaryRevision:dictionaryRevision,schemas:schemas,g01Library:g01Library,repairDisabledSchemas:repairDisabledSchemas,precompiled:precompiled,verifiedExtension:false,cleanup:cleanup)
     }
-    public convenience init(candidate:CandidateResourceSnapshot,components:CandidateComponents,repairDisabledSchemas:Set<String> = [],cleanup:(()throws->Void)?=nil)throws {
+    public convenience init(candidate:CandidateResourceSnapshot,components:CandidateComponents,repairDisabledSchemas:Set<String> = [],authorityCheck:(()throws->Void)?=nil,cleanup:(()throws->Void)?=nil)throws {
         try candidate.verify();try components.verify()
         let overlay=candidate.pack.manifest.personal==nil ? Set<String>():Set(CandidateContract.schemas.filter{$0.hasPrefix("paia_candidate_full_") && !$0.contains("_traditional_")})
+        // No further filesystem hashing after this authority check. Rejection is
+        // distinctly pre-entry; any later engine failure still consumes the attempt.
+        do{try authorityCheck?()}catch{throw CandidateStartupError.authorityChangedBeforeEntry}
         try self.init(library:components.library.path,shared:candidate.directory.path,isolatedUser:candidate.userDirectory.path,dictionaryRevision:candidate.pack.manifest.dictionaryRevision,schemas:[],g01Library:components.extensionLibrary.path,repairDisabledSchemas:repairDisabledSchemas.union(overlay),precompiled:true,verifiedExtension:true,cleanup:{defer{candidate.close();components.close()};try cleanup?()})
     }
     private init(library:String,shared:String,isolatedUser:String,dictionaryRevision:String,schemas:[String],g01Library:String?,repairDisabledSchemas:Set<String>,precompiled:Bool,verifiedExtension:Bool,cleanup:(()throws->Void)?)throws {

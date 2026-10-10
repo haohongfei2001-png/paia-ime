@@ -68,8 +68,10 @@ jobs:
           source .build/a1-env.sh
           swift test --filter MixedDraftTests 2>&1 | tee evidence/imk-run/mixed-value-tests.txt
           grep -Fq 'Executed 10 tests, with 0 failures' evidence/imk-run/mixed-value-tests.txt
-          swift test --skip-build --filter ProductCoreTests 2>&1 | tee evidence/imk-run/product-data-tests.txt
-          grep -Fq 'Executed 9 tests, with 0 failures' evidence/imk-run/product-data-tests.txt
+          swift test --skip-build --filter ProductDataTests 2>&1 | tee evidence/imk-run/product-data-tests.txt
+          grep -Fq 'Executed 10 tests, with 0 failures' evidence/imk-run/product-data-tests.txt
+          swift test --skip-build --filter CandidatePackTests 2>&1 | tee evidence/imk-run/candidate-pack-tests.txt
+          grep -Fq 'Executed 5 tests, with 0 failures' evidence/imk-run/candidate-pack-tests.txt
           swift test --skip-build --filter IMKProtocolTests 2>&1 | tee evidence/imk-run/protocol-tests.txt
           swift test --skip-build --filter IMKFixtureBasicsTests 2>&1 | tee evidence/imk-run/fixture-basics.txt
       - name: Offline public resource publication and precompiled startup recovery

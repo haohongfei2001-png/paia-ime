@@ -147,9 +147,11 @@ public final class CandidateResourceSnapshot {
         root=FileManager.default.temporaryDirectory.resolvingSymlinksInPath().appendingPathComponent("paia-candidate-"+UUID().uuidString.lowercased(),isDirectory:true)
         try FileManager.default.createDirectory(at:root,withIntermediateDirectories:false,attributes:[.posixPermissions:0o700])
         owner=try ResourceDirectory(root)
-        directory=try owner.createDirectory("pack").url;userDirectory=try owner.createDirectory("user").url
-        try VerifiedCandidatePack.write(manifest:pack.manifest,files:pack.files,to:ResourceDirectory(directory))
-        try verify()
+        directory=root.appendingPathComponent("pack");userDirectory=root.appendingPathComponent("user")
+        do {
+            _=try owner.createDirectory("user");let destination=try owner.createDirectory("pack")
+            try VerifiedCandidatePack.write(manifest:pack.manifest,files:pack.files,to:destination);try verify()
+        } catch {close();throw error}
     }
     public func verify()throws {
         guard !closed else{throw ResourceError.stale};try owner.check()

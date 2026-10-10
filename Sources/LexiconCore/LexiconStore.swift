@@ -10,6 +10,8 @@ public final class LexiconStore {
     private var rootFD:Int32 = -1,writerFD:Int32 = -1
     private var state=LexiconDocument(),uncertain=false,closed=false
     private let fault:StoreTestFault?
+    // Internal deterministic read-race injection, not a production setting.
+    var afterReadBeforeVerification:((String)throws->Void)?
     public let directory:URL
     public init(directory:URL,fault:StoreTestFault?=nil,preopenedDirectory:Int32?=nil,authorityGuard:@escaping()throws->Void={})throws {
         self.directory=directory.standardizedFileURL;self.fault=fault;self.authorityGuard=authorityGuard
@@ -66,6 +68,14 @@ public final class LexiconStore {
         // Reopening after an unknown publication is an explicit verification, not a mutation retry.
         // Require the OS's file flush and current directory barrier before acknowledging that generation.
         guard fcntl(fd,F_FULLFSYNC)==0,fsync(rootFD)==0 else{throw LexiconError.durabilityUnknown}
+        try afterReadBeforeVerification?(name)
+        var after=stat(),linked=stat()
+        guard fstat(fd,&after)==0,fstatat(rootFD,name,&linked,AT_SYMLINK_NOFOLLOW)==0,
+              (linked.st_mode&S_IFMT)==S_IFREG,after.st_nlink==1,linked.st_nlink==1,
+              after.st_ino==info.st_ino,after.st_dev==info.st_dev,linked.st_ino==info.st_ino,linked.st_dev==info.st_dev,
+              after.st_size==info.st_size,data.count==info.st_size,
+              after.st_mtimespec.tv_sec==info.st_mtimespec.tv_sec,after.st_mtimespec.tv_nsec==info.st_mtimespec.tv_nsec,
+              after.st_ctimespec.tv_sec==info.st_ctimespec.tv_sec,after.st_ctimespec.tv_nsec==info.st_ctimespec.tv_nsec else{throw LexiconError.stale}
         return data
     }
     private func publish(_ data:Data)throws {

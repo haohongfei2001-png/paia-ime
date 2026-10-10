@@ -3,7 +3,7 @@ import Foundation
 import Darwin
 import ResourceCore
 import SettingsCore
-import LexiconCore
+@testable import LexiconCore
 import ExpressionCore
 
 // SIMULATED authored filesystem authorities. No engine, real HOME or installed service.
@@ -149,5 +149,19 @@ final class ProductDataTests:XCTestCase {
         let root=try ProductDataRoot(parent:parent,create:false);defer{root.close()}
         XCTAssertNoThrow(try root.verify());XCTAssertEqual(try Data(contentsOf:path.appendingPathComponent(".layout")),marker)
         for slot in ProductDataRoot.Slot.allCases{XCTAssertNoThrow(try root.slot(slot))}
+    }
+    func testPersonalAuthorityReplacedDuringReadCannotReturnOldSnapshot()throws {
+        let root=try ProductDataRoot(parent:parent(),create:true),store=try personal(root);defer{store.close();root.close()}
+        _=try store.add(surface:"显式样例",reading:"xian shi yang li",expectedRevision:0)
+        let before=try store.exportData(),file=store.directory.appendingPathComponent("lexicon.json")
+        var triggered=false
+        store.afterReadBeforeVerification={name in
+            guard name=="lexicon.json",!triggered else{return};triggered=true
+            // Same valid bytes, different inode: a read must not acknowledge the
+            // old descriptor after the authority name has already been replaced.
+            try before.write(to:file,options:.atomic)
+        }
+        XCTAssertThrowsError(try store.exportData());XCTAssertTrue(triggered)
+        XCTAssertEqual(try Data(contentsOf:file),before)
     }
 }

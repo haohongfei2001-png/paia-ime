@@ -30,7 +30,7 @@ jobs:
       - name: Compile real uninstalled IMK bundle
         run: |
           set -o pipefail
-          bash Tools/build-imk.sh 2>&1 | tee evidence/expression-run/build.txt
+          bash Tools/build-imk.sh --fixture-only 2>&1 | tee evidence/expression-run/build.txt
           cp .build/imk-bundle-manifest.json evidence/expression-run/
       - name: Exact store and same effect gate
         run: |
