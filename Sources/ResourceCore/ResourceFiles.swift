@@ -15,6 +15,17 @@ public final class ResourceDirectory {
         guard fstat(handle,&checked)==0 else{Darwin.close(handle);throw ResourceError.io}
         self.url=selected;fd=handle;identity=checked
     }
+    // Internal descriptor handoff from a verified ancestor walk. Do not reopen
+    // the URL and lose protection against replacement of an intermediate parent.
+    init(duplicating descriptor:Int32,url:URL)throws {
+        let selected=url.standardizedFileURL,handle=fcntl(descriptor,F_DUPFD_CLOEXEC,0)
+        guard handle>=0 else{throw ResourceError.io}
+        var owned=stat(),linked=stat()
+        guard fstat(handle,&owned)==0,lstat(selected.path,&linked)==0,
+              (owned.st_mode&S_IFMT)==S_IFDIR,(linked.st_mode&S_IFMT)==S_IFDIR,
+              owned.st_dev==linked.st_dev,owned.st_ino==linked.st_ino else{Darwin.close(handle);throw ResourceError.stale}
+        self.url=selected;fd=handle;identity=owned
+    }
     private init(parent:ResourceDirectory,name:String)throws {
         try parent.check();let selected=parent.url.appendingPathComponent(name,isDirectory:true)
         let handle=openat(parent.fd,name,O_RDONLY|O_DIRECTORY|O_NOFOLLOW|O_CLOEXEC)
@@ -36,7 +47,7 @@ public final class ResourceDirectory {
     }
     public func child(_ name:String)throws->ResourceDirectory {try Self.name(name);return try ResourceDirectory(parent:self,name:name)}
     public func names()throws->[String] {
-        try check();let duplicate=dup(fd);guard duplicate>=0 else{throw ResourceError.io}
+        try check();let duplicate=fcntl(fd,F_DUPFD_CLOEXEC,0);guard duplicate>=0 else{throw ResourceError.io}
         guard let stream=fdopendir(duplicate) else{Darwin.close(duplicate);throw ResourceError.io};defer{closedir(stream)}
         rewinddir(stream);var names=[String]()
         while let entry=readdir(stream) {
