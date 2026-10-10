@@ -6,6 +6,7 @@ import EngineBridge
 import SessionCore
 
 final class CandidateNavigationTests:XCTestCase {
+    @MainActor func descendants(_ view:NSView)->[NSView] {[view]+view.subviews.flatMap{descendants($0)}}
     static var environment:ResearchLabEnvironment!
     override class func setUp(){super.setUp();do{environment=try ResearchLabEnvironment()}catch{XCTFail("B4 native startup: \(error)")}}
     @MainActor func make()throws->(NativeLabController,LabWindow){
@@ -19,7 +20,7 @@ final class CandidateNavigationTests:XCTestCase {
         let event=try XCTUnwrap(NSEvent.keyEvent(with:.keyDown,location:.zero,modifierFlags:[],timestamp:0,windowNumber:view.window?.windowNumber ?? 0,context:nil,characters:text,charactersIgnoringModifiers:text,isARepeat:false,keyCode:code));view.keyDown(with:event)
     }
     @MainActor func type(_ text:String,_ view:NSTextView)throws{for c in text{try key(String(c),view)}}
-    @MainActor func rows(_ panel:CandidatePanel)throws->[NSButton]{try XCTUnwrap(panel.contentView?.subviews.first as? NSStackView).arrangedSubviews.compactMap{$0 as? NSButton}}
+    @MainActor func rows(_ panel:CandidatePanel)throws->[NSButton]{descendants(try XCTUnwrap(panel.contentView)).compactMap{$0 as? NSButton}.sorted{$0.tag<$1.tag}}
     @MainActor func assertPresentation(_ controller:NativeLabController,_ window:LabWindow)throws {
         let snapshot=try XCTUnwrap(controller.editor.dispatcher?.session.snapshot),panel=controller.editor.candidates
         XCTAssertFalse(snapshot.rows.isEmpty);XCTAssertTrue(panel.isVisible);XCTAssertFalse(panel.canBecomeKey);XCTAssertTrue(window.firstResponder===controller.editor)
@@ -31,8 +32,7 @@ final class CandidateNavigationTests:XCTestCase {
             XCTAssertEqual(button.accessibilityLabel(),"Candidate \(i+1), \(snapshot.rows[i].text)");XCTAssertTrue(button.refusesFirstResponder)
             XCTAssertEqual(button.font?.fontDescriptor,NSFont.systemFont(ofSize:16,weight:i==snapshot.highlighted ? .semibold:.regular).fontDescriptor)
         }
-        let stack=try XCTUnwrap(panel.contentView?.subviews.first as? NSStackView)
-        let label=try XCTUnwrap(stack.arrangedSubviews.compactMap{$0 as? NSTextField}.first)
+        let label=try XCTUnwrap(descendants(try XCTUnwrap(panel.contentView)).compactMap{$0 as? NSTextField}.first)
         XCTAssertEqual(label.stringValue,"Page \(snapshot.pageIndex+1) · \(snapshot.hasMore ? "More candidates":"End of candidates")")
     }
     @MainActor func capture(_ panel:CandidatePanel,name:String)throws {
@@ -106,7 +106,7 @@ final class CandidateNavigationTests:XCTestCase {
             try key("\u{F72C}",c.editor,code:116);try assertPresentation(c,w)
         }
         XCTAssertEqual(host.insertCount,0);XCTAssertTrue(c.editor.hasMarkedText());XCTAssertEqual(host.session.snapshot?.rawASCII,"shi")
-        XCTAssertEqual(NSApp.windows.filter{$0 is CandidatePanel}.count,panels);XCTAssertEqual(c.editor.candidates.contentView?.subviews.count,1)
+        XCTAssertEqual(NSApp.windows.filter{$0 is CandidatePanel}.count,panels);XCTAssertEqual(descendants(try XCTUnwrap(c.editor.candidates.contentView)).filter{$0 is NSScrollView}.count,1);XCTAssertEqual(try rows(c.editor.candidates).count,host.session.snapshot?.rows.count)
         print("B4_APPKIT_HOST bounded 160 navigation actions; not endurance or visible-latency evidence")
     }
     @MainActor func testUnicodeAndEndPagePresentationUsesSnapshotText()throws {
@@ -118,7 +118,7 @@ final class CandidateNavigationTests:XCTestCase {
         let panel=CandidatePanel();defer{panel.orderOut(nil)}
         panel.show(try XCTUnwrap(update.snapshot),below:NSRect(x:10,y:30,width:100,height:20),screen:NSRect(x:0,y:0,width:800,height:600))
         let buttons=try rows(panel);for i in text.indices{XCTAssertTrue(buttons[i].title.hasSuffix(text[i]))};XCTAssertTrue(buttons[2].title.hasPrefix("▶ "))
-        let stack=try XCTUnwrap(panel.contentView?.subviews.first as? NSStackView),label=try XCTUnwrap(stack.arrangedSubviews.last as? NSTextField)
+        let label=try XCTUnwrap(descendants(try XCTUnwrap(panel.contentView)).compactMap{$0 as? NSTextField}.first)
         XCTAssertEqual(label.stringValue,"Page 3 · End of candidates");XCTAssertTrue(NSRect(x:0,y:0,width:800,height:600).contains(panel.frame))
     }
 }
