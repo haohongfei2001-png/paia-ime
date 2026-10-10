@@ -207,7 +207,7 @@ final class ExpressionIMKTests:XCTestCase {
         let long=String(repeating:"原话保留数字 42、否定、e\u{301} 与 👩🏽‍💻。\n",count:80)+"末句完整。",panel=ExpressionPanel()
         defer{panel.orderOut(nil)}
         let screen=try XCTUnwrap(NSScreen.main).visibleFrame
-        let r=try Rig(text:long,present:{state,rect in panel.show(state,below:rect,screen:screen)});defer{r.close()}
+        let r=try Rig(text:long,hide:{panel.orderOut(nil)},present:{state,rect in panel.show(state,below:rect,screen:screen)});defer{r.close()}
         let host=NSWindow(contentRect:NSRect(x:40,y:60,width:640,height:240),styleMask:[.titled],backing:.buffered,defer:false);host.isReleasedWhenClosed=false;host.contentView=r.client.view;host.makeKeyAndOrderFront(nil);host.makeFirstResponder(r.client.view);defer{host.close()}
         _ = try review(r);panel.displayIfNeeded()
         XCTAssertTrue(panel.isVisible);XCTAssertFalse(panel.isKeyWindow);XCTAssertFalse(panel.canBecomeKey);XCTAssertTrue(host.firstResponder===r.client.view)
@@ -217,8 +217,14 @@ final class ExpressionIMKTests:XCTestCase {
         let view=try XCTUnwrap(panel.contentView),bitmap=try XCTUnwrap(view.bitmapImageRepForCachingDisplay(in:view.bounds));view.cacheDisplay(in:view.bounds,to:bitmap)
         let data=try XCTUnwrap(bitmap.representation(using:.png,properties:[:]))
         if let path=ProcessInfo.processInfo.environment["PAIA_EXPRESSION_CAPTURE"]{try data.write(to:URL(fileURLWithPath:path),options:.atomic)}
+        for _ in 0..<30{panel.scrollReview(1,token:state.token)}
+        let endRange=try XCTUnwrap(panel.textView.layoutManager).glyphRange(forBoundingRect:panel.textView.visibleRect,in:try XCTUnwrap(panel.textView.textContainer))
+        XCTAssertEqual(NSMaxRange(endRange),panel.textView.layoutManager?.numberOfGlyphs)
+        XCTAssertTrue(panel.textView.string.hasSuffix("末句完整。"))
+        let tail=try XCTUnwrap(view.bitmapImageRepForCachingDisplay(in:view.bounds));view.cacheDisplay(in:view.bounds,to:tail)
+        if let path=ProcessInfo.processInfo.environment["PAIA_EXPRESSION_CAPTURE_TAIL"]{try XCTUnwrap(tail.representation(using:.png,properties:[:])).write(to:URL(fileURLWithPath:path),options:.atomic)}
         fputs("EXPRESSION_UI_STAGE captured\n",stderr)
-        r.driver.cancelRecall(token:state.token);fputs("EXPRESSION_UI_STAGE cancelled\n",stderr);let manager=ExpressionManager(workspace:r.workspace);manager.show();defer{manager.close()}
+        r.driver.cancelRecall(token:state.token);XCTAssertFalse(panel.isVisible);fputs("EXPRESSION_UI_STAGE cancelled\n",stderr);let manager=ExpressionManager(workspace:r.workspace);manager.show();defer{manager.close()}
         fputs("EXPRESSION_UI_STAGE manager-open\n",stderr)
         XCTAssertTrue(manager.isOpen);XCTAssertTrue(manager.editor.string.isEmpty)
         manager.editor.string=Self.exact;manager.aliases.stringValue="newalias";manager.saveAction(nil);fputs("EXPRESSION_UI_STAGE saved\n",stderr)

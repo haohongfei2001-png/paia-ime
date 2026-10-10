@@ -1,8 +1,8 @@
 # Exact local expressions: consolidated C product node
 
-Status: implementation under review; native compilation and CI pending. This is not installed-IME, live-client, human-study or production-release evidence.
+Status: real native compilation and the 11 store/core plus 14 IMK tests passed at `3fedd0a`; final-head CI and independent acceptance remain separately required. This is not installed-IME, live-client, human-study or production-release evidence.
 
-The original HANDOFF/REPORT asks for explicit complete-expression save and recall at the input point, separate from ordinary pinyin and sent-message records. This node integrates that path into the existing IMK driver, not a parallel host writer. No model or PAIA is involved.
+See the [checkpoint evidence](../evidence/c-expressions/VALIDATION.md). The original HANDOFF/REPORT asks for explicit complete-expression save and recall at the input point, separate from ordinary pinyin and sent-message records. This node integrates that path into the existing IMK driver, not a parallel host writer. No model or PAIA is involved.
 
 ## Run the isolated lane
 

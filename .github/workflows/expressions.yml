@@ -48,10 +48,12 @@ jobs:
           set -o pipefail
           source .build/a1-env.sh
           export PAIA_EXPRESSION_CAPTURE="$PWD/evidence/expression-run/review.png"
+          export PAIA_EXPRESSION_CAPTURE_TAIL="$PWD/evidence/expression-run/review-tail.png"
           swift test --filter ExpressionIMKTests 2>&1 | tee evidence/expression-run/imk-tests.txt
           grep -Fq 'Executed 14 tests, with 0 failures' evidence/expression-run/imk-tests.txt
           grep -Fq 'EXPRESSION_NATIVE ENGINE_NATIVE + APPKIT_HOST' evidence/expression-run/imk-tests.txt
           python3 -c 'import base64,pathlib; s=base64.b64encode(pathlib.Path("evidence/expression-run/review.png").read_bytes()).decode(); [print("PAIA_EXPRESSION_REVIEW_IMAGE_%d:%s" % (i//1800,s[i:i+1800])) for i in range(0,len(s),1800)]'
+          python3 -c 'import base64,pathlib; s=base64.b64encode(pathlib.Path("evidence/expression-run/review-tail.png").read_bytes()).decode(); [print("PAIA_EXPRESSION_TAIL_IMAGE_%d:%s" % (i//1800,s[i:i+1800])) for i in range(0,len(s),1800)]'
       - name: Preserve complete evidence including failure
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
