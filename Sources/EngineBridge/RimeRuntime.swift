@@ -129,11 +129,19 @@ public final class InputSession {
     public func invalidateRepairActions(){
         lock.lock();defer{lock.unlock()};repairRequest += 1;issuedChoices.removeAll();issuedAlternatives.removeAll()
     }
+    public func renewRepairTarget(_ target:RepairTarget)throws->RepairTarget {
+        lock.lock();defer{lock.unlock()};_ = try lease()
+        // Draft edits change no engine input. Validate its full source identity,
+        // then revoke query/proposal capabilities without running native search.
+        guard target.lease.matches(core.snapshot,revision:runtime.dictionaryRevision,request:target.lease.request) else{throw ConstraintError.stale}
+        repairRequest += 1;issuedChoices.removeAll();issuedAlternatives.removeAll()
+        return RepairTarget(lease:try lease(),anchor:target.anchor,index:target.index)
+    }
     public func repairAnchors() throws -> RepairAnchors {
         lock.lock();defer{lock.unlock()};let identity=try lease()
         var list=PaiaG01List();let rc=paia_rime_g01_anchors(id,&list);defer{paia_rime_g01_free_list(&list)}
         guard rc==PG_OK else{throw ConstraintError.native(code:rc,examined:0)}
-        return RepairAnchors(lease:identity,rows:try copyList(list).anchors)
+        let copied=try copyList(list);return RepairAnchors(lease:identity,rows:copied.anchors,preview:copied.preview)
     }
     public func repairChoices(limit:Int=256) throws -> RepairChoices {
         lock.lock();defer{lock.unlock()};let identity=try lease()
@@ -334,7 +342,7 @@ public struct RepairTarget {
     fileprivate init(lease:RepairLease,anchor:RawAnchor,index:Int){self.lease=lease;self.anchor=anchor;self.index=index}
 }
 public struct RepairAnchors {
-    public let lease:RepairLease,rows:[RawAnchor]
+    public let lease:RepairLease,rows:[RawAnchor],preview:String
     public var targets:[RepairTarget]{rows.enumerated().map{RepairTarget(lease:lease,anchor:$0.element,index:$0.offset)}}
 }
 

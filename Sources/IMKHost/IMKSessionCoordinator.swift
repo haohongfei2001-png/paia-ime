@@ -2,6 +2,7 @@
 import AppKit
 import EngineBridge
 import SessionCore
+import ConstraintCore
 
 // A restricted, uninstalled C0 integration lane. Nonempty/unknown initial selections
 // and foreign marks are not adopted. No surrounding context or document scan is used.
@@ -19,6 +20,7 @@ import SessionCore
     private var expectedMark=NSRange(location:NSNotFound,length:0)
     private var ownedText:String?
     private var executing=false
+    private var terminalRetiredFrom:UInt64?
     private var operationRaw="",operationPreedit="",issuedText:String?
     private var hostWriteIssued=false
     public init() {}
@@ -31,7 +33,7 @@ import SessionCore
     public var identity:AnyObject? {client?.callbackIdentity}
     private func same(_ other:AnyObject)->Bool {client?.callbackIdentity === other}
     public func retire() {
-        activation &+= 1;session?.end();session=nil;client=nil;ownedText=nil
+        activation &+= 1;terminalRetiredFrom=nil;session?.end();session=nil;client=nil;ownedText=nil
         expectedSelection=NSRange(location:NSNotFound,length:0);expectedMark=expectedSelection
         operationRaw="";operationPreedit="";issuedText=nil;hostWriteIssued=false
     }
@@ -185,7 +187,9 @@ import SessionCore
                 notice="This control is unsupported during composition. Use Return or Escape before continuing.";outcome = .refused;return true
             }
             notice=nil;outcome = .ready
-            if !update.handled{retire()}
+            if active.isRetainedComposition && update.snapshot?.rawASCII.isEmpty==true && update.snapshot?.preedit.isEmpty==true {
+                retire();terminalRetiredFrom=ticket
+            } else if !update.handled{retire()}
             return update.handled
         } catch {if stillOwned(ticket,owner,active){fail("Input stopped safely. No automatic retry or text cleanup.")};return true}
     }
@@ -201,8 +205,79 @@ import SessionCore
             guard stillOwned(ticket,owner,active),apply(update,ticket:ticket,owner:owner,active:active) else{
                 if stillOwned(ticket,owner,active){fail("Candidate outcome is unconfirmed. It will not be replayed.")};return false
             }
-            notice=nil;outcome = .ready;return true
+            notice=nil;outcome = .ready
+            if active.isRetainedComposition && active.snapshot?.rawASCII.isEmpty==true && active.snapshot?.preedit.isEmpty==true{retire()}
+            return true
         }catch{return false}
+    }
+    private func observeRepair<T>(client sender:AnyObject,_ action:(InputSession)throws->T)->T? {
+        if executing{fail("Reentrant repair operation refused.");return nil}
+        guard same(sender),let owner=client,let active=session else{return nil}
+        executing=true;defer{executing=false};let ticket=activation;beginOperation(active)
+        guard verify(ticket,owner,active) else{if stillOwned(ticket,owner,active){fail("Repair target changed.")};return nil}
+        do {
+            let result=try action(active)
+            guard stillOwned(ticket,owner,active),verify(ticket,owner,active) else{if stillOwned(ticket,owner,active){fail("Repair target changed during search.")};return nil}
+            notice=nil;outcome = .ready;return result
+        }catch{
+            guard stillOwned(ticket,owner,active),verify(ticket,owner,active) else{if stillOwned(ticket,owner,active){fail("Repair target changed during refusal.")};return nil}
+            notice="Repair unavailable or stale. Original composition retained; confirm every remaining segment before repair.";outcome = .refused;return nil
+        }
+    }
+    public func repairAnchors(client sender:AnyObject)->RepairAnchors? {
+        observeRepair(client:sender){try $0.repairAnchors()}
+    }
+    public func repairAlternatives(target:RepairTarget,replacementRaw:String,client sender:AnyObject)->RepairAlternatives? {
+        observeRepair(client:sender){try $0.repairAlternatives(target:target,replacementRaw:replacementRaw)}
+    }
+    public func prepareAlternative(_ choice:RepairAlternative,client sender:AnyObject)->RepairProposal? {
+        observeRepair(client:sender){try $0.prepareAlternative(choice)}
+    }
+    @discardableResult public func beginRetained(binding:ExpressionBinding,client sender:AnyObject)->Bool {
+        if executing{fail("Reentrant retained-session activation refused.");return false}
+        guard same(sender),let owner=client,let active=session,active.canRetainForRepair,
+              !active.isRetainedComposition,active.idleExpressionBinding==binding else{return false}
+        executing=true;defer{executing=false};let ticket=activation;beginOperation(active)
+        guard verify(ticket,owner,active) else{if stillOwned(ticket,owner,active){fail("Retained-session target changed.")};return false}
+        do {
+            let update=try active.beginRetained(binding:binding)
+            guard stillOwned(ticket,owner,active),apply(update,ticket:ticket,owner:owner,active:active) else{
+                if stillOwned(ticket,owner,active){fail("Retained-session activation is unconfirmed.")};return false
+            }
+            notice="Next composition retained for repair. Return keeps spelling; Escape cancels. Confirm Chinese explicitly.";outcome = .ready;return true
+        }catch{if stillOwned(ticket,owner,active){fail("Retained-session activation refused.")};return false}
+    }
+    @discardableResult public func applyRepair(_ proposal:RepairProposal,client sender:AnyObject)->Bool {
+        if executing{fail("Reentrant repair application refused.");return false}
+        guard same(sender),let owner=client,let active=session,active.supportsRepair else{return false}
+        executing=true;defer{executing=false};let ticket=activation;beginOperation(active)
+        guard verify(ticket,owner,active) else{if stillOwned(ticket,owner,active){fail("Repair review target changed.")};return false}
+        do {
+            let update=try active.applyRepair(proposal);preserveAcceptedInput(update)
+            guard update.commit==nil,stillOwned(ticket,owner,active),apply(update,ticket:ticket,owner:owner,active:active) else{
+                if stillOwned(ticket,owner,active){fail("Repair mark application is unconfirmed. No automatic retry or cleanup.")};return false
+            }
+            notice="Repair applied only to composition. Commit Chinese explicitly, or Return keeps spelling.";outcome = .ready
+            if active.snapshot?.rawASCII.isEmpty==true,active.snapshot?.preedit.isEmpty==true{retire()}
+            return true
+        }catch{notice="Repair proposal is stale or unavailable. Original composition retained.";return false}
+    }
+    @discardableResult public func commitRetained(client sender:AnyObject)->Bool {
+        if executing{fail("Reentrant Chinese commit refused.");return false}
+        guard same(sender),let owner=client,let active=session,active.supportsRepair else{return false}
+        executing=true;defer{executing=false};let ticket=activation;beginOperation(active)
+        guard verify(ticket,owner,active) else{if stillOwned(ticket,owner,active){fail("Chinese commit target changed.")};return false}
+        guard let anchors=try? active.repairAnchors(),!anchors.rows.isEmpty else{
+            notice="Confirm every remaining segment before committing Chinese. Composition retained.";return false
+        }
+        do {
+            let update=try active.commitEngineComposition()
+            guard update.commit != nil,stillOwned(ticket,owner,active),apply(update,ticket:ticket,owner:owner,active:active) else{
+                if stillOwned(ticket,owner,active){fail("Chinese commit is unconfirmed. No repeat or cleanup.")};return false
+            }
+            guard active.snapshot?.rawASCII.isEmpty==true,active.snapshot?.preedit.isEmpty==true else{fail("Engine did not finish the retained composition.");return false}
+            notice=nil;outcome = .ready;retire();return true
+        }catch{if stillOwned(ticket,owner,active){fail("Chinese commit failed. Check retained input; no replay or cleanup.")};return false}
     }
     // Explicit idle insertion shares apply/reserve, finite range and unknown-outcome policy.
     @discardableResult public func insertExpression(_ text:String,binding:ExpressionBinding,client sender:AnyObject)->Bool {
@@ -215,7 +290,7 @@ import SessionCore
             guard stillOwned(ticket,owner,active),apply(update,ticket:ticket,owner:owner,active:active) else{
                 if stillOwned(ticket,owner,active){fail("Expression insertion is unconfirmed. Check the original document; no retry.")};return false
             }
-            notice=nil;outcome = .ready;return true
+            notice=nil;outcome = .ready;if active.isRetainedComposition{retire()};return true
         }catch{if stillOwned(ticket,owner,active){fail("Expression insertion refused. No replay.")};return false}
     }
     // Only a matching lifecycle callback may request the existing raw-Return policy.
@@ -225,6 +300,7 @@ import SessionCore
         if executing{fail("Lifecycle changed during a client operation.");return false}
         let ticket=activation
         _=process(.returnKey,client:sender)
+        if terminalRetiredFrom==ticket,activation==ticket &+ 1,session==nil,outcome == .ready{return true}
         guard activation==ticket,same(sender),outcome == .ready else{return false}
         retire();return true
     }
