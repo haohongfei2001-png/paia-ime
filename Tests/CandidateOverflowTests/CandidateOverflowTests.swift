@@ -22,6 +22,7 @@ final class CandidateOverflowTests:XCTestCase {
         while offset<encoded.endIndex{let end=encoded.index(offset,offsetBy:3000,limitedBy:encoded.endIndex) ?? encoded.endIndex;FileHandle.standardError.write(Data(("PAIA_B6_\(name)_IMAGE_\(index):"+encoded[offset..<end]+"\n").utf8));offset=end;index+=1}
     }
     @MainActor func assertReadable(_ panel:CandidatePanel,screen:NSRect)throws {
+        XCTAssertTrue(panel.isVisible,"Valid screen must display candidates")
         XCTAssertTrue(screen.contains(panel.frame),"Candidate panel exceeds supplied safe screen")
         let view=try XCTUnwrap(panel.contentView)
         let scroll=try XCTUnwrap(descendants(view).compactMap{$0 as? NSScrollView}.first)
@@ -43,6 +44,8 @@ final class CandidateOverflowTests:XCTestCase {
         }
         let label=try XCTUnwrap(descendants(view).compactMap{$0 as? NSTextField}.first)
         XCTAssertTrue(view.bounds.contains(label.frame));XCTAssertFalse(label.frame.intersects(scroll.frame))
+        let footerHeight=try XCTUnwrap(label.cell).cellSize(forBounds:NSRect(x:0,y:0,width:label.bounds.width,height:10000)).height
+        XCTAssertGreaterThanOrEqual(label.bounds.height,ceil(footerHeight),"Page/scroll status clipped")
     }
     @MainActor func revealTail(_ panel:CandidatePanel,index:Int)throws {
         let view=try XCTUnwrap(panel.contentView),scroll=try XCTUnwrap(descendants(view).compactMap{$0 as? NSScrollView}.first)
@@ -70,7 +73,11 @@ final class CandidateOverflowTests:XCTestCase {
         defer{environment.store?.close();_ = environment.runtime.close()}
         let c=NativeLabController(runtime:environment.runtime,configuredSession:{try environment.makeSession(configuration:$0)})
         let w=LabWindow(contentRect:NSRect(x:0,y:0,width:1040,height:720),styleMask:[.titled,.closable],backing:.buffered,defer:false)
-        w.isReleasedWhenClosed=false;try c.attach(to:w);w.orderFront(nil);w.makeKey();XCTAssertTrue(w.makeFirstResponder(c.editor));defer{w.close()}
+        w.isReleasedWhenClosed=false;try c.attach(to:w)
+        XCTAssertTrue(NSApp.setActivationPolicy(.regular));NSApp.finishLaunching();NSApp.activate(ignoringOtherApps:true)
+        w.makeKeyAndOrderFront(nil);XCTAssertTrue(w.makeFirstResponder(c.editor));defer{w.close()}
+        for _ in 0..<20 {if w.isKeyWindow{break};RunLoop.current.run(until:Date(timeIntervalSinceNow:0.05))}
+        XCTAssertTrue(w.isKeyWindow,"Establish an active synthetic host before testing retained key ownership")
         for character in "qionghaicelijia" {try key(String(character),c.editor)}
         let host=try XCTUnwrap(c.editor.dispatcher)
         var found=false
@@ -123,13 +130,14 @@ final class CandidateOverflowTests:XCTestCase {
         let text=[String(repeating:"長𠀀e\u{301}👩🏽‍💻",count:20),"第二候選",String(repeating:"尾部完整",count:20)]
         let snapshot=try XCTUnwrap(core.receive(EngineValue(raw:"shi",preedit:"shi",caretUTF8:3,candidates:text,page:2,highlighted:2,hasMore:false)).snapshot)
         let panel=CandidatePanel();defer{panel.orderOut(nil)}
-        for screen in [NSRect(x:0,y:0,width:180,height:140),NSRect(x:-900,y:-400,width:320,height:160),NSRect(x:500,y:800,width:640,height:300)] {
+        for screen in [NSRect(x:0,y:0,width:120,height:180),NSRect(x:0,y:0,width:180,height:140),NSRect(x:-900,y:-400,width:320,height:160),NSRect(x:500,y:800,width:640,height:300)] {
             panel.show(snapshot,below:NSRect(x:screen.maxX-10,y:screen.minY+10,width:5,height:20),screen:screen)
             try assertReadable(panel,screen:screen)
             let rows=try buttons(panel);XCTAssertEqual(rows.count,text.count)
             for i in text.indices{XCTAssertTrue(rows[i].title.hasSuffix(text[i]))}
             XCTAssertTrue(rows[2].title.hasPrefix("▶ "))
             try revealTail(panel,index:2)
+            if screen.width==120{try capture(panel,name:"narrow-footer")}
         }
         print("B6_SIMULATED supplied screen rectangles, not physical multi-display evidence")
     }
@@ -147,7 +155,10 @@ final class CandidateOverflowTests:XCTestCase {
             let rows=try buttons(panel),current=rows.map{$0.frame}
             if let frames=frames,let size=size{XCTAssertEqual(current,frames);XCTAssertEqual(panel.frame.size,size)}else{frames=current;size=panel.frame.size}
             for i in text.indices{XCTAssertEqual(rows[i].accessibilityLabel(),"Candidate \(i+1), \(text[i])");XCTAssertTrue(rows[i].title.hasSuffix(text[i]))}
-            XCTAssertEqual(rows[index].visibleRect.minY,0,accuracy:0.5)
+            let scroll=try XCTUnwrap(descendants(try XCTUnwrap(panel.contentView)).compactMap{$0 as? NSScrollView}.first)
+            if rows[index].frame.height>scroll.contentSize.height {
+                XCTAssertEqual(scroll.contentView.bounds.origin.y,rows[index].frame.minY,accuracy:0.5)
+            } else {XCTAssertEqual(rows[index].visibleRect.intersection(rows[index].bounds),rows[index].bounds)}
             try revealTail(panel,index:index)
             if turn==2{try capture(panel,name:"unicode-tail")}
         }
