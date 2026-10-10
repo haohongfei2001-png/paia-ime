@@ -1,0 +1,148 @@
+{
+  "formatVersion": 1,
+  "profile": "authored-candidate-v1",
+  "purpose": "Source inventory for the unsigned integration candidate; generated bundle manifest and candidate-inputs.json bind actual build bytes. Not a license grant or release distribution clearance.",
+  "engine": {
+    "repository": "rime/librime",
+    "version": "1.16.0",
+    "commit": "a251145d3aafa33871824a40bbec04c966bd8b56",
+    "url": "https://github.com/rime/librime/releases/download/1.16.0/rime-a251145-macOS-universal.tar.bz2",
+    "sha256": "e4c9a8767a456f2550f1242921b7656c6e6be088c89a921274bd5d4404f58b99",
+    "license": "BSD-3-Clause plus static dependency notices",
+    "extracted": [
+      "dist/lib/librime.1.16.0.dylib",
+      "dist/include/rime_api.h"
+    ],
+    "excluded": "all optional plugins and all bundled dictionaries",
+    "binarySha256": "922aad7de56473dd13e25836b0eecfa3698e07506154f418cf27e1f5e268e8b3"
+  },
+  "headerSHA256": "6eb5629162c44761e7b878f1b122f464de5c8685bd3cd5ac1e8519badc6d6424",
+  "upstreamSources": [
+    {
+      "repository": "iDvel/rime-ice",
+      "commit": "da1fbe602e38f26db846fa10120ee64c2b0324c0",
+      "upstreamPath": "rime_ice.schema.yaml",
+      "role": "reference-schema",
+      "size": 19484,
+      "sha256": "ec4b0dd02ac287f53fe401f315cde648913eb60bb8cf8d9a8a613d1eb4f9698b",
+      "url": "https://raw.githubusercontent.com/iDvel/rime-ice/da1fbe602e38f26db846fa10120ee64c2b0324c0/rime_ice.schema.yaml",
+      "declaredLicense": "GPL-3.0-only (repository declaration; retain upstream attributions)",
+      "provenance": "Rime Ice full-pinyin schema by Dvel, GPL-3.0-only. Stock configuration uses Lua and extra dictionaries; core-only adaptation must be disclosed."
+    },
+    {
+      "repository": "iDvel/rime-ice",
+      "commit": "da1fbe602e38f26db846fa10120ee64c2b0324c0",
+      "upstreamPath": "double_pinyin_flypy.schema.yaml",
+      "role": "reference-schema",
+      "size": 16262,
+      "sha256": "73c4f66483b7ff19c3bd64308df37de2d22693511711f75da657d1b179b88e32",
+      "url": "https://raw.githubusercontent.com/iDvel/rime-ice/da1fbe602e38f26db846fa10120ee64c2b0324c0/double_pinyin_flypy.schema.yaml",
+      "declaredLicense": "GPL-3.0-only (repository declaration; retain upstream attributions)",
+      "provenance": "Rime Ice Flypy schema by Dvel. Header says key mapping copied from rime/rime-double-pinyin. Original upstream AUTHORS credits Gong Chen under GPLv3. Preserve both attribution chains."
+    },
+    {
+      "repository": "iDvel/rime-ice",
+      "commit": "da1fbe602e38f26db846fa10120ee64c2b0324c0",
+      "upstreamPath": "double_pinyin.schema.yaml",
+      "role": "reference-schema",
+      "size": 16274,
+      "sha256": "46393c3fb4d19349e89b14e7177d1e92fa09218a7964f0f8c891022aa1bfeb0c",
+      "url": "https://raw.githubusercontent.com/iDvel/rime-ice/da1fbe602e38f26db846fa10120ee64c2b0324c0/double_pinyin.schema.yaml",
+      "declaredLicense": "GPL-3.0-only (repository declaration; retain upstream attributions)",
+      "provenance": "Rime Ice Natural-code schema by Dvel; key mapping from rime/rime-double-pinyin (Gong Chen, GPLv3)."
+    },
+    {
+      "repository": "BYVoid/OpenCC",
+      "commit": "556ed22496d650bd0b13b6c163be9814637970ae",
+      "upstreamPath": "data/config/s2t.json",
+      "role": "runtime-conversion-source",
+      "size": 406,
+      "sha256": "710bb970e406d9c0a3dd33c609248686cf1c5578d064b7b7fc89e70fbb9ea75d",
+      "url": "https://raw.githubusercontent.com/BYVoid/OpenCC/556ed22496d650bd0b13b6c163be9814637970ae/data/config/s2t.json",
+      "declaredLicense": "Apache-2.0",
+      "provenance": "Pinned to the same OpenCC source revision listed in A1 dependency notices. Data files have no separate license header. Configs are changed only from ocd2 to text for standalone core-only loading."
+    },
+    {
+      "repository": "BYVoid/OpenCC",
+      "commit": "556ed22496d650bd0b13b6c163be9814637970ae",
+      "upstreamPath": "data/dictionary/STCharacters.txt",
+      "role": "runtime-conversion-source",
+      "size": 34353,
+      "sha256": "ed1d268e0ad028511dcf5b0089faed0a980ad332449ec11d481ceefde6879f41",
+      "url": "https://raw.githubusercontent.com/BYVoid/OpenCC/556ed22496d650bd0b13b6c163be9814637970ae/data/dictionary/STCharacters.txt",
+      "declaredLicense": "Apache-2.0",
+      "provenance": "Pinned to the same OpenCC source revision listed in A1 dependency notices. Data files have no separate license header. Configs are changed only from ocd2 to text for standalone core-only loading."
+    },
+    {
+      "repository": "BYVoid/OpenCC",
+      "commit": "556ed22496d650bd0b13b6c163be9814637970ae",
+      "upstreamPath": "data/dictionary/STPhrases.txt",
+      "role": "runtime-conversion-source",
+      "size": 1004897,
+      "sha256": "17fece21a28f3db2dc32397abd73d21ae73261c3f295fa6a3fe64b5e8d8b554b",
+      "url": "https://raw.githubusercontent.com/BYVoid/OpenCC/556ed22496d650bd0b13b6c163be9814637970ae/data/dictionary/STPhrases.txt",
+      "declaredLicense": "Apache-2.0",
+      "provenance": "Pinned to the same OpenCC source revision listed in A1 dependency notices. Data files have no separate license header. Configs are changed only from ocd2 to text for standalone core-only loading."
+    }
+  ],
+  "localInputs": [
+    {
+      "path": "Resources/Dictionaries/A1Fixture/default.yaml",
+      "sha256": "3e05170c16802f244aba451c18499a5080110e4fcb3581c413fb580550681705"
+    },
+    {
+      "path": "Resources/Dictionaries/A1Fixture/paia_a1.schema.yaml",
+      "sha256": "d237d78adbf2548821ec3b9ad5f191fc9051fd56e245091d6ae863b0878861ea"
+    },
+    {
+      "path": "Resources/Dictionaries/A1Fixture/paia_a1.dict.yaml",
+      "sha256": "13d296cdab50aeb421a18a865872aa6efcc0557823cd78df9f8c610bd37e0924"
+    },
+    {
+      "path": "Resources/Dictionaries/HabitFixture/paia_habit_fixture.dict.yaml",
+      "sha256": "459d90fb3d00ec3aba00e3a2454cd4b49cd4c2d5ea5a053021671933368daac2"
+    },
+    {
+      "path": "Resources/A2/spelling-policy.json",
+      "sha256": "452b69f7ee02467a6d15ae3abc32b53047fe38526a4ec3d846cb4267b532edae"
+    }
+  ],
+  "generatedComponents": [
+    {
+      "name": "paia-g01.dylib",
+      "sources": [
+        "Tools/G01Bridge/paia_g01.cc",
+        "Tools/G01Bridge/paia_mixed.cc"
+      ],
+      "buildInputs": "Resources/A2/upstream-lock.json; Resources/a1-lock.json",
+      "integrity": "SHA256 recorded in application metadata and build manifest; dependencies restricted to loader-local librime and Apple system libraries."
+    },
+    {
+      "name": "paia-resources",
+      "sources": [
+        "Sources/ResourceTool",
+        "Sources/EngineBridge/CandidateCompiler.swift",
+        "Sources/EngineBridge/CandidateProbe.swift"
+      ],
+      "integrity": "SHA256 recorded in application metadata and build manifest."
+    }
+  ],
+  "notices": [
+    "Licenses/librime-BSD-3-Clause.txt",
+    "Resources/dependency-notices.json",
+    "Resources/A2/upstream-lock.json",
+    "Licenses/a2"
+  ],
+  "excluded": [
+    "Rime Ice runtime corpus: root dictionary and cn_dicts",
+    "optional librime plugins and Lua",
+    "all user dictionaries, profiles, input history and secrets",
+    "model weights, AI/PAIA services"
+  ],
+  "obligations": [
+    "Rime Ice spelling/preedit derivatives retain GPL-3.0-only source/notice obligations; this is separate from the corpus-rights gate.",
+    "OpenCC mapping source is Apache-2.0; configuration changes to text maps and lowercase paths are recorded.",
+    "Retain engine and static dependency notices; the project has no blanket general license grant.",
+    "Before binary distribution, audit complete corresponding sources, notices, signing and source offer as applicable."
+  ]
+}

@@ -4,9 +4,16 @@ public struct PersonalResources {
     public let shared:URL,schemas:[String],requiredArtifacts:[String],revision:String,activeTerms:Int,overlaySchemas:Set<String>
     public static func baselineSchema(punctuation:Bool,fuzzy:Bool=false,correction:Bool=true)->String {"paia_b2_baseline_full_"+(punctuation ? "punct":"ascii")+(fuzzy ? "_fuzzy":"")+(!correction ? "_strict":"")}
 }
+public enum PersonalSchemaProfile {
+    case research,candidate
+    public var schemaPrefix:String {self == .research ? "paia_b1_":"paia_candidate_"}
+    public func baselineSchema(punctuation:Bool,fuzzy:Bool=false,correction:Bool=true)->String {
+        (self == .research ? "paia_b2_baseline_full_":"paia_candidate_baseline_full_")+(punctuation ? "punct":"ascii")+(fuzzy ? "_fuzzy":"")+(!correction ? "_strict":"")
+    }
+}
 public enum PersonalSchemaBuilder {
     // Startup only. Trusted fixed schema templates; personal text appears exclusively in validated TSV data rows.
-    public static func prepare(baseline:URL,destination:URL,document:LexiconDocument,baseRevision:String)throws->PersonalResources {
+    public static func prepare(baseline:URL,destination:URL,document:LexiconDocument,baseRevision:String,profile:PersonalSchemaProfile = .research)throws->PersonalResources {
         try LexiconRules.validate(document)
         guard !FileManager.default.fileExists(atPath:destination.path) else{throw LexiconError.unsafePath}
         try FileManager.default.copyItem(at:baseline,to:destination)
@@ -53,7 +60,7 @@ public enum PersonalSchemaBuilder {
         var overlays=Set<String>(),schemas=builders
         for punctuation in [false,true] {for fuzzy in [false,true] {for correction in [true,false] {
             let policy=(fuzzy ? "_fuzzy":"")+(!correction ? "_strict":"")
-            let original="paia_b1_full_"+(punctuation ? "punct":"ascii")+policy,baselineName=PersonalResources.baselineSchema(punctuation:punctuation,fuzzy:fuzzy,correction:correction)
+            let original=profile.schemaPrefix+"full_"+(punctuation ? "punct":"ascii")+policy,baselineName=profile.baselineSchema(punctuation:punctuation,fuzzy:fuzzy,correction:correction)
             let text=try String(contentsOf:baseline.appendingPathComponent(original+".schema.yaml"),encoding:.utf8)
             guard text.contains("schema_id: "+original),text.contains("enable_user_dict: false") else{throw LexiconError.invalidFormat}
             let plain=text.replacingOccurrences(of:"schema_id: "+original,with:"schema_id: "+baselineName)
@@ -70,7 +77,7 @@ public enum PersonalSchemaBuilder {
         }}}
         for spelling in ["full","flypy","natural"] {for traditional in [false,true] {for punctuation in [false,true] {for fuzzy in [false,true] {for correction in (spelling=="full" ? [true,false]:[true]) {
             let policy=(fuzzy ? "_fuzzy":"")+(spelling=="full" && !correction ? "_strict":"")
-            let schema="paia_b1_"+spelling+(traditional ? "_traditional":"")+(punctuation ? "_punct":"_ascii")+policy
+            let schema=profile.schemaPrefix+spelling+(traditional ? "_traditional":"")+(punctuation ? "_punct":"_ascii")+policy
             schemas.append(schema);artifacts.append(schema+".schema.yaml")
         }}}}}
         let identity=Data((baseRevision+"|librime-1.16.0|b2-template-2-spelling-policy|"+digest).utf8)

@@ -9,6 +9,7 @@ public struct SettingsSaveVerification:Equatable {
 // Explicit chosen directory only. Creating a lock is not an implicit preference save.
 public final class SettingsStore {
     public let directory:URL
+    private let authorityGuard:()throws->Void
     private let lock=NSLock()
     private var fault:SettingsTestFault?
     private var rootFD:Int32 = -1,writerFD:Int32 = -1
@@ -16,18 +17,25 @@ public final class SettingsStore {
     private struct PendingSave {let bytes:Data,document:SettingsDocument}
     private var pending:PendingSave?
     private let marker=Data("paia.settings.v1\n".utf8)
-    public init(directory:URL,fault:SettingsTestFault?=nil)throws {
-        self.directory=directory.standardizedFileURL;self.fault=fault
+    public init(directory:URL,fault:SettingsTestFault?=nil,preopenedDirectory:Int32?=nil,allowCreateLock:Bool=true,authorityGuard:@escaping()throws->Void={})throws {
+        self.directory=directory.standardizedFileURL;self.fault=fault;self.authorityGuard=authorityGuard
         do {
-            try FileManager.default.createDirectory(at:self.directory,withIntermediateDirectories:true,attributes:[.posixPermissions:0o700])
-            rootFD=Darwin.open(self.directory.path,O_RDONLY|O_DIRECTORY|O_NOFOLLOW|O_CLOEXEC)
-            guard rootFD>=0 else{throw SettingsError.unsafePath}
-            writerFD=openat(rootFD,".writer.lock",O_RDWR|O_CREAT|O_NOFOLLOW|O_NONBLOCK|O_CLOEXEC,0o600)
+            try authorityGuard()
+            if let descriptor=preopenedDirectory {rootFD=fcntl(descriptor,F_DUPFD_CLOEXEC,0)}
+            else {
+                if allowCreateLock{try FileManager.default.createDirectory(at:self.directory,withIntermediateDirectories:true,attributes:[.posixPermissions:0o700])}
+                rootFD=Darwin.open(self.directory.path,O_RDONLY|O_DIRECTORY|O_NOFOLLOW|O_CLOEXEC)
+            }
+            var rootInfo=stat(),linkedRoot=stat();guard rootFD>=0,fstat(rootFD,&rootInfo)==0,lstat(self.directory.path,&linkedRoot)==0,
+                  (rootInfo.st_mode&S_IFMT)==S_IFDIR,(linkedRoot.st_mode&S_IFMT)==S_IFDIR,rootInfo.st_dev==linkedRoot.st_dev,rootInfo.st_ino==linkedRoot.st_ino else{throw SettingsError.unsafePath}
+            try authorityGuard()
+            writerFD=openat(rootFD,".writer.lock",O_RDWR|(allowCreateLock ? O_CREAT:0)|O_NOFOLLOW|O_NONBLOCK|O_CLOEXEC,0o600)
             var info=stat();guard writerFD>=0,fstat(writerFD,&info)==0,(info.st_mode & S_IFMT)==S_IFREG,info.st_nlink==1 else{throw SettingsError.unsafePath}
             guard flock(writerFD,LOCK_EX|LOCK_NB)==0 else{throw SettingsError.busy}
             let initialized=try read(".initialized");expected=try read("settings.json")
             if let bytes=expected {guard initialized==marker else{throw SettingsError.invalidFormat};document=try SettingsCodec.decode(bytes)}
             else{guard initialized==nil else{throw SettingsError.invalidFormat}}
+            try authorityGuard()
         }catch{if writerFD>=0{Darwin.close(writerFD)};if rootFD>=0{Darwin.close(rootFD)};writerFD = -1;rootFD = -1;throw error}
     }
     deinit{if writerFD>=0{Darwin.close(writerFD)};if rootFD>=0{Darwin.close(rootFD)}}
@@ -48,6 +56,7 @@ public final class SettingsStore {
         return data
     }
     private func verifyIdentity()throws {
+        try authorityGuard()
         guard !closed else{throw SettingsError.closed}
         var ownedRoot=stat(),linkedRoot=stat()
         guard fstat(rootFD,&ownedRoot)==0,lstat(directory.path,&linkedRoot)==0,(linkedRoot.st_mode & S_IFMT)==S_IFDIR,ownedRoot.st_dev==linkedRoot.st_dev,ownedRoot.st_ino==linkedRoot.st_ino else{throw SettingsError.unsafePath}
@@ -109,6 +118,7 @@ public final class SettingsStore {
         if inject(.publicationFailure){throw SettingsError.durabilityUnknown}
         guard renameat(rootFD,name,rootFD,"settings.json")==0 else{throw SettingsError.durabilityUnknown}
         guard !inject(.afterPublication),fsync(rootFD)==0 else{throw SettingsError.durabilityUnknown}
+        try authorityGuard() // Failure after publication remains an unknown save; never retry.
         expected=bytes;document=next;uncertain=false;pending=nil;return next
     }
 }

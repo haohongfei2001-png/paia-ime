@@ -209,6 +209,13 @@ uint64_t paia_rime_start_named(const char *schema,int deferred) {
     }
     pthread_mutex_unlock(&owner);return id;
 }
+int paia_rime_mixed_api_compatible(const void *table) {
+    const PaiaMixedAPI *m=table;
+    return m && m->data_size==sizeof(*m) && m->abi==PAIA_MIXED_ABI && m->open && m->close && m->close_all && m->project && m->select && m->free_selection && m->commit && m->free_text && m->forget && m->adopt;
+}
+unsigned paia_rime_extension_capabilities(void) {
+    pthread_mutex_lock(&owner);unsigned result=(g01?1u:0u)|(mixed?2u:0u);pthread_mutex_unlock(&owner);return result;
+}
 int paia_rime_enable_g01(const char *path) {
     pthread_mutex_lock(&owner);int rc=PAIA_UNAVAILABLE;
     if(api && !live_sessions && path && !g01) {
@@ -216,11 +223,11 @@ int paia_rime_enable_g01(const char *path) {
         if(handle) {
             PaiaG01API *(*get_api)(void)=(PaiaG01API *(*)(void))dlsym(handle,"paia_g01_get_api");
             PaiaG01API *v=get_api?get_api():NULL;
-            if(v && v->abi==PAIA_G01_ABI && v->data_size==sizeof(*v) && v->initialize && v->anchors && v->candidates && v->prepare && v->free_list && v->alternatives && v->free_alternatives && v->initialize(api)==PG_OK){
+            if(v && v->data_size==sizeof(*v) && v->abi==PAIA_G01_ABI && v->initialize && v->anchors && v->candidates && v->prepare && v->free_list && v->alternatives && v->free_alternatives && v->initialize(api)==PG_OK){
                 g01=v;rc=PAIA_OK;
                 PaiaMixedAPI *(*get_mixed)(void)=(PaiaMixedAPI *(*)(void))dlsym(handle,"paia_mixed_get_api");
                 PaiaMixedAPI *m=get_mixed?get_mixed():NULL;
-                if(m && m->abi==PAIA_MIXED_ABI && m->data_size==sizeof(*m) && m->open && m->close && m->close_all && m->project && m->select && m->free_selection && m->commit && m->free_text && m->forget && m->adopt)mixed=m;
+                if(paia_rime_mixed_api_compatible(m))mixed=m;
             }
             else dlclose(handle);
         }

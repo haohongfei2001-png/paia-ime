@@ -2,7 +2,7 @@
 """No server startup: missing selected pack must fail before engine entry."""
 import os,pathlib,subprocess
 root=pathlib.Path(__file__).resolve().parents[1]
-app=root/'.build/PAIAInputMethod.app'
+app=root/'.build/PAIAInputMethodFixture.app'
 pack=app/'Contents/Resources/DictionaryFixturePack'
 held=root/'.build/resource-pack-held-for-negative-test'
 assert pack.is_dir() and not held.exists()

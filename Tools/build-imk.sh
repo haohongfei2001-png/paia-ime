@@ -2,9 +2,10 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 source .build/a1-env.sh
+if test "$#" -gt 1 || { test "$#" -eq 1 && test "$1" != "--fixture-only"; }; then echo "Unknown build option." >&2; exit 1; fi
 swift build -c release --product PAIAInputMethod
 swift build -c release --product paia-resources
-app=.build/PAIAInputMethod.app
+app=.build/PAIAInputMethodFixture.app
 pack="$app/Contents/Resources/DictionaryFixturePack"
 if test -e "$pack"; then echo "Resource bundle already exists; use a fresh build directory." >&2; exit 1; fi
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources/Engine" "$app/Contents/Resources/Dictionaries"
@@ -37,3 +38,4 @@ PY
 # Never copy into Input Methods directories, invoke TIS/LaunchServices, sign, or
 # alter system settings. The default service entry is NOT run by this build script.
 echo "$app"
+if test "$#" -eq 0; then bash Tools/build-candidate.sh; fi

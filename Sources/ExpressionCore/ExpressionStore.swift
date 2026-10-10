@@ -10,6 +10,7 @@ public struct ExpressionSaveVerification:Equatable {
 // Explicit chosen directory only. Creating a lock is not an implicit expression save.
 public final class ExpressionStore {
     public let directory:URL
+    private let authorityGuard:()throws->Void
     private let lock=NSLock()
     private var fault:ExpressionTestFault?
     private var rootFD:Int32 = -1,writerFD:Int32 = -1
@@ -17,18 +18,25 @@ public final class ExpressionStore {
     private struct PendingSave {let bytes:Data,document:ExpressionDocument}
     private var pending:PendingSave?
     private let marker=Data("paia.expressions.v1\n".utf8)
-    public init(directory:URL,fault:ExpressionTestFault?=nil)throws {
-        self.directory=directory.standardizedFileURL;self.fault=fault
+    public init(directory:URL,fault:ExpressionTestFault?=nil,preopenedDirectory:Int32?=nil,allowCreateLock:Bool=true,authorityGuard:@escaping()throws->Void={})throws {
+        self.directory=directory.standardizedFileURL;self.fault=fault;self.authorityGuard=authorityGuard
         do {
-            try FileManager.default.createDirectory(at:self.directory,withIntermediateDirectories:true,attributes:[.posixPermissions:0o700])
-            rootFD=Darwin.open(self.directory.path,O_RDONLY|O_DIRECTORY|O_NOFOLLOW|O_CLOEXEC)
-            guard rootFD>=0 else{throw ExpressionError.unsafePath}
-            writerFD=openat(rootFD,".writer.lock",O_RDWR|O_CREAT|O_NOFOLLOW|O_NONBLOCK|O_CLOEXEC,0o600)
+            try authorityGuard()
+            if let descriptor=preopenedDirectory {rootFD=fcntl(descriptor,F_DUPFD_CLOEXEC,0)}
+            else {
+                if allowCreateLock{try FileManager.default.createDirectory(at:self.directory,withIntermediateDirectories:true,attributes:[.posixPermissions:0o700])}
+                rootFD=Darwin.open(self.directory.path,O_RDONLY|O_DIRECTORY|O_NOFOLLOW|O_CLOEXEC)
+            }
+            var rootInfo=stat(),linkedRoot=stat();guard rootFD>=0,fstat(rootFD,&rootInfo)==0,lstat(self.directory.path,&linkedRoot)==0,
+                  (rootInfo.st_mode&S_IFMT)==S_IFDIR,(linkedRoot.st_mode&S_IFMT)==S_IFDIR,rootInfo.st_dev==linkedRoot.st_dev,rootInfo.st_ino==linkedRoot.st_ino else{throw ExpressionError.unsafePath}
+            try authorityGuard()
+            writerFD=openat(rootFD,".writer.lock",O_RDWR|(allowCreateLock ? O_CREAT:0)|O_NOFOLLOW|O_NONBLOCK|O_CLOEXEC,0o600)
             var info=stat();guard writerFD>=0,fstat(writerFD,&info)==0,(info.st_mode & S_IFMT)==S_IFREG,info.st_nlink==1 else{throw ExpressionError.unsafePath}
             guard flock(writerFD,LOCK_EX|LOCK_NB)==0 else{throw ExpressionError.busy}
             let initialized=try read(".initialized");expected=try read("expressions.json")
             if let bytes=expected {guard initialized==marker else{throw ExpressionError.invalidFormat};document=try ExpressionCodec.decode(bytes)}
             else{guard initialized==nil else{throw ExpressionError.invalidFormat}}
+            try authorityGuard()
         }catch{if writerFD>=0{Darwin.close(writerFD)};if rootFD>=0{Darwin.close(rootFD)};writerFD = -1;rootFD = -1;throw error}
     }
     deinit{if writerFD>=0{Darwin.close(writerFD)};if rootFD>=0{Darwin.close(rootFD)}}
@@ -49,6 +57,7 @@ public final class ExpressionStore {
         return data
     }
     private func verifyIdentity()throws {
+        try authorityGuard()
         guard !closed else{throw ExpressionError.closed}
         var ownedRoot=stat(),linkedRoot=stat()
         guard fstat(rootFD,&ownedRoot)==0,lstat(directory.path,&linkedRoot)==0,(linkedRoot.st_mode & S_IFMT)==S_IFDIR,ownedRoot.st_dev==linkedRoot.st_dev,ownedRoot.st_ino==linkedRoot.st_ino else{throw ExpressionError.unsafePath}
@@ -135,6 +144,7 @@ public final class ExpressionStore {
         if inject(.publicationFailure){throw ExpressionError.durabilityUnknown}
         guard renameat(rootFD,name,rootFD,"expressions.json")==0 else{throw ExpressionError.durabilityUnknown}
         guard !inject(.afterPublication),fsync(rootFD)==0 else{throw ExpressionError.durabilityUnknown}
+        try authorityGuard() // Failure after publication remains an unknown save; never retry.
         expected=bytes;document=next;uncertain=false;pending=nil;return next
     }
 }

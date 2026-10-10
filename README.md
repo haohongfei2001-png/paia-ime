@@ -4,7 +4,7 @@ An independent **macOS Chinese input method** project. PAIA is an optional futur
 
 ## Status
 
-**Native research slices A1/A2 and B1–B8 implemented; uninstalled IMK engineering, basic-mode/explicit-management integration, the local exact-expression loop, retained-composition G01 repair and qualified bounded-context review added. System IME not installed.** The design/research package includes native AppKit test-probe code, a real librime engine experiment report, a browser prototype and bounded test evidence. An offline prototype and a synthetic AppKit host are **not** an installed macOS input source. Comparative user experience and accuracy versus WeChat/Sogou/Apple have not been established.
+**Native research slices A1/A2 and B1–B8 implemented; uninstalled IMK engineering, basic-mode/explicit-management integration, the local exact-expression loop, retained-composition G01 repair and qualified bounded-context review added. Integrated offline candidate in qualification; system IME not installed.** The design/research package includes native AppKit test-probe code, a real librime engine experiment report, a browser prototype and bounded test evidence. An offline prototype and a synthetic AppKit host are **not** an installed macOS input source. Comparative user experience and accuracy versus WeChat/Sogou/Apple have not been established.
 
 ## Research / 研究资料
 
@@ -59,11 +59,11 @@ See [A1 build, tests, resource pins and evidence boundaries](docs/BATCH_A1.md). 
 
 ## InputMethodKit engineering integration
 
-[The separate input-method bundle and bounded client adapter](docs/IMK_INTEGRATION.md) add a real IMKInputController, shared event/lifecycle driver and IMKTextInput bridge. Native CI builds the unsigned app, verifies its bundled real engine without starting IMKServer, and exercises an NSTextView-backed protocol client. [Integration evidence](evidence/imk/VALIDATION.md) preserves the first failing expectation, actual engine comparison and ownership regressions. The shared IMK workspace now connects the existing basic modes, explicit settings save/verification and personal term governance under a process-wide idle gate; [basic-controls evidence](evidence/imk-basics/VALIDATION.md) records the actual native stages and retained failures. The default bundle still contains only the tiny authored fixture, while explicitly selected research resources remain unbundled. Contextual known-character interaction is implemented below for explicitly qualified synthetic clients; production resources, staged update/recovery and installed compatibility remain open. The supported fully-confirmed G01 interaction is integrated below.
+[The separate input-method bundle and bounded client adapter](docs/IMK_INTEGRATION.md) add a real IMKInputController, shared event/lifecycle driver and IMKTextInput bridge. Native CI builds the unsigned app, verifies its bundled real engine without starting IMKServer, and exercises an NSTextView-backed protocol client. [Integration evidence](evidence/imk/VALIDATION.md) preserves the first failing expectation, actual engine comparison and ownership regressions. The shared IMK workspace now connects the existing basic modes, explicit settings save/verification and personal term governance under a process-wide idle gate; [basic-controls evidence](evidence/imk-basics/VALIDATION.md) records the actual native stages and retained failures. The default candidate now joins these paths using 46 authored dictionary rows; full vocabulary remains explicitly selected and unbundled. See the candidate resource/data contract below. Contextual known-character interaction is implemented below for explicitly qualified synthetic clients; production resources, staged update/recovery and installed compatibility remain open. The supported fully-confirmed G01 interaction is integrated below.
 
 ## Explicit exact-expression loop
 
-[Complete manual save, local lookup, full source review and once-only insertion](docs/EXACT_EXPRESSIONS.md) now share the actual IMK driver. Ordinary input never creates saved expressions; unknown storage/insertion outcomes do not retry. [C evidence](evidence/c-expressions/VALIDATION.md) retains the former unsafe idle-verifier red test, initial UI-test crash and exact native reruns. The optional store is explicitly chosen at startup. This remains authored-protocol/ENGINE_NATIVE/APPKIT_HOST evidence, with no installed service or AI/PAIA dependency. Qualified selected-text capture is a separate capability slice below. [Production vocabulary provenance](docs/PRODUCTION_DICTIONARY_GATE.md) is a separate release gate, not solved by source hashes or by installing the current fixture app.
+[Complete manual save, local lookup, full source review and once-only insertion](docs/EXACT_EXPRESSIONS.md) now share the actual IMK driver. Ordinary input never creates saved expressions; unknown storage/insertion outcomes do not retry. [C evidence](evidence/c-expressions/VALIDATION.md) retains the former unsafe idle-verifier red test, initial UI-test crash and exact native reruns. The standalone research store is explicitly chosen at startup; the integrated candidate uses its isolated product-owned store. This remains authored-protocol/ENGINE_NATIVE/APPKIT_HOST evidence, with no installed service or AI/PAIA dependency. Qualified selected-text capture is a separate capability slice below. [Production vocabulary provenance](docs/PRODUCTION_DICTIONARY_GATE.md) is a separate release gate, not solved by source hashes or by installing the current fixture app.
 
 ## Retained-composition segment repair
 
@@ -91,7 +91,7 @@ Public repository visibility is not a blanket open-source license. Review depend
 
 ## Recoverable fixture-resource startup (commit-bound native evidence)
 
-The next original resource-update node adds offline two-schema fixture compilation, complete artifact verification, isolated native probes, versioned current/last-good publication and precompiled startup selection. Existing sessions keep their resource snapshot until the next launch. The default uninstalled bundle uses only the authored fixture; no production corpus, personal rollback, hot reload or signed updater claim. See [resource startup contract and evidence boundary](docs/RESOURCE_STARTUP.md). The 2699995 native checkpoint passed its real compiler/probe/startup recovery suite; final-source and exact-main acceptance are separate, recorded at PR16.
+The next original resource-update node adds offline two-schema fixture compilation, complete artifact verification, isolated native probes, versioned current/last-good publication and precompiled startup selection. Existing sessions keep their resource snapshot until the next launch. The separately named legacy fixture bundle uses only the authored fixture; no production corpus, personal rollback, hot reload or signed updater claim. See [resource startup contract and evidence boundary](docs/RESOURCE_STARTUP.md). The 2699995 native checkpoint passed its real compiler/probe/startup recovery suite; final-source and exact-main acceptance are separate, recorded at PR16.
 
 ## Lossless explicit mixed-input composition
 
@@ -101,8 +101,8 @@ identifiers, punctuation and Unicode. It uses one input owner and one host effec
 with actual native proof replay, explicit literal intent, grapheme-safe edits,
 stale-action refusal and whole-source Return. [Commit-bound mixed evidence](evidence/mixed/VALIDATION.md)
 records the actual C ABI/Swift/NSTextView path, 12 research schemas, bounded search,
-128-span suffix cases and all initial failures. Default fixture bundles without
-the research extension do not expose the capability. This does not qualify
+128-span suffix cases and all initial failures. The legacy fixture bundle does not expose this capability; the integrated candidate
+bundles verified G01/mixed components with authored words. This does not qualify
 installed apps, complete language quality, the later independent policies below,
 rare-character discovery or production corpus redistribution.
 
@@ -119,3 +119,16 @@ production IMK driver tests. The final fixture-capability/personal-policy increm
 requires its own exact-source acceptance. Direct Unicode ü phonetic normalization,
 double-Pinyin typo correction, actual OS-panel behavior and installed qualification
 remain outside the proven result.
+
+## Integrated offline candidate
+
+[Candidate resource and data contract](docs/PRODUCT_CANDIDATE.md) joins all 32
+spelling/script/punctuation policies, verified native G01/mixed components and the
+existing explicit settings/terms/expression controls in the default unsigned app.
+It uses one protected product data root and isolated child helpers, with no research
+environment flags needed for these paths. [Exact-checkpoint evidence](evidence/product-candidate/VALIDATION.md)
+tracks compilation failures, native probes and the ongoing movable/restart/fault
+qualification. **The default pack contains only 46 authored dictionary rows. Full vocabulary
+remains explicitly configured research; installation alone would not make this a
+daily-use input method.** Production source rights, release signing and actual
+installed-client quality/performance remain separate gates.

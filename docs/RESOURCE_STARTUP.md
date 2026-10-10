@@ -2,7 +2,7 @@
 
 Original HANDOFF sections 2/4/10/11 and REPORT 10.5/13 require staged complete resources and last-good recovery. This node implements the **startup-only subset**, not live hot switching, a signed downloader, installed recovery or production vocabulary.
 
-The closed authored preset reproduces the three A1 inputs byte-for-byte, adds a second independent schema sharing that tiny dictionary, and offers an explicit extended test preset with one authored update row. Sources, complete schema/artifact graph, ABI/header/engine digest and provenance are fixed by application code. Incoming manifests cannot omit a required second schema. No custom YAML/Lua/plugin/package importer exists. The default unsigned uninstalled bundle packages only these precompiled fixture artifacts and its authored helper, never the research corpus or personal data.
+The closed authored preset reproduces the three A1 inputs byte-for-byte, adds a second independent schema sharing that tiny dictionary, and offers an explicit extended test preset with one authored update row. Sources, complete schema/artifact graph, ABI/header/engine digest and provenance are fixed by application code. Incoming manifests cannot omit a required second schema. No custom YAML/Lua/plugin/package importer exists. The original unsigned uninstalled bundle (now `PAIAInputMethodFixture.app`) packages only these precompiled fixture artifacts and its authored helper, never the research corpus or personal data.
 
 `paia-resources` compiles the trusted preset in an isolated process, then a separate no-deploy engine process verifies every schema through raw input, real candidate selection, one reservation/commit and drained commit. Publication uses one locked, canonical index containing current and last-good references. The new last-good is the previous **verified** selection, not a potentially corrupt current. Files are copied through bounded descriptor-relative regular-file reads, with size/digest/name/complete-graph checks. Published generations are not overwritten or pruned. Interrupted staging may remain unreferenced; startup ignores it.
 
@@ -13,6 +13,8 @@ Read-only startup verifies and privately copies current, probes its exact verifi
 The new C entry skips deployer initialization, schema deployment and maintenance; further named deployment is disabled in precompiled mode. The existing explicit A1/A2/B lab paths still compile separately. Service lane selection is based on its declared application contract, not resource-file existence, so a missing bundle pack cannot silently fall back into compilation. An explicitly selected public store and research/personal engine flags are mutually exclusive. `PAIA_RESOURCE_ROOT` is an explicit developer experiment, not background profile discovery.
 
 The ordinary dispatcher/session owner is unchanged. Existing composing processes retain their immutable resource snapshot; an offline publication cannot hot-switch or replay their input. The next independent startup selects the new generation. Public packs do not contain or recover LexiconStore, ExpressionStore, SettingsStore, personal-derived schemas or engine userdb. Testing a public rollback alongside unchanged synthetic tombstones does not qualify a future combined personal-overlay migration.
+
+The separate [integrated candidate](PRODUCT_CANDIDATE.md) adds a format-2 closed pack and isolated personal preparation without changing this v1 public publication/recovery protocol. Its default app and current proof boundaries must be evaluated separately.
 
 ## Evidence status
 
