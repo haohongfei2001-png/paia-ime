@@ -1,0 +1,196 @@
+{
+  "source": "34ee9480cac417bfe7d6bb270243263f5162e65f",
+  "tree": "c64cd06b685284e368eef0339638e858009e0c17",
+  "checks": [
+    {
+      "run": 38021026954,
+      "name": "Batch B1 native research controls",
+      "url": "https://github.com/haohongfei2001-png/paia-ime/actions/runs/38021026954",
+      "head": "34ee9480cac417bfe7d6bb270243263f5162e65f",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "id": 114121825410,
+          "conclusion": "success"
+        }
+      ],
+      "artifacts": [
+        {
+          "id": 11658976000,
+          "name": "b1-evidence-34ee9480cac417bfe7d6bb270243263f5162e65f"
+        }
+      ]
+    },
+    {
+      "run": 38021026972,
+      "name": "Batch B6 fully readable long candidates",
+      "url": "https://github.com/haohongfei2001-png/paia-ime/actions/runs/38021026972",
+      "head": "34ee9480cac417bfe7d6bb270243263f5162e65f",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "id": 114121825516,
+          "conclusion": "success"
+        }
+      ],
+      "artifacts": [
+        {
+          "id": 11658671319,
+          "name": "b6-evidence-34ee9480cac417bfe7d6bb270243263f5162e65f"
+        }
+      ]
+    },
+    {
+      "run": 38021026961,
+      "name": "Batch A1 native engine and synthetic host",
+      "url": "https://github.com/haohongfei2001-png/paia-ime/actions/runs/38021026961",
+      "head": "34ee9480cac417bfe7d6bb270243263f5162e65f",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "id": 114121825238,
+          "conclusion": "success"
+        }
+      ],
+      "artifacts": [
+        {
+          "id": 11657952658,
+          "name": "a1-evidence-34ee9480cac417bfe7d6bb270243263f5162e65f"
+        }
+      ]
+    },
+    {
+      "run": 38021026991,
+      "name": "Batch B7 explicit Unicode character entry",
+      "url": "https://github.com/haohongfei2001-png/paia-ime/actions/runs/38021026991",
+      "head": "34ee9480cac417bfe7d6bb270243263f5162e65f",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "id": 114121825499,
+          "conclusion": "success"
+        }
+      ],
+      "artifacts": [
+        {
+          "id": 11657832840,
+          "name": "b7-evidence-34ee9480cac417bfe7d6bb270243263f5162e65f"
+        }
+      ]
+    },
+    {
+      "run": 38021027025,
+      "name": "Batch B3 explicit settings and safe mode recovery",
+      "url": "https://github.com/haohongfei2001-png/paia-ime/actions/runs/38021027025",
+      "head": "34ee9480cac417bfe7d6bb270243263f5162e65f",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "id": 114121825482,
+          "conclusion": "success"
+        }
+      ],
+      "artifacts": [
+        {
+          "id": 11658986109,
+          "name": "b3-evidence-34ee9480cac417bfe7d6bb270243263f5162e65f"
+        }
+      ]
+    },
+    {
+      "run": 38021026952,
+      "name": "Batch B2 explicit personal lexicon",
+      "url": "https://github.com/haohongfei2001-png/paia-ime/actions/runs/38021026952",
+      "head": "34ee9480cac417bfe7d6bb270243263f5162e65f",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "id": 114121825155,
+          "conclusion": "success"
+        }
+      ],
+      "artifacts": [
+        {
+          "id": 11658406676,
+          "name": "b2-evidence-34ee9480cac417bfe7d6bb270243263f5162e65f"
+        }
+      ]
+    },
+    {
+      "run": 38021026946,
+      "name": "Batch B4 visible native candidate navigation",
+      "url": "https://github.com/haohongfei2001-png/paia-ime/actions/runs/38021026946",
+      "head": "34ee9480cac417bfe7d6bb270243263f5162e65f",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "id": 114121825418,
+          "conclusion": "success"
+        }
+      ],
+      "artifacts": [
+        {
+          "id": 11658831552,
+          "name": "b4-evidence-34ee9480cac417bfe7d6bb270243263f5162e65f"
+        }
+      ]
+    },
+    {
+      "run": 38021026978,
+      "name": "Batch A2 constrained native research",
+      "url": "https://github.com/haohongfei2001-png/paia-ime/actions/runs/38021026978",
+      "head": "34ee9480cac417bfe7d6bb270243263f5162e65f",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "id": 114121825430,
+          "conclusion": "success"
+        }
+      ],
+      "artifacts": [
+        {
+          "id": 11657902786,
+          "name": "a2-evidence-34ee9480cac417bfe7d6bb270243263f5162e65f"
+        }
+      ]
+    },
+    {
+      "run": 38021026962,
+      "name": "Batch B5 explicit settings save verification",
+      "url": "https://github.com/haohongfei2001-png/paia-ime/actions/runs/38021026962",
+      "head": "34ee9480cac417bfe7d6bb270243263f5162e65f",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "id": 114121825396,
+          "conclusion": "success"
+        }
+      ],
+      "artifacts": [
+        {
+          "id": 11658931456,
+          "name": "b5-evidence-34ee9480cac417bfe7d6bb270243263f5162e65f"
+        }
+      ]
+    },
+    {
+      "run": 38021026989,
+      "name": "Batch B8 lossless keyboard boundary",
+      "url": "https://github.com/haohongfei2001-png/paia-ime/actions/runs/38021026989",
+      "head": "34ee9480cac417bfe7d6bb270243263f5162e65f",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "id": 114121825900,
+          "conclusion": "success"
+        }
+      ],
+      "artifacts": [
+        {
+          "id": 11657897947,
+          "name": "b8-evidence-34ee9480cac417bfe7d6bb270243263f5162e65f"
+        }
+      ]
+    }
+  ]
+}

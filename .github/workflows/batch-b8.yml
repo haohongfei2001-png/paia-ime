@@ -1,0 +1,55 @@
+name: Batch B8 lossless keyboard boundary
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: b8-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  controls:
+    runs-on: macos-15
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Machine and source
+        run: |
+          mkdir -p evidence/b8-run
+          echo "PAIA_SOURCE_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+          { git rev-parse HEAD; sw_vers; uname -a; swift --version; } | tee evidence/b8-run/environment.txt
+      - name: Prepare verified research cache and typed bridge
+        run: |
+          set -o pipefail
+          python3 Tools/audit-a1.py
+          python3 Tools/audit-a2.py
+          python3 Tools/prepare-a1.py | tee evidence/b8-run/a1-inputs.json
+          python3 Tools/prepare-a2.py | tee evidence/b8-run/a2-inputs.json
+          bash Tools/build-g01.sh 2>&1 | tee evidence/b8-run/extension-build.txt
+          python3 Tools/prepare-b1.py | tee evidence/b8-run/b1-inputs.json
+      - name: Build native executable and exercise real AppKit controls
+        run: |
+          set -o pipefail
+          source .build/b1-env.sh
+          export PAIA_B8_RESEARCH=1
+          # Run both probes even when one fails; preserve each real exit status.
+          set +e
+          swift test --filter KeyboardBridgeTests 2>&1 | tee evidence/b8-run/keyboard-bridge-tests.txt
+          bridge_status=$?
+          swift test --skip-build --filter KeyboardInputHostTests 2>&1 | tee evidence/b8-run/keyboard-host-tests.txt
+          host_status=$?
+          printf 'bridge_status=%s host_status=%s\n' "$bridge_status" "$host_status" | tee evidence/b8-run/status.txt
+          if [ "$bridge_status" -ne 0 ] || [ "$host_status" -ne 0 ]; then exit 1; fi
+          set -e
+          swift build --product PAIANativeLab 2>&1 | tee evidence/b8-run/app-build.txt
+      - name: Preserve evidence only
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: b8-evidence-${{ env.PAIA_SOURCE_SHA }}
+          path: evidence/b8-run/
+          retention-days: 14

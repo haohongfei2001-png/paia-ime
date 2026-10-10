@@ -53,6 +53,10 @@ See [A1 build, tests, resource pins and evidence boundaries](docs/BATCH_A1.md). 
 
 [B7 caret-only Unicode preview and insertion](docs/BATCH_B7.md) shows an explicit U+ identity/name and font warning before a separate once-only Insert action. It shares the existing inspector, mode/settings barriers and host effect path. [B7 validation](evidence/b7/VALIDATION.md) retains the canonical-equivalent target-edit regression, cancellation review finding and native selection-normalization failure. Phonetic/radical discovery and font repertoire remain open.
 
+## Batch B8 composition-safe keyboard boundary
+
+[B8 pre-mutation refusal and text/control separation](docs/BATCH_B8.md) protects remaining raw spelling and marked text from unsupported middle-caret punctuation and Unicode events. Visible recovery stays explicit; no automatic commit, retry or caret move is added. [B8 validation](evidence/b8/VALIDATION.md) retains the original native data-loss observations and checks synchronous host callback ownership. Full compound insertion remains open.
+
 ## Batch A1 engineering contract
 
 Read **REPORT → VALIDATION → CODEX_HANDOFF**. Build the native Swift/AppKit/InputMethodKit project structure and a real, version-locked librime C API bridge; prove key → composition → candidate → engine selection → single commit in an isolated AppKit host before asserting system-IME compatibility. Never replace the input engine with the webpage's fixed examples.

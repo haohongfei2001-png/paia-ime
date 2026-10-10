@@ -67,6 +67,8 @@ import TextBoundary
     private var previewParameters:(raw:String,surface:String)?
     private var targetRenderID=UUID(),observers=[NSObjectProtocol]()
     private var idleControls=[(control:NSControl,available:()->Bool)]()
+    private var refusalMessage:String?,refusalGeneration:UInt64?
+    private weak var refusalHost:HostDispatcher?
     public func registerIdleControl(_ control:NSControl,available:@escaping()->Bool={true}){idleControls.append((control,available));updateControls()}
     public init(runtime:RimeRuntime,configuredSession:((LabConfiguration)throws->InputSession)?=nil) {
         self.runtime=runtime;self.configuredSession=configuredSession;super.init()
@@ -117,10 +119,20 @@ import TextBoundary
         root.addArrangedSubview(inspector);root.addArrangedSubview(status)
         // Activate cross-view constraints only after both views share an ancestor.
         targetScroll.widthAnchor.constraint(equalTo:root.widthAnchor,constant:-32).isActive=true
+        status.widthAnchor.constraint(equalTo:root.widthAnchor,constant:-32).isActive=true
         status.setAccessibilityLabel("Input status")
         editor.makeSession={ [weak self] in guard let self=self else{return nil};return try? self.newDispatcher() }
         editor.willEdit={ [weak self] in if self?.inspectorVisible==true {self?.dismissInspector(resume:true)} }
         editor.didChangeState={ [weak self] in self?.updateControls() }
+        editor.didRefuseInput={ [weak self] reason in
+            switch reason {
+            case .textBeforeRawSuffix:self?.status.stringValue="Text before the remaining spelling is not supported yet. Composition unchanged. Move to the end, or use Return to keep raw spelling, before entering this text."
+            case .unsupportedTextDuringComposition:self?.status.stringValue="This text key is not supported during composition. Composition unchanged. Return keeps raw spelling; Escape cancels. Then enter the text again."
+            case .unhandledControlDuringComposition:self?.status.stringValue="The engine did not handle this control. Composition retained; use Return or Escape first."
+            }
+            self?.refusalMessage=self?.status.stringValue;self?.refusalHost=self?.editor.dispatcher
+            self?.refusalGeneration=self?.editor.dispatcher?.session.snapshot?.inputGeneration
+        }
         editor.candidates.choose={ [weak self] ref in
             guard let self=self,let host=self.editor.dispatcher,host.isCurrentTarget else{return}
             do {_=host.apply(try host.session.select(ref));self.editor.renderCandidates();self.updateControls()}
@@ -177,6 +189,11 @@ import TextBoundary
     private var hasEngineComposition:Bool {guard let s=editor.dispatcher?.session.snapshot else{return false};return !s.rawASCII.isEmpty || !s.preedit.isEmpty}
     public var hasComposition:Bool {editor.hasMarkedText() || hasEngineComposition}
     private func updateControls(){
+        if let message=refusalMessage,
+           editor.lastInputRefusal==nil || editor.dispatcher !== refusalHost || refusalHost?.isCurrentTarget != true || editor.dispatcher?.session.snapshot?.inputGeneration != refusalGeneration {
+            if status.stringValue==message{status.stringValue=""}
+            refusalMessage=nil;refusalHost=nil;refusalGeneration=nil
+        }
         let idle = !isClosed && !hasComposition && !inspectorVisible
         for control:NSControl in [spelling,script,literal,punctuation,hold]{control.isEnabled=idle}
         for item in idleControls{item.control.isEnabled=idle && item.available()}
