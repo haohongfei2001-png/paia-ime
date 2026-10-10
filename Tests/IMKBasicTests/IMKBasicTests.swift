@@ -80,6 +80,16 @@ final class IMKBasicTests:XCTestCase {
                 }
                 XCTAssertEqual(try? Data(contentsOf:file),before);cases+=1
             }}}};XCTAssertEqual(cases,24)
+            // The four opted-in punctuation keys use actual engine commits;
+            // period/colon retain host ownership for decimals, versions and time.
+            var punct=LabConfiguration();punct.chinesePunctuation=true;try preferences.applyConfiguration(punct)
+            a.view.string="";a.view.setSelectedRange(NSRange(location:0,length:0));try activate(driver,a)
+            let punctuationInserts=a.insertCalls
+            for (raw,handled) in [(",",true),("?",true),("!",true),(";",true),(".",false),(":",false)] {
+                XCTAssertEqual(driver.handle(try key(raw),client:a),handled)
+                if !handled{a.view.insertText(raw,replacementRange:a.view.selectedRange())}
+            }
+            XCTAssertEqual(a.view.string,"，？！；.:");XCTAssertEqual(a.insertCalls,punctuationInserts+4)
             // Idle mode failures preserve the existing engine and configuration.
             try preferences.applyConfiguration(LabConfiguration());try activate(driver,a)
             let old=try XCTUnwrap(driver.coordinator.session),original=workspace.configuration
@@ -142,6 +152,8 @@ final class IMKBasicTests:XCTestCase {
             send(preferences.settings.saveButton);let saved=try Data(contentsOf:file)
             try activate(driver,a);try type("nihao",driver,a);XCTAssertTrue(driver.handle(try key(" ",code:49),client:a));XCTAssertEqual(try Data(contentsOf:file),saved)
             preferences.show();preferences.root.layoutSubtreeIfNeeded();preferences.root.displayIfNeeded()
+            XCTAssertTrue(preferences.root.isOpaque);XCTAssertTrue(preferences.root.window?.isVisible==true)
+            for field in preferences.root.arrangedSubviews.compactMap({$0 as? NSTextField}){XCTAssertTrue(preferences.root.bounds.contains(field.frame))}
             let bitmap=try XCTUnwrap(preferences.root.bitmapImageRepForCachingDisplay(in:preferences.root.bounds));preferences.root.cacheDisplay(in:preferences.root.bounds,to:bitmap)
             let png=try XCTUnwrap(bitmap.representation(using:.png,properties:[:])),encoded=Array(png.base64EncodedString())
             for i in stride(from:0,to:encoded.count,by:1800){FileHandle.standardError.write(Data(("PAIA_IMK_SETTINGS_IMAGE_\(i/1800):\(String(encoded[i..<min(i+1800,encoded.count)]))\n").utf8))}

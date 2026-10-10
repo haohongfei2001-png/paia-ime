@@ -1,0 +1,93 @@
+{
+  "sourceSHA": "328ec4a869dabfdc8c2afe814d892d471546f12b",
+  "sourceTree": "f5cdc3b31b5d64373df6490375fd114e7fce207a",
+  "scope": "Historical full native checkpoint; later refinements require their own exact-head checks",
+  "runs": [
+    {
+      "id": 38047006361,
+      "name": "Batch A2 constrained native research",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 38047006259,
+      "name": "Batch B1 native research controls",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 38047006276,
+      "name": "Batch B4 visible native candidate navigation",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 38047006353,
+      "name": "Batch B2 explicit personal lexicon",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 38047006335,
+      "name": "Batch B8 lossless keyboard boundary",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 38047006387,
+      "name": "Batch B7 explicit Unicode character entry",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 38047006290,
+      "name": "Uninstalled IMK client integration",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 38047006354,
+      "name": "Batch B5 explicit settings save verification",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 38047006358,
+      "name": "Batch B6 fully readable long candidates",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 38047006283,
+      "name": "Batch A1 native engine and synthetic host",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 38047006345,
+      "name": "Batch B3 explicit settings and safe mode recovery",
+      "status": "completed",
+      "conclusion": "success"
+    }
+  ],
+  "imkEvidence": {
+    "protocolTests": 17,
+    "fixtureTests": 1,
+    "freshProcessStages": [
+      "controls",
+      "save",
+      "restore",
+      "restore_failed",
+      "verify_previous",
+      "verify_published",
+      "verify_unresolved",
+      "authority_changed",
+      "authority_oversized"
+    ],
+    "testsEachStage": 1,
+    "modeCombinationsWithinControls": 24,
+    "settingsPNG": "valid PNG with transparent background; not accepted as opaque readable UI proof"
+  },
+  "installed": false,
+  "normalServerStarted": false
+}

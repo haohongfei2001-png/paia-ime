@@ -15,7 +15,7 @@ import SettingsCore
             if environment["PAIA_B2_RESEARCH"]=="1" {
                 let selected=try PersonalLabEnvironment(environment:environment);personal=selected;runtime=selected.runtime
                 factory={try selected.makeSession(configuration:$0)}
-                description="Unbundled verified research schemas. "+selected.status
+                description="Unbundled verified research schemas. Startup snapshot: "+selected.status
             } else {
                 let selected=try ResearchLabEnvironment(environment:environment);personal=nil;runtime=selected.runtime
                 factory={try selected.runtime.makeSession(schema:$0.schema,deferredCommit:$0.deferredCommit,chinesePunctuation:$0.chinesePunctuation)}

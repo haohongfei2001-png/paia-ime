@@ -4,9 +4,13 @@ import EngineBridge
 import NativeHost
 import SettingsCore
 
+@MainActor private final class IMKPreferencesStackView:NSStackView {
+    override var isOpaque:Bool {true}
+    override func draw(_ dirtyRect:NSRect){NSColor.windowBackgroundColor.setFill();dirtyRect.fill();super.draw(dirtyRect)}
+}
 // Explicit management UI, never a second input dispatcher or document editor.
 @MainActor public final class IMKPreferencesController:NSObject,SettingsTarget,NSWindowDelegate {
-    public let root=NSStackView()
+    public let root:NSStackView=IMKPreferencesStackView()
     public let spelling=NSPopUpButton(frame:.zero,pullsDown:false),script=NSPopUpButton(frame:.zero,pullsDown:false)
     public let literal=NSButton(checkboxWithTitle:"Literal text",target:nil,action:nil)
     public let punctuation=NSButton(checkboxWithTitle:"Chinese , ? ! ;",target:nil,action:nil)
@@ -22,16 +26,21 @@ import SettingsCore
     public init(workspace:IMKWorkspace){
         self.workspace=workspace;super.init()
         root.orientation = .vertical;root.alignment = .leading;root.spacing=12;root.edgeInsets=NSEdgeInsets(top:20,left:20,bottom:20,right:20)
-        root.addArrangedSubview(NSTextField(wrappingLabelWithString:workspace.resourceDescription))
+        let resources=NSTextField(wrappingLabelWithString:workspace.resourceDescription)
+        root.addArrangedSubview(resources);resources.widthAnchor.constraint(equalTo:root.widthAnchor,constant:-40).isActive=true
         spelling.addItems(withTitles:["Full pinyin","Flypy","Natural"]);script.addItems(withTitles:["Simplified","Traditional"])
         spelling.setAccessibilityLabel("Spelling system");script.setAccessibilityLabel("Output script")
         root.addArrangedSubview(NSStackView(views:[spelling,script,literal,punctuation]))
         for control:NSControl in [spelling,script,literal,punctuation]{control.target=self;control.action=#selector(changeConfiguration(_:));registerIdleControl(control,available:{true})}
         for button in [literal,punctuation]{button.setAccessibilityLabel(button.title)}
-        root.addArrangedSubview(NSTextField(wrappingLabelWithString:"Space chooses the real candidate; Return keeps spelling and is consumed. Modes change only when every input client is idle. No automatic learning or preference save."))
+        let help=NSTextField(wrappingLabelWithString:"Space chooses the real candidate; Return keeps spelling and is consumed. Modes change only when every input client is idle. No automatic learning or preference save.")
+        root.addArrangedSubview(help);help.widthAnchor.constraint(equalTo:root.widthAnchor,constant:-40).isActive=true
         settings=SettingsController(lab:self,store:workspace.settingsStore)
+        settings.root.widthAnchor.constraint(equalTo:root.widthAnchor,constant:-40).isActive=true
+        settings.status.widthAnchor.constraint(equalTo:settings.root.widthAnchor).isActive=true
         termsButton.title="Manage explicit personal terms…";termsButton.target=self;termsButton.action=#selector(openTerms(_:));termsButton.bezelStyle = .rounded;termsButton.setAccessibilityLabel(termsButton.title)
         root.addArrangedSubview(termsButton);root.addArrangedSubview(status)
+        status.widthAnchor.constraint(equalTo:root.widthAnchor,constant:-40).isActive=true
         registerIdleControl(termsButton,available:{[weak self] in self?.workspace.personalStore != nil})
         settings.restoreAtStartup();reflect()
     }
