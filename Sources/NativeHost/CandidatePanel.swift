@@ -53,7 +53,7 @@ import SessionCore
 @MainActor public final class CandidatePanel:NSPanel {
     public var choose:((CandidateRef)->Void)?
     private struct Presentation:Equatable {
-        let refs:[CandidateRef],texts:[String],highlighted:Int,page:Int,more:Bool,screenSize:NSSize
+        let refs:[CandidateRef],texts:[String],highlighted:Int,page:Int,more:Bool,complete:Bool,screenSize:NSSize
     }
     private var presentation:Presentation?
     public init() {
@@ -70,7 +70,7 @@ import SessionCore
               [screen.minX,screen.minY,screen.maxX,screen.maxY,rect.minX,rect.minY,rect.maxX,rect.maxY].allSatisfy({$0.isFinite}) else {
             presentation=nil;orderOut(nil);return
         }
-        let next=Presentation(refs:snapshot.rows.map{$0.ref},texts:snapshot.rows.map{$0.text},highlighted:snapshot.highlighted,page:snapshot.pageIndex,more:snapshot.hasMore,screenSize:screen.size)
+        let next=Presentation(refs:snapshot.rows.map{$0.ref},texts:snapshot.rows.map{$0.text},highlighted:snapshot.highlighted,page:snapshot.pageIndex,more:snapshot.hasMore,complete:snapshot.complete,screenSize:screen.size)
         let previousOffset=(contentView?.subviews.compactMap{$0 as? NSScrollView}.first)?.contentView.bounds.origin.y
         let preserveOffset=presentation==next;presentation=next
         let natural=snapshot.rows.enumerated().map{CandidateButton.title("▶ \($0.offset+1). \($0.element.text)",selected:true).size().width+8}.max() ?? 0
@@ -92,7 +92,7 @@ import SessionCore
         }
         let documentHeight=max(0,top-4)
         func footer(_ overflow:Bool)->NSTextField {
-            let text="Page \(snapshot.pageIndex+1) · \(snapshot.hasMore ? "More candidates":"End of candidates")"+(overflow ? "\nScroll to read complete candidates":"")+(notice.map{"\n"+$0} ?? "")
+            let text="Page \(snapshot.pageIndex+1) · \(snapshot.hasMore ? "More candidates":(snapshot.complete ? "End of candidates":"Shown candidate limit reached; search incomplete"))"+(overflow ? "\nScroll to read complete candidates":"")+(notice.map{"\n"+$0} ?? "")
             let label=NSTextField(wrappingLabelWithString:text);label.font = .systemFont(ofSize:12);label.textColor = .secondaryLabelColor
             label.setAccessibilityIdentifier("candidate-page-status");label.setAccessibilityLabel(text)
             let h=ceil(label.attributedStringValue.boundingRect(with:NSSize(width:contentWidth-4,height:10000),options:[.usesLineFragmentOrigin,.usesFontLeading]).height)+4

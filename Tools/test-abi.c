@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
 int main(void) {
     RimeApi api;
     memset(&api, 0xff, sizeof(api));
@@ -16,5 +17,19 @@ int main(void) {
     assert(!paia_rime_api_compatible(NULL));
     PaiaRimeSnapshot snapshot={0};paia_rime_free_snapshot(&snapshot);paia_rime_free_snapshot(&snapshot);
     assert(paia_rime_step(0,0,0,0,&snapshot)==PAIA_SESSION);
+    // Output copies have no native object pointers and remain releasable after
+    // table/runtime closure. Authored allocations, not real engine evidence.
+    PaiaG01List list={0};list.raw=strdup("synthetic");list.preview=strdup("synthetic");
+    list.count=1;list.items=calloc(1,sizeof(*list.items));list.items[0].text=strdup("synthetic");
+    PaiaMixedSelection selection={0};selection.surface=strdup("synthetic");
+    PaiaMixedImport imported={0};imported.raw=strdup("synthetic");imported.count=2;
+    imported.anchors=calloc(imported.count,sizeof(*imported.anchors));
+    for(size_t i=0;i<imported.count;++i)imported.anchors[i].surface=strdup("synthetic");
+    char *text=strdup("synthetic");
+    paia_rime_close();paia_rime_g01_free_list(&list);paia_rime_mixed_free_selection(&selection);
+    paia_rime_mixed_free_import(&imported);paia_rime_mixed_free_text(text);
+    assert(!list.raw && !list.preview && !list.items && !list.count && !selection.surface && !imported.raw && !imported.anchors && !imported.count);
+    paia_rime_g01_free_list(&list);paia_rime_mixed_free_selection(&selection);paia_rime_mixed_free_import(&imported);
+    puts("SIMULATED mixed output ownership: list/selection/import/text release after close, zeroed repeated free; sanitizer checked.");
     puts("SIMULATED ABI guard: 8 checks passed; no real engine or AppKit host exercised.");
 }

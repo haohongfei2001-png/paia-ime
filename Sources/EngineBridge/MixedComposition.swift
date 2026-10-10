@@ -10,6 +10,7 @@ final class MixedComposition {
     struct Row {let text:String,coverage:Range<Int>,engineIndex:Int}
     struct State {
         let draft:MixedDraft,active:UUID?,projection:UInt64,rows:[Row],complete:Bool,page:Int
+        var highlighted:Int=0
     }
     let identity=UUID()
     private let validateResult:(MixedValidationPoint)throws->Void
@@ -68,7 +69,7 @@ final class MixedComposition {
     func publish(_ next:State,core:inout SessionCore)throws->SessionUpdate {
         let visible=Array(next.rows.dropFirst(next.page*5).prefix(5))
         let update=try core.receiveMixed(next.draft,owner:identity,span:next.active,projection:next.projection,
-            rows:visible.map{MixedCandidateValue(text:$0.text,coverage:$0.coverage)},page:next.page,hasMore:(next.page+1)*5<next.rows.count,complete:next.complete)
+            rows:visible.map{MixedCandidateValue(text:$0.text,coverage:$0.coverage)},page:next.page,highlighted:next.highlighted,hasMore:(next.page+1)*5<next.rows.count,complete:next.complete)
         state=next;unsafeTransition=false
         let retained=Set(next.draft.spans.compactMap{span -> UUID? in if case .engine(_,let proof)=span.origin{return proof};return nil})
         for (proof,native) in proofs where !retained.contains(proof){paia_rime_mixed_forget(owner,native);proofs.removeValue(forKey:proof)}
@@ -79,6 +80,11 @@ final class MixedComposition {
         let page=min(max(0,state.page+delta),max(0,(state.rows.count-1)/5))
         let next=State(draft:state.draft,active:state.active,projection:state.projection,rows:state.rows,complete:state.complete,page:page)
         return try publish(next,core:&core)
+    }
+    func highlight(_ delta:Int,core:inout SessionCore)throws->SessionUpdate {
+        let position=min(max(0,state.page*5+state.highlighted+delta),max(0,state.rows.count-1))
+        var next=State(draft:state.draft,active:state.active,projection:state.projection,rows:state.rows,complete:state.complete,page:position/5)
+        next.highlighted=position%5;return try publish(next,core:&core)
     }
     func select(_ ref:CandidateRef,core:inout SessionCore)throws->SessionUpdate {
         try core.validate(ref);guard let binding=ref.mixed,binding.owner==identity,binding.span==state.active,

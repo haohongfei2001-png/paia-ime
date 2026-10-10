@@ -60,7 +60,7 @@ jobs:
           set -o pipefail
           source .build/a1-env.sh
           swift test --filter MixedDraftTests 2>&1 | tee evidence/imk-run/mixed-value-tests.txt
-          grep -Fq 'Executed 9 tests, with 0 failures' evidence/imk-run/mixed-value-tests.txt
+          grep -Fq 'Executed 10 tests, with 0 failures' evidence/imk-run/mixed-value-tests.txt
           swift test --skip-build --filter IMKProtocolTests 2>&1 | tee evidence/imk-run/protocol-tests.txt
           swift test --skip-build --filter IMKFixtureBasicsTests 2>&1 | tee evidence/imk-run/fixture-basics.txt
       - name: Offline public resource publication and precompiled startup recovery
@@ -104,11 +104,14 @@ jobs:
           set -o pipefail
           source .build/b1-env.sh
           swift test --skip-build --filter MixedInputTests.MixedInputTests 2>&1 | tee evidence/imk-run/mixed-swift-tests.txt
-          grep -Fq 'Executed 7 tests, with 0 failures' evidence/imk-run/mixed-swift-tests.txt
+          grep -Fq 'Executed 10 tests, with 0 failures' evidence/imk-run/mixed-swift-tests.txt
           grep -Fq 'MIXED_SWIFT_NATIVE actual owner/shim/engine to one core effect' evidence/imk-run/mixed-swift-tests.txt
+          grep -Fq 'MIXED_MODE_MATRIX native_commits=32 full_source_returns=32' evidence/imk-run/mixed-swift-tests.txt
+          grep -Fq 'MIXED_CHAIN_NATIVE' evidence/imk-run/mixed-swift-tests.txt
           swift test --skip-build --filter MixedInputTests.MixedIMKTests 2>&1 | tee evidence/imk-run/mixed-imk-tests.txt
-          grep -Fq 'Executed 4 tests, with 0 failures' evidence/imk-run/mixed-imk-tests.txt
+          grep -Fq 'Executed 7 tests, with 0 failures' evidence/imk-run/mixed-imk-tests.txt
           grep -Fq 'MIXED_IMK_NATIVE ENGINE_NATIVE + APPKIT_HOST' evidence/imk-run/mixed-imk-tests.txt
+          grep -Fq 'MIXED_IMK_LONG 128 genuine suffix selections' evidence/imk-run/mixed-imk-tests.txt
       - name: Consolidated basic controls through real IMK driver
         run: |
           set -o pipefail

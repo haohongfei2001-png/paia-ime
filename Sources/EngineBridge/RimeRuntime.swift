@@ -343,20 +343,22 @@ public final class InputSession {
         case .space:
             if mixed.literalIntent{return try insert(" ")}
             if draft.isResolved && !draft.isEmpty{return try commitMixed()}
-            guard let snapshot=core.snapshot,let row=snapshot.rows.first else{return SessionUpdate(handled:true,snapshot:core.snapshot)}
-            return try mixed.select(row.ref,core:&core)
+            guard let snapshot=core.snapshot,snapshot.rows.indices.contains(snapshot.highlighted) else{return SessionUpdate(handled:true,snapshot:core.snapshot)}
+            return try mixed.select(snapshot.rows[snapshot.highlighted].ref,core:&core)
         case .number(let number):
             if mixed.literalIntent{return try insert(String(number))}
             guard let snapshot=core.snapshot,(1...5).contains(number),snapshot.rows.indices.contains(number-1) else{return SessionUpdate(handled:true,snapshot:core.snapshot)}
             return try mixed.select(snapshot.rows[number-1].ref,core:&core)
         case .code(let code,let modifiers):
-            guard modifiers==0 else{return refusal()}
+            guard modifiers==0 || (code==0xff09 && modifiers==1) else{return refusal()}
             if (32...126).contains(code),let scalar=UnicodeScalar(UInt32(code)){return try processMixed(.text(String(scalar)))}
+            if code==0xff54 || code==0xff52{return try mixed.highlight(code==0xff54 ? 1:-1,core:&core)}
             if code==0xff55 || code==0xff56{return try mixed.page(code==0xff55 ? -1:1,core:&core)}
             if code==0xff09 {
                 let spelling=draft.map.filter{if case .spelling=$0.span.origin{return true};return false}
                 guard !spelling.isEmpty else{return SessionUpdate(handled:true,snapshot:core.snapshot)}
-                let index=spelling.firstIndex{$0.span.id==mixed.state.active} ?? -1,next=spelling[(index+1)%spelling.count]
+                let index=spelling.firstIndex{$0.span.id==mixed.state.active} ?? (modifiers==1 ? 0:-1)
+                let next=spelling[(index+(modifiers==1 ? -1:1)+spelling.count)%spelling.count]
                 let moved=try draft.movingCaret(to:next.sourceUTF8.lowerBound)
                 return try mixed.publish(mixed.prepared(moved,active:next.span.id),core:&core)
             }

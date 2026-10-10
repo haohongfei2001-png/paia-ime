@@ -114,4 +114,60 @@ final class MixedInputTests:XCTestCase {
             XCTAssertThrowsError(try s.refresh());XCTAssertThrowsError(try s.commitEngineComposition())
         }
     }
+    func testEveryExposedSpellingScriptPunctuationAndInitialsCommitsWholeMixedValue()throws {
+        var commits=0,returns=0
+        for (mode,left,right) in [("full","nihao","shurufa"),("full","nh","srf"),("flypy","nihc","uurufa"),("natural","nihk","uurufa")] {
+            for traditional in [false,true] {for punctuation in [false,true] {
+                let schema="paia_b1_"+mode+(traditional ? "_traditional":"")+(punctuation ? "_punct":"_ascii")
+                for literal in ["data 3.14","👩🏽‍💻，e\u{301}"] {
+                    for original in [false,true] {
+                        let s=try session(schema);defer{s.end()};_ = try s.process(.text(left+right));_ = try s.process(.code(0xff50))
+                        for _ in 0..<left.utf8.count{_ = try s.process(.code(0xff53))}
+                        _ = try s.setMixedLiteralIntent(true);_ = try s.process(.text(literal));_ = try s.setMixedLiteralIntent(false)
+                        try choose(traditional ? "輸入法":"输入法",s);_ = try s.process(.code(0xff09));try choose("你好",s)
+                        let expected=original ? left+literal+right:"你好"+literal+(traditional ? "輸入法":"输入法")
+                        if original{_ = try s.process(.code(0xff50))}
+                        let update=try s.process(original ? .returnKey:.space),effect=try XCTUnwrap(update.commit)
+                        XCTAssertTrue(effect.text.utf8.elementsEqual(expected.utf8));XCTAssertTrue(s.reserve(effect));XCTAssertFalse(s.reserve(effect))
+                        if original{returns+=1}else{commits+=1}
+                    }
+                }
+            }}
+        }
+        XCTAssertEqual(commits,32);XCTAssertEqual(returns,32)
+        print("MIXED_MODE_MATRIX native_commits=32 full_source_returns=32; all12 exposed schemas plus full initials")
+    }
+    func testHighlightedNonDefaultCandidateAndPagingUseActualNativeIdentity()throws {
+        let s=try session();defer{s.end()};_ = try s.process(.text("ni"))
+        let old=try XCTUnwrap(s.snapshot?.rows.first?.ref)
+        _ = try s.process(.code(0xff54));let snapshot=try XCTUnwrap(s.snapshot)
+        XCTAssertEqual(snapshot.highlighted,1);XCTAssertThrowsError(try s.select(old))
+        let chosen=snapshot.rows[snapshot.highlighted].text;_ = try s.process(.space)
+        XCTAssertEqual(s.mixedDraft?.display,chosen)
+        let result=try XCTUnwrap(s.process(.space).commit);XCTAssertEqual(result.text,chosen);XCTAssertTrue(s.reserve(result))
+        _ = try s.beginMixed(binding:XCTUnwrap(s.idleExpressionBinding));_ = try s.process(.text("shi"))
+        for _ in 0..<6{_ = try s.process(.code(0xff54))}
+        XCTAssertEqual(s.snapshot?.pageIndex,1);XCTAssertEqual(s.snapshot?.highlighted,1)
+        _ = try s.process(.code(0xff52));XCTAssertEqual(s.snapshot?.highlighted,0)
+        _ = try s.process(.code(0xff52));XCTAssertEqual(s.snapshot?.pageIndex,0);XCTAssertEqual(s.snapshot?.highlighted,4)
+        _ = try s.setMixedLiteralIntent(true);_ = try s.process(.text("RAG"));_ = try s.setMixedLiteralIntent(false);_ = try s.process(.text("shi"))
+        let right=try XCTUnwrap(s.snapshot?.rows.first?.ref)
+        _ = try s.process(.code(0xff09,modifiers:1));let left=try XCTUnwrap(s.snapshot?.rows.first?.ref)
+        XCTAssertEqual(s.snapshot?.rawASCII,"shi");XCTAssertEqual(s.snapshot?.caretUTF8,0);XCTAssertNotEqual(left.mixed?.span,right.mixed?.span)
+        XCTAssertThrowsError(try s.select(right))
+        _ = try s.process(.code(0xff09,modifiers:1));XCTAssertEqual(s.snapshot?.caretUTF8,6)
+        _ = try s.process(.code(0xff09));XCTAssertEqual(s.snapshot?.caretUTF8,0)
+    }
+    func testChainedLiteralEditsAnd128IndependentSuffixProofsKeepWholeDraft()throws {
+        let s=try session();defer{s.end()};_ = try s.process(.text("nihao"));try choose("你好",s)
+        _ = try s.setMixedLiteralIntent(true);_ = try s.process(.text("e"));_ = try s.process(.text("\u{301}"));_ = try s.process(.text("👩🏽‍💻"))
+        _ = try s.process(.code(0xff08));_ = try s.process(.text("RAG"));_ = try s.process(.code(0xff51));_ = try s.process(.code(0xffff))
+        XCTAssertEqual(s.mixedDraft?.display,"你好e\u{301}RA")
+        _ = try s.setMixedLiteralIntent(false);_ = try s.process(.text(String(repeating:"shijie",count:128)))
+        for _ in 0..<128{try choose("世界",s)}
+        let source="nihaoe\u{301}RA"+String(repeating:"shijie",count:128),expected="你好e\u{301}RA"+String(repeating:"世界",count:128)
+        XCTAssertTrue(s.snapshot!.sourceText.utf8.elementsEqual(source.utf8));XCTAssertEqual(s.mixedDraft?.spans.count,130)
+        let effect=try XCTUnwrap(s.commitEngineComposition().commit);XCTAssertTrue(effect.text.utf8.elementsEqual(expected.utf8));XCTAssertTrue(s.reserve(effect))
+        print("MIXED_CHAIN_NATIVE chained grapheme edit and 128 distinct suffix proofs; no latency percentile claim")
+    }
 }

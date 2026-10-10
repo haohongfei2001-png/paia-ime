@@ -76,4 +76,20 @@ final class MixedDraftTests:XCTestCase {
         XCTAssertThrowsError(try draft.replacing(0..<0,with:"e",literal:true))
         XCTAssertTrue(draft.source.utf8.elementsEqual("\u{301}".utf8))
     }
+    func testCoreFinalEffectRequiresExactWholeSourceOrFullyResolvedDisplay()throws {
+        // SIMULATED proof values test the pure effect gate only.
+        var core=SessionCore(dictionaryRevision:"simulated")
+        let draft=try MixedDraft(spans:[MixedSpan(source:"ni",origin:.engine(surface:"你",proof:UUID())),MixedSpan(source:"RAG",origin:.literal),MixedSpan(source:"hao",origin:.spelling)],caretUTF8:5)
+        _ = try core.receiveMixed(draft,owner:UUID(),span:nil,projection:0,rows:[])
+        XCTAssertTrue(core.isComposing);XCTAssertNil(core.idleExpressionBinding)
+        XCTAssertThrowsError(try core.finishMixed("你RAGhao",engine:true))
+        XCTAssertThrowsError(try core.finishMixed("hao",engine:false))
+        let effect=try XCTUnwrap(core.finishMixed("niRAGhao",engine:false).commit)
+        XCTAssertEqual(effect.text,"niRAGhao");XCTAssertThrowsError(try core.finishMixed("niRAGhao",engine:false))
+        XCTAssertTrue(core.reserve(effect));XCTAssertFalse(core.reserve(effect))
+        let resolved=try draft.confirming(draft.spans[2].id,coverage:0..<3,surface:"好",proof:UUID())
+        _ = try core.receiveMixed(resolved,owner:UUID(),span:nil,projection:0,rows:[])
+        XCTAssertThrowsError(try core.finishMixed("好",engine:true))
+        let final=try XCTUnwrap(core.finishMixed("你RAG好",engine:true).commit);XCTAssertTrue(core.reserve(final))
+    }
 }

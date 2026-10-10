@@ -124,9 +124,9 @@ public struct SessionCore {
         }
         return SessionUpdate(handled:v.handled,snapshot:s,commit:effect)
     }
-    public mutating func receiveMixed(_ draft:MixedDraft,owner:UUID,span:UUID?,projection:UInt64,rows values:[MixedCandidateValue],page:Int=0,hasMore:Bool=false,complete:Bool=true)throws->SessionUpdate {
+    public mutating func receiveMixed(_ draft:MixedDraft,owner:UUID,span:UUID?,projection:UInt64,rows values:[MixedCandidateValue],page:Int=0,highlighted:Int=0,hasMore:Bool=false,complete:Bool=true)throws->SessionUpdate {
         try ensureReady();try draft.validate()
-        guard inputGeneration<UInt64.max,page>=0,values.count<=64 else{throw SessionError.invalidEngineValue}
+        guard inputGeneration<UInt64.max,page>=0,values.count<=64,highlighted>=0,values.isEmpty || highlighted<values.count else{throw SessionError.invalidEngineValue}
         let active=draft.map.first{$0.span.id==span}
         if let active=active {guard case .spelling=active.span.origin else{throw SessionError.invalidEngineValue}}
         guard values.isEmpty || (active != nil && projection != 0) else{throw SessionError.invalidEngineValue}
@@ -143,14 +143,15 @@ public struct SessionCore {
         }
         let value=CandidateSnapshot(session:key,targetEpoch:targetEpoch,inputGeneration:inputGeneration,privacyEpoch:privacyEpoch,
             rawASCII:active?.span.source ?? "",preedit:draft.display,caretUTF8:draft.caretUTF8,selectedRangeUTF16:NSRange(location:caret,length:0),
-            sourceText:draft.source,mixedDraft:draft,rows:rows,pageIndex:page,highlighted:0,hasMore:hasMore,complete:complete)
+            sourceText:draft.source,mixedDraft:draft,rows:rows,pageIndex:page,highlighted:highlighted,hasMore:hasMore,complete:complete)
         snapshot=value;return SessionUpdate(handled:true,snapshot:value)
     }
     // A native mixed result or full-source Return uses the same one-effect gate.
     public mutating func finishMixed(_ text:String,engine:Bool)throws->SessionUpdate {
         try ensureReady()
-        guard snapshot?.mixedDraft != nil,!text.isEmpty,text.utf16.count<=16384,text.utf8.count<=65536,
-              !text.unicodeScalars.contains(where:{$0.value==0}) else{throw SessionError.invalidEngineValue}
+        guard let draft=snapshot?.mixedDraft,!text.isEmpty,text.utf16.count<=16384,text.utf8.count<=65536,
+              !text.unicodeScalars.contains(where:{$0.value==0}),!engine || draft.isResolved,
+              text.utf8.elementsEqual((engine ? draft.display:draft.source).utf8) else{throw SessionError.invalidEngineValue}
         return try receive(EngineValue(raw:"",preedit:"",caretUTF8:0,commit:engine ? text:nil),literal:engine ? nil:text)
     }
     public var idleCharacterBinding:CharacterBinding? {

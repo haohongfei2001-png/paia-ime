@@ -111,3 +111,46 @@ Visible literal input is explicit, not a language detector. No claim is made
 about whole-sentence language ranking across literal boundaries. Default fixture
 bundles without the research extension do not expose this capability, and the
 production-corpus license gate remains separate.
+
+### Broader qualification in the next local increment
+
+The mixed candidate owner now carries a real page/highlight state. Up/Down
+moves the highlighted actual native row across page boundaries, Space selects
+that row, and Shift-Tab walks spelling spans in reverse. Every navigation publish
+still changes input generation, including movement between identical raw spans.
+
+The proposed exact-head gate grows to ten bridge tests and seven host tests. Its
+mode matrix covers all 12 exposed research schemas plus full-Pinyin initials:
+32 fully converted native commits and 32 full-source Return effects. Additional
+cases chain literal combining/emoji edits before 128 distinct suffix proofs,
+exercise non-default candidate navigation and identical-raw reverse span wrap,
+and drive 128 real suffix selections through the same marked NSTextView before
+whole-source Return. Unknown host insertion outcome retains full source and
+issued text without retry. A simulated AppKit presentation test checks that a
+bounded 64-row result cannot be labeled as complete candidate exhaustion. These are configured tests until their own run
+succeeds; no installed input source, OS menu clicking, percentile latency or
+language-quality acceptance follows from them.
+
+The work budget bounds candidate enumeration and replay steps. It does not make
+a C++ engine call safely interruptible. No timeout path abandons a running call,
+unlocks its owner mutex early, or reuses partially mutated state. Installed
+visible latency/energy and full production language quality remain unmeasured.
+
+The existing A1 Address/Undefined sanitizer test also exercises synthetic
+list/selection/import/text output release after runtime closure. Local Linux
+LeakSanitizer could not start under executor ptrace; the same binary passed with
+only leak detection disabled, retaining Address/Undefined checks. This local
+result does not establish leak instrumentation or an engine session. The existing
+macOS sanitizer workflow is unchanged and must run for the final source.
+
+### Exact first integrated checkpoint 0708806
+
+All 12 workflows succeeded for
+`070880643b69c1786dcfbb584c9ac6c026c50ac6`.
+[IMK run](https://github.com/haohongfei2001-png/paia-ime/actions/runs/38067490851)
+records seven real Swift/ABI tests (including all four post-native-success
+rejection points), four real NSTextView/production-action-path tests and the
+complete preexisting regression stages. Source proof import and subsequent
+ordinary input after mixed completion both ran. This checkpoint predates the
+broader local matrix, navigation/footer changes and extra output-lifetime test;
+those still require their own exact-source macOS result.
