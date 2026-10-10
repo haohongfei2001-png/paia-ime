@@ -4,20 +4,21 @@ import EngineBridge
 import SettingsCore
 
 @MainActor public final class SettingsController:NSObject {
-    public let saveButton=NSButton(),defaultsButton=NSButton(),status=NSTextField(wrappingLabelWithString:"")
+    public let saveButton=NSButton(),defaultsButton=NSButton(),verifyButton=NSButton(),status=NSTextField(wrappingLabelWithString:"")
     public let root=NSStackView()
     private let lab:NativeLabController,store:SettingsStore?
-    private var savedRevision:UInt64=0,persistenceSuspended=false,restored=false
+    private var savedRevision:UInt64=0,persistenceSuspended=false,restored=false,saveFailed=false
     public init(lab:NativeLabController,store:SettingsStore?) {
         self.lab=lab;self.store=store;super.init()
-        for (button,title,action) in [(saveButton,"Save current settings",#selector(save(_:))),(defaultsButton,"Restore session defaults",#selector(defaults(_:)))] {
+        for (button,title,action) in [(saveButton,"Save current settings",#selector(save(_:))),(defaultsButton,"Restore session defaults",#selector(defaults(_:))),(verifyButton,"Verify last save",#selector(verifySave(_:)))] {
             button.title=title;button.target=self;button.action=action;button.bezelStyle = .rounded;button.refusesFirstResponder=true;button.setAccessibilityLabel(title)
         }
         root.orientation = .vertical;root.alignment = .leading;root.spacing=6
-        root.addArrangedSubview(NSStackView(views:[saveButton,defaultsButton]));root.addArrangedSubview(status)
+        root.addArrangedSubview(NSStackView(views:[saveButton,defaultsButton,verifyButton]));root.addArrangedSubview(status)
         status.setAccessibilityLabel("Explicit settings persistence status")
         lab.root.addArrangedSubview(root);lab.registerIdleControl(defaultsButton)
         lab.registerIdleControl(saveButton,available:{[weak self] in self?.store != nil && self?.persistenceSuspended==false})
+        lab.registerIdleControl(verifyButton,available:{[weak self] in self?.store?.hasUnverifiedSave==true && self?.saveFailed==true})
     }
     public func restoreAtStartup(){
         guard !restored else{return};restored=true
@@ -35,7 +36,19 @@ import SettingsCore
         guard !lab.isClosed,!lab.hasComposition,!lab.inspectorVisible else{status.stringValue="Commit or cancel composition before saving settings.";return}
         guard !persistenceSuspended,let store=store else{return}
         do{let saved=try store.save(lab.configuration.preferences,expectedRevision:savedRevision);savedRevision=saved.revision;status.stringValue="Current settings saved. Ordinary input and repair contents were not saved."}
-        catch{suspend("Settings save not confirmed. Current session remains usable. Reopen to verify; no automatic retry.")}
+        catch{
+            saveFailed=store.hasUnverifiedSave;verifyButton.isEnabled=saveFailed
+            suspend(saveFailed ? "Settings save not confirmed. Use Verify last save; no automatic retry. Current session remains usable." : "Settings save refused without a verifiable attempt. Authority unavailable; current input remains usable.")
+        }
+    }
+    @objc private func verifySave(_ sender:NSButton){
+        guard !lab.isClosed,!lab.hasComposition,!lab.inspectorVisible else{status.stringValue="Commit or cancel composition before verifying settings.";return}
+        guard saveFailed,let store=store else{return}
+        do {
+            let verified=try store.verifyLastSave();savedRevision=verified.document?.revision ?? 0
+            saveFailed=false;persistenceSuspended=false;verifyButton.isEnabled=false;saveButton.isEnabled=true
+            status.stringValue=verified.resolution == .published ? "Attempted settings save verified. Current mode unchanged; nothing retried." : "Previous saved state verified. Attempted changes were not saved; nothing retried."
+        }catch{saveFailed=store.hasUnverifiedSave;verifyButton.isEnabled=saveFailed;status.stringValue="Saved outcome cannot be verified. Saving remains blocked; authority unchanged."}
     }
     @objc private func defaults(_ sender:NSButton){
         guard !lab.isClosed,!lab.hasComposition,!lab.inspectorVisible else{status.stringValue="Commit or cancel composition before restoring defaults.";return}
