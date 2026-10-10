@@ -110,9 +110,12 @@ final class IMKProtocolTests:XCTestCase {
             a.view.insertText("X",replacementRange:NSRange(location:NSNotFound,length:0));try activate(a,owner)
         }
         type("nihao",a,owner);let old=try XCTUnwrap(owner.snapshot).rows[0].ref,oldText=a.view.string
-        try activate(b,owner);type("shi",b,owner)
-        XCTAssertFalse(owner.choose(old,client:b));XCTAssertFalse(owner.process(.returnKey,client:a));XCTAssertEqual(a.view.string,oldText);XCTAssertEqual(a.insertCalls,0)
-        XCTAssertTrue(owner.process(.space,client:b));XCTAssertEqual(b.insertCalls,1)
+        try activate(b,owner);type("shijie",b,owner)
+        let before=try XCTUnwrap(owner.snapshot),marked=b.view.markedRange(),text=b.view.string
+        XCTAssertFalse(owner.choose(old,client:b));XCTAssertEqual(owner.snapshot?.inputGeneration,before.inputGeneration)
+        XCTAssertEqual(owner.snapshot?.rows.map{$0.ref},before.rows.map{$0.ref});XCTAssertEqual(b.view.string,text);XCTAssertEqual(b.view.markedRange(),marked)
+        XCTAssertFalse(owner.process(.returnKey,client:a));XCTAssertEqual(a.view.string,oldText);XCTAssertEqual(a.insertCalls,0)
+        XCTAssertTrue(owner.process(.space,client:b));XCTAssertEqual(b.insertCalls,1);XCTAssertEqual(b.view.string,"世界")
     }
     @MainActor func testFirstAndAppendedMarkedWriteUnknownRetainsAcceptedRaw()throws {
         _=NSApplication.shared
@@ -189,5 +192,47 @@ final class IMKProtocolTests:XCTestCase {
         XCTAssertEqual(client.view.string,"new document");XCTAssertEqual(driver.coordinator.snapshot?.rawASCII,"");XCTAssertEqual(client.markCalls,0)
         XCTAssertTrue(driver.handle(try event("h"),client:client));XCTAssertEqual(driver.coordinator.snapshot?.rawASCII,"h")
     }
+    @MainActor func testLifecycleDuringActivationGetterCannotPublishRetiredClient()throws {
+        _=NSApplication.shared
+        for finish in [false,true] {
+            for selectedGetter in [false,true] {
+                let client=PAIAIMKTestClient(text:""),foreign=PAIAIMKTestClient(text:"");var factories=0
+                let driver=IMKControllerDriver(makeSession:{factories+=1;return try? Self.lab.runtime.makeSession()},hide:{},present:{_,_,_ in})
+                defer{driver.close()}
+                let callback={if finish{driver.finish(client:client)}else{driver.deactivate(client:client)}}
+                if selectedGetter{client.onSelectedRange=callback}else{client.onMarkedRange=callback}
+                XCTAssertEqual(driver.activate(try XCTUnwrap(IMKTextInputBridge(client))),.superseded)
+                XCTAssertNil(driver.coordinator.session);XCTAssertEqual(factories,0)
+                XCTAssertEqual(client.markCalls,0);XCTAssertEqual(client.insertCalls,0)
+                XCTAssertFalse(driver.handle(try event("n"),client:client))
+                client.onSelectedRange={driver.finish(client:foreign);driver.deactivate(client:foreign)}
+                XCTAssertEqual(driver.activate(try XCTUnwrap(IMKTextInputBridge(client))),.ready)
+                XCTAssertTrue(driver.handle(try event("n"),client:client))
+            }
+        }
+    }
+
+    @MainActor func testIncompleteFixtureSpellingRetainsRealEngineDecision()throws {
+        _=NSApplication.shared
+        let reference=try Self.lab.runtime.makeSession();defer{reference.end()};_ = try reference.refresh()
+        for c in "shi"{_ = try reference.process(.text(String(c)))}
+        let expected=try reference.process(.space)
+        let client=PAIAIMKTestClient(text:""),owner=IMKSessionCoordinator();defer{owner.retire()};try activate(client,owner);type("shi",client,owner)
+        XCTAssertTrue(owner.process(.space,client:client))
+        XCTAssertEqual(owner.snapshot?.rawASCII,expected.snapshot?.rawASCII)
+        XCTAssertEqual(owner.snapshot?.preedit,expected.snapshot?.preedit)
+        XCTAssertEqual(owner.snapshot?.rows.map{$0.text},expected.snapshot?.rows.map{$0.text})
+        XCTAssertEqual(client.insertCalls,expected.commit == nil ? 0:1)
+        XCTAssertEqual(client.view.string,(expected.commit?.text ?? "")+(expected.snapshot?.preedit ?? ""))
+        XCTAssertNotNil(owner.session)
+        if expected.commit==nil {
+            let snapshot=try XCTUnwrap(expected.snapshot)
+            XCTAssertEqual(snapshot.rawASCII,"shi");XCTAssertEqual(owner.snapshot?.rawASCII,"shi")
+            XCTAssertTrue(client.view.hasMarkedText());XCTAssertEqual(client.view.markedRange(),NSRange(location:0,length:snapshot.preedit.utf16.count))
+            XCTAssertEqual(client.view.selectedRange(),snapshot.selectedRangeUTF16)
+        }
+        print("IMK_FIXTURE_INCOMPLETE shi: direct engine handled=\(expected.handled), commit=\(expected.commit != nil), raw=\(expected.snapshot?.rawASCII ?? ""), preedit=\(expected.snapshot?.preedit ?? "")")
+    }
+
 }
 #endif

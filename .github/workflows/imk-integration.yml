@@ -22,8 +22,11 @@ jobs:
           mkdir -p evidence/imk-run
           echo "PAIA_SOURCE_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
           { git rev-parse HEAD; sw_vers; uname -a; swift --version; } | tee evidence/imk-run/environment.txt
-          find "$(xcrun --show-sdk-path)/System/Library/Frameworks/InputMethodKit.framework/Headers" -name '*.h' -maxdepth 1 -exec cat {} \; > evidence/imk-run/official-sdk-headers.txt
-          cat evidence/imk-run/official-sdk-headers.txt
+          set -o pipefail
+          sdk="$(xcrun --show-sdk-path)"
+          { cat "$sdk/System/Library/Frameworks/InputMethodKit.framework/Headers/"*.h;
+            cat "$sdk/System/Library/Frameworks/Carbon.framework/Frameworks/HIToolbox.framework/Headers/IMKInputSession.h";
+          } | tee evidence/imk-run/official-sdk-headers.txt
       - name: Prepare immutable original fixture and engine
         run: |
           python3 Tools/audit-a1.py

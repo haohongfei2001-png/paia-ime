@@ -15,7 +15,8 @@ import SessionCore
     private var current:AnyObject?,lastRect:NSRect?
     private var generation:UInt64=0
     private var activationDepth=0
-    public enum ActivationResult {case ready,refused,superseded}
+    private var pendingActivation:(ticket:UInt64,owner:IMKSessionCoordinator,identity:AnyObject)?
+    public enum ActivationResult:Equatable {case ready,refused,superseded}
     public init(makeSession:@escaping ()->InputSession?,hide:@escaping ()->Void,present:@escaping (CandidateSnapshot?,NSRect,String?)->Void) {
         self.makeSession=makeSession;self.hide=hide;self.present=present
     }
@@ -28,6 +29,8 @@ import SessionCore
         coordinator.interrupt("Previous activation ended. No text was replayed or cleared.")
         retainedRecovery=coordinator.recovery ?? retainedRecovery
         let next=IMKSessionCoordinator();coordinator=next;current=nil;lastRect=nil
+        pendingActivation=(ticket,next,bridge.callbackIdentity)
+        defer{if pendingActivation?.ticket==ticket{pendingActivation=nil}}
         hide();guard generation==ticket,coordinator===next else{return .superseded}
         let accepted=next.activate(bridge,makeSession:makeSession)
         guard generation==ticket,coordinator===next else{next.retire();return .superseded}
@@ -78,11 +81,21 @@ import SessionCore
         guard let sender=current else{return};generation &+= 1;let ticket=generation,owner=coordinator
         _=owner.choose(candidate,client:sender);render(sender,ticket:ticket,owner:owner)
     }
+    private func cancelPendingActivation(_ sender:AnyObject)->Bool {
+        guard let pending=pendingActivation,pending.identity===sender,
+              generation==pending.ticket,coordinator===pending.owner else{return false}
+        generation &+= 1;pendingActivation=nil
+        pending.owner.interrupt("Lifecycle ended during activation. No text was written.")
+        current=nil;lastRect=nil;hide()
+        return true
+    }
     public func finish(client sender:AnyObject){
+        if cancelPendingActivation(sender){return}
         guard current===sender else{return};generation &+= 1;let ticket=generation,owner=coordinator
         _=owner.finish(client:sender);render(sender,ticket:ticket,owner:owner)
     }
     public func deactivate(client sender:AnyObject){
+        if cancelPendingActivation(sender){return}
         guard current===sender else{return};generation &+= 1;let ticket=generation,owner=coordinator
         owner.deactivate(client:sender)
         guard matches(ticket,owner,sender) else{return}
@@ -90,7 +103,7 @@ import SessionCore
         hide() // No state writes follow a presentation callback.
     }
     public func close(){
-        generation &+= 1;coordinator.interrupt("Controller closed. No automatic text cleanup.")
+        generation &+= 1;pendingActivation=nil;coordinator.interrupt("Controller closed. No automatic text cleanup.")
         retainedRecovery=coordinator.recovery ?? retainedRecovery;current=nil;lastRect=nil;hide()
     }
     private func render(_ sender:AnyObject,ticket:UInt64,owner:IMKSessionCoordinator){

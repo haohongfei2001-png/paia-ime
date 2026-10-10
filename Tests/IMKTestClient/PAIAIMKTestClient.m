@@ -33,5 +33,15 @@
 - (void)selectInputMode:(NSString *)mode {}
 - (BOOL)supportsUnicode {return YES;}
 - (NSString *)bundleIdentifier {return @"dev.paia.synthetic.imk-client";}
-- (NSInteger)windowLevel {return NSNormalWindowLevel;}
+- (CGWindowLevel)windowLevel {return NSNormalWindowLevel;}
+- (BOOL)supportsProperty:(TSMDocumentPropertyTag)property {return NO;}
+- (NSString *)uniqueClientIdentifierString {return [NSString stringWithFormat:@"synthetic-%p", self];}
+- (NSString *)stringFromRange:(NSRange)range actualRange:(NSRangePointer)actualRange {
+    NSAttributedString *value=[self attributedSubstringFromRange:range];
+    if(actualRange)*actualRange=value?NSMakeRange(range.location,value.length):NSMakeRange(NSNotFound,0);
+    return value.string;
+}
+- (NSRect)firstRectForCharacterRange:(NSRange)range actualRange:(NSRangePointer)actualRange {
+    if(actualRange)*actualRange=NSMakeRange(NSNotFound,0);return NSZeroRect;
+}
 @end
