@@ -156,6 +156,7 @@ final class ExpressionIMKTests:XCTestCase {
         for fault in [ExpressionTestFault.beforePublication,.afterPublication] {
             let r=try Rig(fault:fault);defer{r.close()}
             XCTAssertThrowsError(try r.workspace.saveExpression("new exact",aliases:[],catalogRevision:1));XCTAssertNil(r.workspace.expressionCatalog)
+            XCTAssertThrowsError(try r.workspace.reloadExpressions());XCTAssertNil(r.workspace.expressionCatalog)
             r.driver.activate(try XCTUnwrap(IMKTextInputBridge(r.client)));_ = r.driver.handle(try event(" ",code:49,modifiers:[.option]),client:r.client);XCTAssertNil(r.driver.recall)
             let disk=try r.authority(),result=try r.workspace.verifyExpressionSave();XCTAssertEqual(try r.authority(),disk);XCTAssertNotNil(r.workspace.expressionCatalog)
             XCTAssertEqual(result.resolution,fault == .afterPublication ? .published:.previous);XCTAssertEqual(r.client.insertCalls,0)
@@ -169,6 +170,7 @@ final class ExpressionIMKTests:XCTestCase {
             if deletion{manager.records.selectItem(at:1);manager.selectRecord(nil);manager.deleteAction(nil)}
             else{manager.editor.string="new exact";manager.aliases.stringValue="new";manager.saveAction(nil)}
             XCTAssertTrue(r.store.hasUnverifiedSave);XCTAssertFalse(manager.editor.isEditable)
+            manager.show();XCTAssertNil(r.workspace.expressionCatalog);XCTAssertThrowsError(try r.store.snapshot())
             let disk=try r.authority();manager.newRecord(nil);manager.saveAction(nil);XCTAssertEqual(try r.authority(),disk)
             manager.verifyAction(nil);XCTAssertEqual(try r.authority(),disk);XCTAssertFalse(r.store.hasUnverifiedSave);manager.verifyAction(nil);XCTAssertNotNil(r.workspace.expressionCatalog);XCTAssertEqual(try r.authority(),disk)
             if deletion{XCTAssertNil(manager.selected);XCTAssertTrue(manager.editor.string.isEmpty);manager.saveAction(nil);XCTAssertTrue(r.workspace.expressionCatalog?.search("").isEmpty==true)}
@@ -206,19 +208,22 @@ final class ExpressionIMKTests:XCTestCase {
         defer{panel.orderOut(nil)}
         let screen=try XCTUnwrap(NSScreen.main).visibleFrame
         let r=try Rig(text:long,present:{state,rect in panel.show(state,below:rect,screen:screen)});defer{r.close()}
-        let host=NSWindow(contentRect:NSRect(x:40,y:60,width:640,height:240),styleMask:[.titled],backing:.buffered,defer:false);host.contentView=r.client.view;host.makeKeyAndOrderFront(nil);host.makeFirstResponder(r.client.view);defer{host.close()}
+        let host=NSWindow(contentRect:NSRect(x:40,y:60,width:640,height:240),styleMask:[.titled],backing:.buffered,defer:false);host.isReleasedWhenClosed=false;host.contentView=r.client.view;host.makeKeyAndOrderFront(nil);host.makeFirstResponder(r.client.view);defer{host.close()}
         _ = try review(r);panel.displayIfNeeded()
         XCTAssertTrue(panel.isVisible);XCTAssertFalse(panel.isKeyWindow);XCTAssertFalse(panel.canBecomeKey);XCTAssertTrue(host.firstResponder===r.client.view)
         XCTAssertEqual(Array(panel.textView.string.utf8),Array(long.utf8));XCTAssertFalse(panel.textView.isEditable)
         let state=try XCTUnwrap(r.driver.recall);panel.scrollReview(1,token:state.token);XCTAssertGreaterThan(panel.scroll.contentView.bounds.minY,0)
         panel.scrollReview(-1,token:state.token)
         let view=try XCTUnwrap(panel.contentView),bitmap=try XCTUnwrap(view.bitmapImageRepForCachingDisplay(in:view.bounds));view.cacheDisplay(in:view.bounds,to:bitmap)
-        let data=try XCTUnwrap(bitmap.representation(using:.png,properties:[:]));let encoded=Array(data.base64EncodedString())
-        for start in stride(from:0,to:encoded.count,by:1800){fputs("PAIA_EXPRESSION_REVIEW_IMAGE_\(start/1800):\(String(encoded[start..<min(start+1800,encoded.count)]))\n",stderr)}
-        r.driver.cancelRecall(token:state.token);let manager=ExpressionManager(workspace:r.workspace);manager.show();defer{manager.close()}
+        let data=try XCTUnwrap(bitmap.representation(using:.png,properties:[:]))
+        if let path=ProcessInfo.processInfo.environment["PAIA_EXPRESSION_CAPTURE"]{try data.write(to:URL(fileURLWithPath:path),options:.atomic)}
+        fputs("EXPRESSION_UI_STAGE captured\n",stderr)
+        r.driver.cancelRecall(token:state.token);fputs("EXPRESSION_UI_STAGE cancelled\n",stderr);let manager=ExpressionManager(workspace:r.workspace);manager.show();defer{manager.close()}
+        fputs("EXPRESSION_UI_STAGE manager-open\n",stderr)
         XCTAssertTrue(manager.isOpen);XCTAssertTrue(manager.editor.string.isEmpty)
-        manager.editor.string=Self.exact;manager.aliases.stringValue="newalias";manager.saveAction(nil)
+        manager.editor.string=Self.exact;manager.aliases.stringValue="newalias";manager.saveAction(nil);fputs("EXPRESSION_UI_STAGE saved\n",stderr)
         XCTAssertEqual(r.workspace.expressionCatalog?.search("newalias").first?.record.exactText?.utf8.map{$0},Array(Self.exact.utf8));XCTAssertEqual(r.client.insertCalls,0)
+        fputs("EXPRESSION_UI_STAGE before-cleanup\n",stderr)
         print("EXPRESSION_NATIVE ENGINE_NATIVE + APPKIT_HOST; exact store/editor/recall/full review/one commit; authored protocol clients only")
     }
 }

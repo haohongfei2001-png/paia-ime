@@ -60,7 +60,7 @@ public final class ExpressionStore {
         try verifyIdentity()
     }
     public var hasUnverifiedSave:Bool {lock.lock();defer{lock.unlock()};return !closed && pending != nil}
-    public func snapshot()throws->ExpressionDocument? {lock.lock();defer{lock.unlock()};try verify();return document}
+    public func snapshot()throws->ExpressionDocument? {lock.lock();defer{lock.unlock()};try verify();guard pending==nil else{throw ExpressionError.durabilityUnknown};return document}
     // Resolve only this handle's attempted save, under its original lock and root identity.
     // Reads include file/directory durability barriers; no authority bytes are written or retried.
     public func verifyLastSave()throws->ExpressionSaveVerification {
