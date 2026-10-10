@@ -242,6 +242,10 @@ public final class InputSession {
         lock.lock();defer{lock.unlock()};guard !ended else{throw EngineError.closed}
         return try core.commitExpression(text,binding:binding)
     }
+    public func commitReviewedEdit(_ text:String,replacing range:NSRange,binding:ExpressionBinding)throws->SessionUpdate {
+        lock.lock();defer{lock.unlock()};guard !ended else{throw EngineError.closed}
+        return try core.commitReviewedEdit(text,replacing:range,binding:binding)
+    }
     public func commitEngineComposition() throws -> SessionUpdate {
         lock.lock();defer{lock.unlock()};return try step(5)
     }

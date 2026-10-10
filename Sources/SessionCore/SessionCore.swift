@@ -34,12 +34,15 @@ public struct CandidateSnapshot {
     public let rows: [CandidateRow], pageIndex: Int, highlighted: Int, hasMore: Bool
     public let complete: Bool
 }
-public enum CommitOrigin { case engine, literal, explicitExpression }
+public enum CommitOrigin { case engine, literal, explicitExpression, reviewedEdit }
 public struct CommitEffect {
     public let operationID: UUID, session: SessionKey, targetEpoch: UInt64, inputGeneration: UInt64
     public let text: String, origin: CommitOrigin
-    // A1 only changes the synthetic client's own marked range; no surrounding-text replacement.
-    public var replacementUTF16: NSRange? { nil }
+    // Non-nil only for an explicitly reviewed edit; ordinary C0 effects retain nil.
+    public let replacementUTF16:NSRange?
+    init(operationID:UUID,session:SessionKey,targetEpoch:UInt64,inputGeneration:UInt64,text:String,origin:CommitOrigin,replacementUTF16:NSRange?=nil) {
+        self.operationID=operationID;self.session=session;self.targetEpoch=targetEpoch;self.inputGeneration=inputGeneration;self.text=text;self.origin=origin;self.replacementUTF16=replacementUTF16
+    }
 }
 public enum InputRefusal:Equatable {
     case unsupportedTextDuringComposition, textBeforeRawSuffix, unhandledControlDuringComposition
@@ -127,6 +130,18 @@ public struct SessionCore {
         let update=try receive(EngineValue(raw:"",preedit:"",caretUTF8:0),literal:text)
         guard let effect=update.commit else{throw SessionError.invalidEngineValue}
         return SessionUpdate(handled:true,snapshot:update.snapshot,commit:CommitEffect(operationID:effect.operationID,session:effect.session,targetEpoch:effect.targetEpoch,inputGeneration:effect.inputGeneration,text:effect.text,origin:.explicitExpression))
+    }
+    public mutating func commitReviewedEdit(_ text:String,replacing range:NSRange,binding:ExpressionBinding)throws->SessionUpdate {
+        try ensureReady()
+        guard idleExpressionBinding==binding,let end=ContextBudget.end(range),end<=ContextBudget.document,
+              range.length<=ContextBudget.selection,text.utf16.count<=ContextBudget.selection,
+              !text.unicodeScalars.contains(where:{$0.value==0}),!text.isEmpty || range.length>0 else{throw SessionError.staleExplicitAction}
+        // Empty replacement is a real deletion effect, not receive's empty no-op.
+        let update=try receive(EngineValue(raw:"",preedit:"",caretUTF8:0))
+        let id=UUID();pendingOperation=id
+        let effect=CommitEffect(operationID:id,session:key,targetEpoch:targetEpoch,inputGeneration:inputGeneration,
+            text:text,origin:.reviewedEdit,replacementUTF16:range)
+        return SessionUpdate(handled:true,snapshot:update.snapshot,commit:effect)
     }
     // Reserve BEFORE calling a host. An uncertain host outcome is not replayable.
     public mutating func reserve(_ effect: CommitEffect) -> Bool {

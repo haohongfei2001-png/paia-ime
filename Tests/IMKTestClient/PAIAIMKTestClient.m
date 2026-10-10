@@ -1,8 +1,11 @@
 #import "PAIAIMKTestClient.h"
-@implementation PAIAIMKTestClient
+@implementation PAIAIMKTestClient { id _contextObserver; }
 - (instancetype)initWithText:(NSString *)text {
-    if((self=[super init])){_view=[[NSTextView alloc] initWithFrame:NSMakeRect(0,0,600,200)];_view.richText=NO;_view.string=text;[_view setSelectedRange:NSMakeRange(text.length,0)];_reads=[NSMutableArray array];_writes=[NSMutableArray array];}return self;
+    if((self=[super init])){_view=[[NSTextView alloc] initWithFrame:NSMakeRect(0,0,600,200)];_view.richText=NO;_view.string=text;[_view setSelectedRange:NSMakeRange(text.length,0)];_reads=[NSMutableArray array];_writes=[NSMutableArray array];_contextRevision=1;
+        __weak PAIAIMKTestClient *weakSelf=self;
+        _contextObserver=[[NSNotificationCenter defaultCenter] addObserverForName:NSTextStorageDidProcessEditingNotification object:_view.textStorage queue:nil usingBlock:^(NSNotification *note){PAIAIMKTestClient *strong=weakSelf;if(strong)strong->_contextRevision++;}];}return self;
 }
+- (void)dealloc {if(_contextObserver)[[NSNotificationCenter defaultCenter] removeObserver:_contextObserver];}
 - (NSRange)selectedRange {if(_onSelectedRange){void(^f)(void)=_onSelectedRange;_onSelectedRange=nil;f();}return _view.selectedRange;}
 - (NSRange)markedRange {if(_onMarkedRange){void(^f)(void)=_onMarkedRange;_onMarkedRange=nil;f();}return _view.markedRange;}
 - (NSAttributedString *)attributedSubstringFromRange:(NSRange)range {
@@ -19,11 +22,12 @@
 }
 - (void)insertText:(id)text replacementRange:(NSRange)replacement {
     _insertCalls++;[_writes addObject:[NSValue valueWithRange:replacement]];
-    [_view insertText:text replacementRange:replacement];
+    [_view insertText:text replacementRange:_ignoreReplacementRange?NSMakeRange(_view.string.length,0):replacement];
     if(_onInsert){void(^f)(void)=_onInsert;_onInsert=nil;f();}
 }
-- (NSInteger)length {_documentLengthCalls++;return _view.string.length;}
+- (NSInteger)length {_documentLengthCalls++;if(_onLength){void(^f)(void)=_onLength;_onLength=nil;f();}return _view.string.length;}
 - (NSDictionary *)attributesForCharacterIndex:(NSUInteger)index lineHeightRectangle:(NSRect *)rect {
+    _lastGeometryIndex=index;
     if(_onGeometry){void(^f)(void)=_onGeometry;_onGeometry=nil;f();}
     if(rect)*rect=_invalidGeometry?NSZeroRect:NSMakeRect(200,400,1,22);return @{};
 }
@@ -37,8 +41,16 @@
 - (BOOL)supportsProperty:(TSMDocumentPropertyTag)property {return NO;}
 - (NSString *)uniqueClientIdentifierString {return [NSString stringWithFormat:@"synthetic-%p", self];}
 - (NSString *)stringFromRange:(NSRange)range actualRange:(NSRangePointer)actualRange {
+    if(_contextReadFault==1){[_reads addObject:[NSValue valueWithRange:range]];unichar bad=0xD800;if(actualRange)*actualRange=NSMakeRange(range.location,1);return [NSString stringWithCharacters:&bad length:1];}
+    if(range.location>0 && range.location<_view.string.length){unichar u=[_view.string characterAtIndex:range.location];if(u>=0xDC00 && u<=0xDFFF){range.location--;range.length++;}}
+    NSUInteger end=range.location+range.length;
+    if(end>0 && end<_view.string.length){unichar u=[_view.string characterAtIndex:end-1];if(u>=0xD800 && u<=0xDBFF)range.length++;}
     NSAttributedString *value=[self attributedSubstringFromRange:range];
-    if(actualRange)*actualRange=value?NSMakeRange(range.location,value.length):NSMakeRange(NSNotFound,0);
+    NSRange actual=value?NSMakeRange(range.location,value.length):NSMakeRange(NSNotFound,0);
+    if(_contextReadFault==2)actual.location+=2;
+    if(_contextReadFault==3)actual.length++;
+    if(_contextReadFault==4)actual.location=NSNotFound;
+    if(actualRange)*actualRange=actual;
     return value.string;
 }
 - (NSRect)firstRectForCharacterRange:(NSRange)range actualRange:(NSRangePointer)actualRange {

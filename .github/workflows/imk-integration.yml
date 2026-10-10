@@ -48,6 +48,24 @@ jobs:
           source .build/a1-env.sh
           swift test --filter IMKProtocolTests 2>&1 | tee evidence/imk-run/protocol-tests.txt
           swift test --skip-build --filter IMKFixtureBasicsTests 2>&1 | tee evidence/imk-run/fixture-basics.txt
+      - name: Explicit bounded context and reviewed one-effect edits
+        run: |
+          set -o pipefail
+          source .build/a1-env.sh
+          export PAIA_CONTEXT_CAPTURE="$PWD/evidence/imk-run/context-review.png"
+          export PAIA_CONTEXT_CAPTURE_TAIL="$PWD/evidence/imk-run/context-tail.png"
+          swift test --skip-build --filter ContextCoreTests 2>&1 | tee evidence/imk-run/context-core-tests.txt
+          grep -Fq 'Executed 7 tests, with 0 failures' evidence/imk-run/context-core-tests.txt
+          swift test --skip-build --filter ContextIMKTests 2>&1 | tee evidence/imk-run/context-tests.txt
+          grep -Fq 'Executed 12 tests, with 0 failures' evidence/imk-run/context-tests.txt
+          grep -Fq 'IMK_CONTEXT_NATIVE ENGINE_NATIVE + APPKIT_HOST' evidence/imk-run/context-tests.txt
+          python3 - <<'PY_CONTEXT_CAPTURE'
+          import base64, pathlib
+          for name, prefix in [('context-review.png', 'PAIA_IMK_CONTEXT_IMAGE'), ('context-tail.png', 'PAIA_IMK_CONTEXT_TAIL_IMAGE')]:
+              encoded = base64.b64encode(pathlib.Path('evidence/imk-run', name).read_bytes()).decode()
+              for index in range(0, len(encoded), 1800):
+                  print(f'{prefix}_{index//1800}:{encoded[index:index+1800]}')
+          PY_CONTEXT_CAPTURE
       - name: Prepare existing unbundled research resources
         run: |
           set -o pipefail

@@ -18,6 +18,10 @@ import ConstraintCore
     private let scrollRecall:(Int,UUID)->Void
     public private(set) var recall:ExpressionRecallState?
     public private(set) var repair:SegmentRepairState?
+    public private(set) var contextEdit:ContextEditState?
+    private var presentedContextToken:UUID?
+    private var contextCandidate:(bridge:IMKClientAccess,identity:AnyObject)?
+    private let presentContext:(ContextEditState,NSRect)->Bool,scrollContext:(Int,UUID)->Void
     private var presentedRepairToken:UUID?
     private var repairPresentationVisible=false,suppressRepeatedRepairEscape=false
     private let presentRepair:(SegmentRepairState,NSRect)->Bool
@@ -25,18 +29,18 @@ import ConstraintCore
     private var presentedRecallToken:UUID?
     private let literal:()->Bool,permitOperation:()->Bool
     private var operationDepth=0,closed=false
-    public var isIdleForManagement:Bool {operationDepth==0 && recall==nil && repair==nil && (closed || (activationDepth==0 && coordinator.isIdleForManagement))}
+    public var isIdleForManagement:Bool {operationDepth==0 && recall==nil && repair==nil && contextEdit==nil && (closed || (activationDepth==0 && coordinator.isIdleForManagement))}
     public var managementRevision:UInt64 {generation}
     // State retirement is separated from presentation so all old bindings retire
     // before the first reentrant AppKit hide callback.
     public func retireIdleForManagement(){
         precondition(isIdleForManagement)
-        generation &+= 1;discardRepair();recall=nil;pendingActivation=nil;coordinator.retire();lastRect=nil
+        generation &+= 1;discardContext();discardRepair();recall=nil;pendingActivation=nil;coordinator.retire();contextCandidate=nil;lastRect=nil
     }
     public func dismissCandidatesForManagement(){hideAll()}
     public func discardIdleBindingForManagement(){
         precondition(isIdleForManagement)
-        generation &+= 1;discardRepair();recall=nil;pendingActivation=nil;coordinator.retire();current=nil;lastRect=nil
+        generation &+= 1;discardContext();discardRepair();recall=nil;pendingActivation=nil;coordinator.retire();contextCandidate=nil;current=nil;lastRect=nil
     }
     private func enter()->Bool {
         guard permitOperation() else{return false};operationDepth+=1;return true
@@ -48,16 +52,16 @@ import ConstraintCore
     private var activationDepth=0
     private var pendingActivation:(ticket:UInt64,owner:IMKSessionCoordinator,identity:AnyObject)?
     public enum ActivationResult:Equatable {case ready,refused,superseded}
-    public init(makeSession:@escaping ()->InputSession?,expressions:@escaping()->ExpressionCatalog?={nil},literal:@escaping ()->Bool={false},permitOperation:@escaping ()->Bool={true},hide:@escaping ()->Void,present:@escaping (CandidateSnapshot?,NSRect,String?)->Void,presentRecall:@escaping(ExpressionRecallState,NSRect)->Bool={_,_ in false},scrollRecall:@escaping(Int,UUID)->Void={_,_ in},presentRepair:@escaping(SegmentRepairState,NSRect)->Bool={_,_ in false},scrollRepair:@escaping(Int,UUID)->Void={_,_ in}) {
-        self.presentRepair=presentRepair;self.scrollRepair=scrollRepair;self.makeSession=makeSession;self.expressions=expressions;self.presentRecall=presentRecall;self.scrollRecall=scrollRecall;self.literal=literal;self.permitOperation=permitOperation;self.hide=hide;self.present=present
+    public init(makeSession:@escaping ()->InputSession?,expressions:@escaping()->ExpressionCatalog?={nil},literal:@escaping ()->Bool={false},permitOperation:@escaping ()->Bool={true},hide:@escaping ()->Void,present:@escaping (CandidateSnapshot?,NSRect,String?)->Void,presentRecall:@escaping(ExpressionRecallState,NSRect)->Bool={_,_ in false},scrollRecall:@escaping(Int,UUID)->Void={_,_ in},presentRepair:@escaping(SegmentRepairState,NSRect)->Bool={_,_ in false},scrollRepair:@escaping(Int,UUID)->Void={_,_ in},presentContext:@escaping(ContextEditState,NSRect)->Bool={_,_ in false},scrollContext:@escaping(Int,UUID)->Void={_,_ in}) {
+        self.presentContext=presentContext;self.scrollContext=scrollContext;self.presentRepair=presentRepair;self.scrollRepair=scrollRepair;self.makeSession=makeSession;self.expressions=expressions;self.presentRecall=presentRecall;self.scrollRecall=scrollRecall;self.literal=literal;self.permitOperation=permitOperation;self.hide=hide;self.present=present
     }
     private func matches(_ ticket:UInt64,_ owner:IMKSessionCoordinator,_ sender:AnyObject)->Bool {
         generation==ticket && coordinator === owner && current===sender
     }
     @discardableResult public func activate(_ bridge:IMKClientAccess)->ActivationResult {
         guard enter() else{return .superseded};defer{leave()}
-        closed=false;activationDepth+=1;defer{activationDepth-=1}
-        generation &+= 1;discardRepair();recall=nil;let ticket=generation
+        contextCandidate=nil;closed=false;activationDepth+=1;defer{activationDepth-=1}
+        generation &+= 1;discardContext();discardRepair();recall=nil;let ticket=generation
         coordinator.interrupt("Previous activation ended. No text was replayed or cleared.")
         retainedRecovery=coordinator.recovery ?? retainedRecovery
         let next=IMKSessionCoordinator();coordinator=next;current=nil;lastRect=nil
@@ -66,15 +70,24 @@ import ConstraintCore
         hideAll();guard generation==ticket,coordinator===next else{return .superseded}
         let accepted=next.activate(bridge,makeSession:makeSession)
         guard generation==ticket,coordinator===next else{next.retire();return .superseded}
+        let offered=bridge.offersContext
+        guard generation==ticket,coordinator===next else{return .superseded}
+        let identity=bridge.callbackIdentity
+        guard generation==ticket,coordinator===next else{return .superseded}
+        contextCandidate=offered ? (bridge,identity):nil
         guard accepted else{return .refused}
-        current=bridge.callbackIdentity
+        current=identity
         return .ready
     }
     public func handle(_ event:NSEvent,client sender:AnyObject)->Bool {
         guard event.type == .keyDown else{return false}
         guard enter() else{return false};defer{leave()}
         if activationDepth>0{generation &+= 1;coordinator.interrupt("Key event reentered activation. No automatic replay.");return true}
-        guard current===sender else{return false}
+        guard current===sender else{
+            // A C0-refused selection can still offer an explicit context menu.
+            // Any intervening key for that client retires previously issued menus.
+            if contextCandidate?.identity===sender{generation &+= 1};return false
+        }
         generation &+= 1
         if coordinator.session==nil {
             guard coordinator.outcome == .ready,let bridge=IMKTextInputBridge(sender) else{return true}
@@ -84,6 +97,7 @@ import ConstraintCore
         let owner=coordinator,ticket=generation
         if !event.isARepeat{suppressRepeatedRepairEscape=false}
         if event.keyCode==53,event.isARepeat,suppressRepeatedRepairEscape{return true}
+        if contextEdit != nil{return handleContext(event,client:sender,ticket:ticket,owner:owner)}
         let modifiers=event.modifierFlags.intersection([.command,.option,.control,.shift])
         if event.keyCode==49,modifiers == [.option] {
             // This must precede generic modifier flush; busy recall never commits.
@@ -145,41 +159,45 @@ import ConstraintCore
     public func choose(_ candidate:CandidateRef){
         guard enter() else{return};defer{leave()}
         guard let sender=current else{return};generation &+= 1;let ticket=generation,owner=coordinator
-        guard recall==nil,repair==nil else{return}
+        guard contextEdit==nil,recall==nil,repair==nil else{return}
         _=owner.choose(candidate,client:sender);render(sender,ticket:ticket,owner:owner)
     }
     private func cancelPendingActivation(_ sender:AnyObject)->Bool {
         guard let pending=pendingActivation,pending.identity===sender,
               generation==pending.ticket,coordinator===pending.owner else{return false}
-        generation &+= 1;discardRepair();recall=nil;pendingActivation=nil
+        generation &+= 1;discardContext();discardRepair();recall=nil;pendingActivation=nil
         pending.owner.interrupt("Lifecycle ended during activation. No text was written.")
-        current=nil;lastRect=nil;hideAll()
+        contextCandidate=nil;current=nil;lastRect=nil;hideAll()
         return true
     }
     public func finish(client sender:AnyObject){
         guard enter() else{return};defer{leave()}
         if cancelPendingActivation(sender){return}
-        guard current===sender else{return};generation &+= 1;discardRepair();recall=nil;let ticket=generation,owner=coordinator
+        guard current===sender else{
+            if contextCandidate?.identity===sender{generation &+= 1;contextCandidate=nil;coordinator.retire();hideAll()};return
+        };generation &+= 1;discardContext();discardRepair();recall=nil;let ticket=generation,owner=coordinator
         _=owner.finish(client:sender);render(sender,ticket:ticket,owner:owner)
     }
     public func deactivate(client sender:AnyObject){
         guard enter() else{return};defer{leave()}
         if cancelPendingActivation(sender){return}
-        guard current===sender else{return};generation &+= 1;discardRepair();recall=nil;let ticket=generation,owner=coordinator
+        guard current===sender else{
+            if contextCandidate?.identity===sender{generation &+= 1;contextCandidate=nil;coordinator.retire();hideAll()};return
+        };generation &+= 1;discardContext();discardRepair();recall=nil;let ticket=generation,owner=coordinator
         owner.deactivate(client:sender)
         guard matches(ticket,owner,sender) else{return}
-        retainedRecovery=owner.recovery ?? retainedRecovery;current=nil;lastRect=nil
+        retainedRecovery=owner.recovery ?? retainedRecovery;contextCandidate=nil;current=nil;lastRect=nil
         hideAll() // No state writes follow a presentation callback.
     }
     public func close(){
         guard enter() else{return};defer{leave()}
-        generation &+= 1;discardRepair();recall=nil;pendingActivation=nil;coordinator.interrupt("Controller closed. No automatic text cleanup.")
-        retainedRecovery=coordinator.recovery ?? retainedRecovery;current=nil;lastRect=nil;closed=true;hideAll()
+        generation &+= 1;discardContext();discardRepair();recall=nil;pendingActivation=nil;coordinator.interrupt("Controller closed. No automatic text cleanup.")
+        retainedRecovery=coordinator.recovery ?? retainedRecovery;contextCandidate=nil;current=nil;lastRect=nil;closed=true;hideAll()
     }
-    public func invalidateRecallForShutdown(){generation &+= 1;discardRepair();recall=nil;hideAll()}
+    public func invalidateRecallForShutdown(){generation &+= 1;discardContext();discardRepair();recall=nil;contextCandidate=nil;hideAll()}
     public func cancelRecall(token:UUID){
         guard enter() else{return};defer{leave()};guard recall?.token==token else{return}
-        generation &+= 1;discardRepair();recall=nil;hideAll()
+        generation &+= 1;discardContext();discardRepair();recall=nil;hideAll()
     }
     public func reviewExpression(_ ref:ExpressionRef,token:UUID){
         guard enter() else{return};defer{leave()}
@@ -234,20 +252,104 @@ import ConstraintCore
         recall=ExpressionRecallState(query:query,rows:catalog.search(query),selected:selected,binding:state.binding,catalogEpoch:state.catalogEpoch)
         renderRecall(sender,ticket:ticket,owner:owner);return true
     }
+    private func discardContext(){contextEdit=nil;presentedContextToken=nil;coordinator.cancelContext()}
+    public func revokeContextAccess(){
+        guard enter() else{return};defer{leave()}
+        generation &+= 1;discardContext();contextCandidate=nil;hideAll()
+    }
+    public func contextMenuAction(kind:ContextEditKind)->ContextMenuAction? {
+        guard !closed,activationDepth==0,operationDepth==0,contextEdit==nil,recall==nil,repair==nil,
+              coordinator.isIdleForManagement,let candidate=contextCandidate else{return nil}
+        return ContextMenuAction(generation:generation,activation:coordinator.activation,identity:ObjectIdentifier(candidate.identity),kind:kind)
+    }
+    public func performContextMenuAction(_ action:ContextMenuAction){
+        guard enter() else{return};defer{leave()}
+        guard generation==action.generation,coordinator.activation==action.activation,coordinator.isIdleForManagement,
+              contextEdit==nil,recall==nil,repair==nil,let candidate=contextCandidate,
+              ObjectIdentifier(candidate.identity)==action.identity else{return}
+        generation &+= 1;let ticket=generation;activationDepth+=1;defer{activationDepth-=1}
+        coordinator.retire();let owner=IMKSessionCoordinator();coordinator=owner;current=nil;lastRect=nil
+        pendingActivation=(ticket,owner,candidate.identity)
+        defer{if pendingActivation?.ticket==ticket{pendingActivation=nil}}
+        hideAll();guard generation==ticket,coordinator===owner else{return}
+        let capture=owner.activateContext(candidate.bridge,kind:action.kind,makeSession:makeSession)
+        guard generation==ticket,coordinator===owner else{owner.retire();return}
+        guard let capture=capture else{retainedRecovery=owner.recovery ?? retainedRecovery;return}
+        current=candidate.identity;contextEdit=ContextEditState(capture:capture)
+        renderContext(candidate.identity,ticket:ticket,owner:owner)
+    }
+    public func cancelContext(token:UUID){
+        guard enter() else{return};defer{leave()};guard contextEdit?.token==token else{return}
+        generation &+= 1;discardContext();hideAll()
+    }
+    public func reviewContext(token:UUID){
+        guard enter() else{return};defer{leave()}
+        guard let sender=current,let state=contextEdit,state.token==token,!state.reviewed else{return}
+        generation &+= 1;let ticket=generation,owner=coordinator;presentedContextToken=nil
+        guard let text=state.replacement else{
+            contextEdit=ContextEditState(capture:state.capture,draft:state.draft,caret:state.caret,notice:"Enter one explicit U+ scalar identifier. No guessing or character discovery.")
+            renderContext(sender,ticket:ticket,owner:owner);return
+        }
+        let valid=owner.validateContextReview(state.capture.token,text:text,client:sender)
+        guard matches(ticket,owner,sender),contextEdit?.token==token else{return}
+        guard owner.isContextReview else{discardContext();hideAll();return}
+        contextEdit=ContextEditState(capture:state.capture,draft:state.draft,caret:state.caret,reviewed:valid,notice:owner.notice)
+        renderContext(sender,ticket:ticket,owner:owner)
+    }
+    public func applyContext(token:UUID){
+        guard enter() else{return};defer{leave()}
+        guard let sender=current,let state=contextEdit,state.token==token,state.reviewed,state.capture.canReplace,
+              presentedContextToken==token,let text=state.replacement else{return}
+        // Consume the only presentation capability BEFORE any host callback.
+        generation &+= 1;let ticket=generation,owner=coordinator;contextEdit=nil;presentedContextToken=nil
+        _=owner.applyContextEdit(state.capture.token,text:text,client:sender)
+        guard matches(ticket,owner,sender) else{return}
+        owner.cancelContext();retainedRecovery=owner.recovery ?? retainedRecovery;hideAll()
+    }
+    private func handleContext(_ event:NSEvent,client sender:AnyObject,ticket:UInt64,owner:IMKSessionCoordinator)->Bool {
+        guard let state=contextEdit,owner.isContextReview,owner.session?.idleExpressionBinding==state.capture.binding else{
+            if matches(ticket,owner,sender){discardContext();hideAll()};return true
+        }
+        if event.keyCode==53{discardContext();suppressRepeatedRepairEscape=true;hideAll();return true}
+        if !event.modifierFlags.intersection([.command,.option,.control]).isEmpty {
+            discardContext();hideAll();return matches(ticket,owner,sender) ? false:true
+        }
+        if event.keyCode==36 || event.keyCode==76 {
+            if !event.isARepeat {if state.reviewed{applyContext(token:state.token)}else{reviewContext(token:state.token)}}
+            return true
+        }
+        if state.reviewed,(event.keyCode==116 || event.keyCode==121){scrollContext(event.keyCode==116 ? -1:1,state.token);return true}
+        let editable=state.reviewed ? ContextEditState(capture:state.capture,draft:state.draft,caret:state.caret):state
+        if let next=editable.editing(code:event.keyCode,text:event.characters ?? "") {
+            contextEdit=next;presentedContextToken=nil;renderContext(sender,ticket:ticket,owner:owner)
+        }else if !(event.characters ?? "").isEmpty || event.keyCode==48 {
+            contextEdit=ContextEditState(capture:state.capture,draft:state.draft,caret:state.caret,notice:"Unsupported draft key. Original and draft unchanged; Cancel to return to the host.")
+            presentedContextToken=nil;renderContext(sender,ticket:ticket,owner:owner)
+        }
+        return true
+    }
+    private func renderContext(_ sender:AnyObject,ticket:UInt64,owner:IMKSessionCoordinator){
+        guard matches(ticket,owner,sender),let state=contextEdit,owner.isContextReview,
+              owner.session?.idleExpressionBinding==state.capture.binding else{return}
+        // No selectedRange/length/context/geometry callbacks on draft keys or paint.
+        let shown=presentContext(state,state.capture.rect)
+        guard matches(ticket,owner,sender),contextEdit?.token==state.token else{return}
+        guard shown else{discardContext();hideAll();return};presentedContextToken=state.token
+    }
     private func hideAll(){repairPresentationVisible=false;hide()}
     private func discardRepair(){
         if repair != nil{coordinator.session?.invalidateRepairActions()}
         repair?.proposal?.cancel();repair=nil;presentedRepairToken=nil
     }
     public func retainedMenuAction(arm:Bool)->RetainedMenuAction? {
-        guard current != nil,!closed,!literal(),recall==nil,repair==nil,let session=coordinator.session,let snapshot=session.snapshot else{return nil}
+        guard current != nil,!closed,!literal(),contextEdit==nil,!coordinator.isContextReview,recall==nil,repair==nil,let session=coordinator.session,let snapshot=session.snapshot else{return nil}
         if arm {guard session.canRetainForRepair,!session.isRetainedComposition,session.idleExpressionBinding != nil else{return nil}}
         else{guard session.supportsRepair,!snapshot.rawASCII.isEmpty else{return nil}}
         return RetainedMenuAction(driverGeneration:generation,activation:coordinator.activation,session:session.key,inputGeneration:snapshot.inputGeneration,arm:arm)
     }
     public func performRetainedMenuAction(_ action:RetainedMenuAction){
         guard enter() else{return};defer{leave()}
-        guard let sender=current,recall==nil,repair==nil,generation==action.driverGeneration,coordinator.activation==action.activation,
+        guard let sender=current,contextEdit==nil,!coordinator.isContextReview,recall==nil,repair==nil,generation==action.driverGeneration,coordinator.activation==action.activation,
               let session=coordinator.session,session.key==action.session,session.snapshot?.inputGeneration==action.inputGeneration else{return}
         generation &+= 1;let ticket=generation,owner=coordinator
         if action.arm {guard let binding=session.idleExpressionBinding else{return};_=owner.beginRetained(binding:binding,client:sender)}

@@ -3,6 +3,7 @@ import AppKit
 import EngineBridge
 import SessionCore
 import ConstraintCore
+import TextBoundary
 
 // A restricted, uninstalled C0 integration lane. Nonempty/unknown initial selections
 // and foreign marks are not adopted. No surrounding context or document scan is used.
@@ -11,11 +12,24 @@ import ConstraintCore
     public private(set) var insertCount=0
     public private(set) var notice:String?
     public enum Outcome:Equatable {case inactive,ready,refused,ownershipLost,outcomeUnknown}
-    public struct Recovery {public let raw:String,preedit:String,issuedText:String?}
+    public struct Recovery {
+        public let raw:String,preedit:String,issuedText:String?
+        public var hasContent:Bool {!raw.isEmpty || !preedit.isEmpty || issuedText != nil}
+        public var inspectionText:String {
+            var sections:[String]=[]
+            if !raw.isEmpty{sections.append("Retained spelling\n"+raw)}
+            if !preedit.isEmpty{sections.append("Original composition or selected text\n"+preedit)}
+            if let issuedText=issuedText{sections.append("Issued text (outcome may be unknown)\n"+(issuedText.isEmpty ? "[Empty replacement: deletion]":issuedText))}
+            else{sections.append("No text insertion was issued by this operation.")}
+            return sections.joined(separator:"\n\n")
+        }
+    }
     public private(set) var outcome:Outcome = .inactive
     public private(set) var recovery:Recovery?
     public private(set) var activation:UInt64=0
     private var client:IMKClientAccess?
+    private var contextOnly=false,capturedContext:ContextCapture?
+    public var isContextReview:Bool {contextOnly}
     private var expectedSelection=NSRange(location:NSNotFound,length:0)
     private var expectedMark=NSRange(location:NSNotFound,length:0)
     private var ownedText:String?
@@ -27,13 +41,13 @@ import ConstraintCore
     public var snapshot:CandidateSnapshot? {session?.snapshot}
     // No host callbacks: process-wide management can inspect this without reentry.
     public var isIdleForManagement:Bool {
-        !executing && ownedText==nil && (snapshot == nil || (snapshot?.rawASCII.isEmpty==true && snapshot?.preedit.isEmpty==true)) &&
+        !executing && !contextOnly && ownedText==nil && (snapshot == nil || (snapshot?.rawASCII.isEmpty==true && snapshot?.preedit.isEmpty==true)) &&
         (outcome == .ready || outcome == .inactive)
     }
     public var identity:AnyObject? {client?.callbackIdentity}
     private func same(_ other:AnyObject)->Bool {client?.callbackIdentity === other}
     public func retire() {
-        activation &+= 1;terminalRetiredFrom=nil;session?.end();session=nil;client=nil;ownedText=nil
+        activation &+= 1;terminalRetiredFrom=nil;contextOnly=false;capturedContext=nil;session?.end();session=nil;client=nil;ownedText=nil
         expectedSelection=NSRange(location:NSNotFound,length:0);expectedMark=expectedSelection
         operationRaw="";operationPreedit="";issuedText=nil;hostWriteIssued=false
     }
@@ -63,6 +77,90 @@ import ConstraintCore
         } catch {prepared.end();return false}
         client=next;session=prepared;expectedSelection=selection;expectedMark=mark;outcome = .ready;return true
     }
+    // Qualified C2/C3 actions are isolated from C0 even though they reserve effects
+    // through the same InputSession and this same host dispatcher.
+    private func observeContext(_ ticket:UInt64,_ owner:IMKClientAccess,_ active:InputSession,
+                                selection:NSRange,request:NSRange?=nil)->(ContextEvidence,ContextAuthority)? {
+        guard stillOwned(ticket,owner,active),let authority=owner.contextAuthority(),stillOwned(ticket,owner,active),
+              authority.canRead,authority.cheapReliableLength else{return nil}
+        let beforeSelection=owner.selectedRange();guard stillOwned(ticket,owner,active),beforeSelection==selection else{return nil}
+        let beforeMark=owner.markedRange();guard stillOwned(ticket,owner,active),beforeMark.length==0 else{return nil}
+        // Metadata callbacks can revoke permission or change revision. Recheck
+        // immediately before every length and text read, not only at the end.
+        func authorityUnchanged()->Bool {let current=owner.contextAuthority();return stillOwned(ticket,owner,active) && current==authority}
+        guard authorityUnchanged(),let length=owner.contextualLength(),stillOwned(ticket,owner,active),
+              let requested=request ?? (try? ContextBudget.request(selection:selection,length:length)),authorityUnchanged() else{return nil}
+        guard let first=owner.boundedText(in:requested),stillOwned(ticket,owner,active) else{return nil}
+        let midSelection=owner.selectedRange();guard stillOwned(ticket,owner,active),midSelection==selection else{return nil}
+        let midMark=owner.markedRange();guard stillOwned(ticket,owner,active),midMark.length==0 else{return nil}
+        guard authorityUnchanged() else{return nil}
+        let midLength=owner.contextualLength();guard stillOwned(ticket,owner,active),midLength==length else{return nil}
+        let midAuthority=owner.contextAuthority();guard stillOwned(ticket,owner,active),midAuthority==authority else{return nil}
+        guard let second=owner.boundedText(in:requested),stillOwned(ticket,owner,active),first.exactlyMatches(second) else{return nil}
+        let afterSelection=owner.selectedRange();guard stillOwned(ticket,owner,active),afterSelection==selection else{return nil}
+        let afterMark=owner.markedRange();guard stillOwned(ticket,owner,active),afterMark.length==0 else{return nil}
+        guard authorityUnchanged() else{return nil}
+        let afterLength=owner.contextualLength();guard stillOwned(ticket,owner,active),afterLength==length else{return nil}
+        let afterAuthority=owner.contextAuthority();guard stillOwned(ticket,owner,active),afterAuthority==authority,
+              let evidence=try? ContextEvidence(read:first,selection:selection,documentLength:length) else{return nil}
+        return (evidence,authority)
+    }
+    public func activateContext(_ next:IMKClientAccess,kind:ContextEditKind,makeSession:()->InputSession?)->ContextCapture? {
+        guard !executing else{fail("Context capture reentered another operation.");return nil}
+        executing=true;defer{executing=false};retire();outcome = .inactive;notice=nil
+        let ticket=activation,offered=next.offersContext
+        guard activation==ticket,offered else{return nil}
+        let selection=next.selectedRange();guard activation==ticket,ContextBudget.end(selection) != nil,
+              selection.length<=ContextBudget.selection,(kind == .knownCharacter ? selection.length==0:selection.length>0) else{return nil}
+        let mark=next.markedRange();guard activation==ticket,mark.length==0 else{return nil}
+        guard let prepared=makeSession() else{return nil}
+        guard activation==ticket else{prepared.end();return nil}
+        do {
+            let initial=try prepared.refresh()
+            guard initial.commit==nil,let binding=prepared.idleExpressionBinding,activation==ticket else{prepared.end();return nil}
+            client=next;session=prepared;expectedSelection=selection;expectedMark=mark;contextOnly=true
+            guard let (evidence,authority)=observeContext(ticket,next,prepared,selection:selection) else{
+                if stillOwned(ticket,next,prepared){fail("Bounded context or its Unicode/permission evidence is unavailable.")};return nil
+            }
+            let rect=next.lineRect(at:0)
+            guard stillOwned(ticket,next,prepared),let rect=rect,
+                  let (again,afterAuthority)=observeContext(ticket,next,prepared,selection:selection),
+                  evidence.exactlyMatches(again),authority==afterAuthority else{
+                if stillOwned(ticket,next,prepared){fail("Client changed while capturing the explicit context.")};return nil
+            }
+            let capture=ContextCapture(token:UUID(),original:evidence.original,selection:selection,kind:kind,
+                canReplace:authority.canReplace,binding:binding,authority:authority,evidence:evidence,rect:rect)
+            capturedContext=capture;outcome = .ready;return capture
+        }catch{prepared.end();if activation==ticket{retire()};return nil}
+    }
+    public func validateContextReview(_ token:UUID,text:String,client sender:AnyObject)->Bool {
+        guard !executing,contextOnly,same(sender),let capture=capturedContext,capture.token==token,
+              let owner=client,let active=session,active.idleExpressionBinding==capture.binding else{return false}
+        executing=true;defer{executing=false};let ticket=activation;beginOperation(active);operationPreedit=capture.original
+        guard let (observed,authority)=observeContext(ticket,owner,active,selection:capture.selection),
+              observed.exactlyMatches(capture.evidence),authority==capture.authority else{
+            if stillOwned(ticket,owner,active){fail("Selected text or context permission changed. Review discarded.")};return false
+        }
+        guard (try? capture.evidence.replacing(with:text)) != nil else{
+            notice="The proposed text exceeds the bound or joins a neighboring grapheme. Nothing changed.";return false
+        }
+        notice=nil;return true
+    }
+    public func applyContextEdit(_ token:UUID,text:String,client sender:AnyObject)->Bool {
+        if executing{fail("Reentrant reviewed edit refused.");return false}
+        guard contextOnly,same(sender),let capture=capturedContext,capture.token==token,capture.canReplace,
+              let owner=client,let active=session,active.idleExpressionBinding==capture.binding,
+              let replacement=try? capture.evidence.replacing(with:text) else{return false}
+        executing=true;defer{executing=false};let ticket=activation;beginOperation(active);operationPreedit=capture.original
+        do {
+            let update=try active.commitReviewedEdit(text,replacing:capture.selection,binding:capture.binding)
+            guard apply(update,ticket:ticket,owner:owner,active:active,reviewed:replacement) else{
+                if stillOwned(ticket,owner,active){fail("Reviewed edit is unconfirmed. Check the document; no automatic retry or undo.")};return false
+            }
+            notice=nil;outcome = .ready;retire();return true
+        }catch{if stillOwned(ticket,owner,active){fail("Reviewed edit refused. No text replay.")};return false}
+    }
+    public func cancelContext(){if contextOnly{if executing{fail("Context cancelled during a client operation.")}else{retire();outcome = .ready}}}
     private func stillOwned(_ ticket:UInt64,_ owner:IMKClientAccess,_ active:InputSession)->Bool {
         activation==ticket && client === owner && session === active
     }
@@ -86,23 +184,25 @@ import ConstraintCore
         let finalSelection=owner.selectedRange();return stillOwned(ticket,owner,active) && finalSelection==selection
     }
     public func hasCurrentTarget(_ sender:AnyObject)->Bool {
-        guard !executing,same(sender),let owner=client,let active=session else{return false}
+        guard !executing,!contextOnly,same(sender),let owner=client,let active=session else{return false}
         executing=true;defer{executing=false};beginOperation(active)
         let ticket=activation
         guard verify(ticket,owner,active) else{if stillOwned(ticket,owner,active){fail("Client ownership changed.")};return false}
         return true
     }
     public func candidateRect(_ sender:AnyObject)->NSRect? {
-        guard !executing,same(sender),let owner=client,let active=session else{return nil}
+        guard !executing,!contextOnly,same(sender),let owner=client,let active=session else{return nil}
         executing=true;defer{executing=false};beginOperation(active)
         let ticket=activation
         guard verify(ticket,owner,active) else{if stillOwned(ticket,owner,active){fail("Client changed before candidate positioning.")};return nil}
-        let rect=owner.lineRect(at:expectedSelection.location)
+        // Public IMK attributes index is inline-relative; idle uses zero.
+        let inlineIndex=ownedText==nil ? 0:expectedSelection.location-expectedMark.location
+        let rect=owner.lineRect(at:inlineIndex)
         guard stillOwned(ticket,owner,active),verify(ticket,owner,active) else{if stillOwned(ticket,owner,active){fail("Client changed during candidate positioning.")};return nil}
         return rect
     }
     private func fail(_ text:String){
-        notice=text;outcome = hostWriteIssued ? .outcomeUnknown:.ownershipLost
+        notice=text;outcome = (hostWriteIssued || outcome == .outcomeUnknown) ? .outcomeUnknown:.ownershipLost
         if !operationRaw.isEmpty || !operationPreedit.isEmpty || issuedText != nil {
             recovery=Recovery(raw:operationRaw,preedit:operationPreedit,issuedText:issuedText)
         }
@@ -115,9 +215,23 @@ import ConstraintCore
         if let raw=update.snapshot?.rawASCII,!raw.isEmpty{operationRaw=raw}
         if let preedit=update.snapshot?.preedit,!preedit.isEmpty{operationPreedit=preedit}
     }
-    private func apply(_ update:SessionUpdate,ticket:UInt64,owner:IMKClientAccess,active:InputSession)->Bool {
-        guard verify(ticket,owner,active),let value=update.snapshot,value.session==active.key,
+    private func apply(_ update:SessionUpdate,ticket:UInt64,owner:IMKClientAccess,active:InputSession,reviewed:ContextReplacement?=nil)->Bool {
+        guard let value=update.snapshot,value.session==active.key,
               active.snapshot?.inputGeneration==value.inputGeneration else{return false}
+        if let replacement=reviewed {
+            guard contextOnly,let capture=capturedContext,let effect=update.commit,effect.origin == .reviewedEdit,
+                  effect.replacementUTF16==capture.selection,effect.text.utf8.elementsEqual(replacement.text.utf8),
+                  let (observed,authority)=observeContext(ticket,owner,active,selection:capture.selection),
+                  observed.exactlyMatches(capture.evidence),authority==capture.authority,authority.canReplace,
+                  active.reserve(effect) else{return false}
+            issuedText=effect.text;hostWriteIssued=true;owner.insert(effect.text,replacing:capture.selection);insertCount+=1
+            guard stillOwned(ticket,owner,active),
+                  let (after,afterAuthority)=observeContext(ticket,owner,active,selection:replacement.caret,request:replacement.expected.requested),
+                  afterAuthority.permissionEpoch==authority.permissionEpoch,afterAuthority.canReplace,
+                  after.documentLength==replacement.documentLength,after.read.exactlyMatches(replacement.expected) else{return false}
+            expectedSelection=replacement.caret;expectedMark=NSRange(location:NSNotFound,length:0);ownedText=nil;return true
+        }
+        guard !contextOnly,verify(ticket,owner,active),update.commit?.replacementUTF16==nil else{return false}
         if let effect=update.commit {
             let start=ownedText==nil ? expectedSelection.location:expectedMark.location,length=effect.text.utf16.count
             guard length<=16384,start>=0,start != NSNotFound,length<=Int.max-start,active.reserve(effect) else{return false}
@@ -163,7 +277,7 @@ import ConstraintCore
     }
     @discardableResult public func process(_ key:InputKey,client sender:AnyObject)->Bool {
         if executing{fail("Reentrant client operation refused. No text was replayed.");return true}
-        guard same(sender),let owner=client,let active=session else{return false}
+        guard !contextOnly,same(sender),let owner=client,let active=session else{return false}
         executing=true;defer{executing=false};let ticket=activation
         beginOperation(active)
         guard verify(ticket,owner,active) else{if stillOwned(ticket,owner,active){fail("Client changed. No text was replayed or cleared.")};return true}
@@ -195,7 +309,7 @@ import ConstraintCore
     }
     @discardableResult public func choose(_ ref:CandidateRef,client sender:AnyObject)->Bool {
         if executing{fail("Reentrant candidate operation refused.");return false}
-        guard same(sender),let owner=client,let active=session else{return false}
+        guard !contextOnly,same(sender),let owner=client,let active=session else{return false}
         executing=true;defer{executing=false};let ticket=activation
         beginOperation(active)
         guard verify(ticket,owner,active) else{fail("Client changed. Candidate discarded.");return false}
@@ -212,7 +326,7 @@ import ConstraintCore
     }
     private func observeRepair<T>(client sender:AnyObject,_ action:(InputSession)throws->T)->T? {
         if executing{fail("Reentrant repair operation refused.");return nil}
-        guard same(sender),let owner=client,let active=session else{return nil}
+        guard !contextOnly,same(sender),let owner=client,let active=session else{return nil}
         executing=true;defer{executing=false};let ticket=activation;beginOperation(active)
         guard verify(ticket,owner,active) else{if stillOwned(ticket,owner,active){fail("Repair target changed.")};return nil}
         do {
@@ -235,7 +349,7 @@ import ConstraintCore
     }
     @discardableResult public func beginRetained(binding:ExpressionBinding,client sender:AnyObject)->Bool {
         if executing{fail("Reentrant retained-session activation refused.");return false}
-        guard same(sender),let owner=client,let active=session,active.canRetainForRepair,
+        guard !contextOnly,same(sender),let owner=client,let active=session,active.canRetainForRepair,
               !active.isRetainedComposition,active.idleExpressionBinding==binding else{return false}
         executing=true;defer{executing=false};let ticket=activation;beginOperation(active)
         guard verify(ticket,owner,active) else{if stillOwned(ticket,owner,active){fail("Retained-session target changed.")};return false}
@@ -249,7 +363,7 @@ import ConstraintCore
     }
     @discardableResult public func applyRepair(_ proposal:RepairProposal,client sender:AnyObject)->Bool {
         if executing{fail("Reentrant repair application refused.");return false}
-        guard same(sender),let owner=client,let active=session,active.supportsRepair else{return false}
+        guard !contextOnly,same(sender),let owner=client,let active=session,active.supportsRepair else{return false}
         executing=true;defer{executing=false};let ticket=activation;beginOperation(active)
         guard verify(ticket,owner,active) else{if stillOwned(ticket,owner,active){fail("Repair review target changed.")};return false}
         do {
@@ -264,7 +378,7 @@ import ConstraintCore
     }
     @discardableResult public func commitRetained(client sender:AnyObject)->Bool {
         if executing{fail("Reentrant Chinese commit refused.");return false}
-        guard same(sender),let owner=client,let active=session,active.supportsRepair else{return false}
+        guard !contextOnly,same(sender),let owner=client,let active=session,active.supportsRepair else{return false}
         executing=true;defer{executing=false};let ticket=activation;beginOperation(active)
         guard verify(ticket,owner,active) else{if stillOwned(ticket,owner,active){fail("Chinese commit target changed.")};return false}
         guard let anchors=try? active.repairAnchors(),!anchors.rows.isEmpty else{
@@ -282,7 +396,7 @@ import ConstraintCore
     // Explicit idle insertion shares apply/reserve, finite range and unknown-outcome policy.
     @discardableResult public func insertExpression(_ text:String,binding:ExpressionBinding,client sender:AnyObject)->Bool {
         if executing{fail("Reentrant expression insertion refused.");return false}
-        guard same(sender),let owner=client,let active=session,active.idleExpressionBinding==binding else{return false}
+        guard !contextOnly,same(sender),let owner=client,let active=session,active.idleExpressionBinding==binding else{return false}
         executing=true;defer{executing=false};let ticket=activation;beginOperation(active)
         guard verify(ticket,owner,active) else{if stillOwned(ticket,owner,active){fail("Expression target changed. Nothing replayed.")};return false}
         do {
@@ -298,6 +412,7 @@ import ConstraintCore
     @discardableResult public func finish(client sender:AnyObject)->Bool {
         guard same(sender) else{return false}
         if executing{fail("Lifecycle changed during a client operation.");return false}
+        if contextOnly{cancelContext();return true}
         let ticket=activation
         _=process(.returnKey,client:sender)
         if terminalRetiredFrom==ticket,activation==ticket &+ 1,session==nil,outcome == .ready{return true}
@@ -310,7 +425,7 @@ import ConstraintCore
         if activation==ticket,same(sender){retire()}
     }
     @discardableResult public func releaseIdle(client sender:AnyObject)->Bool {
-        guard !executing,same(sender),let owner=client,let active=session,
+        guard !executing,!contextOnly,same(sender),let owner=client,let active=session,
               active.snapshot?.rawASCII.isEmpty==true,active.snapshot?.preedit.isEmpty==true else{return false}
         executing=true;defer{executing=false};let ticket=activation;beginOperation(active)
         guard verify(ticket,owner,active) else{if stillOwned(ticket,owner,active){fail("Client changed before idle passthrough.")};return false}
