@@ -39,6 +39,14 @@ class Tests(unittest.TestCase):
             self.assertEqual(result,text.replace('traditionalization','paia_authored_disabled_conversion'))
         for text in ['', 'option_name: other', 'option_name: traditionalization\noption_name: traditionalization']:
             with self.assertRaises(RuntimeError):module.disable_conversion_for_negative(text)
+    def testCPUCompanionMustMatchWholeDiagnosticPrefix(self):
+        cpu=self.root/'cpu.bin';timings=self.root/'timings.bin'
+        timings.write_bytes(struct.pack('<QQQQ',1,100,20,10)*44534);cpu.write_bytes(struct.pack('<Q',50)*44534)
+        result=module.summarize_cpu(cpu,timings);self.assertEqual(result['samples'],44534);self.assertEqual(result['originalTailPosition']['processCPUBracketNanoseconds'],50)
+        cpu.write_bytes(cpu.read_bytes()[:-1])
+        with self.assertRaises(RuntimeError):module.summarize_cpu(cpu,timings)
+        cpu.write_bytes(struct.pack('<Q',50));timings.write_bytes(struct.pack('<QQQQ',1,100,20,10))
+        with self.assertRaises(RuntimeError):module.summarize_cpu(cpu,timings)
     def testFullGateCannotBeReplacedByCalibration(self):
-        self.assertEqual(module.MINIMUM,1_000_000);self.assertEqual(module.CALIBRATION,10_000)
+        self.assertEqual(module.MINIMUM,1_000_000);self.assertEqual(module.CALIBRATION,10_000);self.assertEqual(module.TAIL_DIAGNOSTIC,50_000)
 if __name__=='__main__':unittest.main()

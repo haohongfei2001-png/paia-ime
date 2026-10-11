@@ -197,3 +197,24 @@ idempotent close. The research host lane likewise counts its private owner.
 The correction's exact-head native tests are pending at this revision. No claim
 of M1/visible latency, all-mode startup tails, total startup budget, installed use,
 eight-hour reliability or release readiness follows from moving initialization.
+
+### Retained long-input tail and bounded CPU follow-up
+
+The first native production-initialization run proved warm traditional reactivation
+and complete failure cleanup, but its full million retained one 278.061 ms owner /
+278.019 ms native tail on Full/punctuation's long-input final key. It is unrelated
+to the formerly cold first traditional key. Same-source/schedule older runs and
+345 equivalent keys per run do not reproduce that cost, but they lack per-key CPU
+and cannot establish a scheduler or algorithm cause. Full metrics, idle-memory
+cost and all initialization costs are recorded in the validation history.
+
+`tail-diagnostic` is a separate instrumented 50,000-operation minimum prefix using
+the unchanged deterministic schedule and the same run's immutable compiled pack.
+It finishes its last episode, covers original record 44533, and retains all
+32-byte wall records plus one UInt64 little-endian process-CPU bracket per record.
+CPU brackets surround owner calls and include measurement overhead and other
+process threads. They are not native-thread CPU. Buffers remain bounded; summary
+analysis occurs after exit. The ordinary million process never makes these extra
+per-operation CPU calls. The new diagnostic's timing and RSS have a different
+instrumentation boundary and are not substituted for the million result. Lack of
+reproduction leaves the prior tail unexplained; G02 is still open.

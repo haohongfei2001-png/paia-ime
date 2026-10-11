@@ -109,3 +109,59 @@ compiled-copy negative must fail after seven real C keys, clean the owner and
 reject runtime retry. Public/restored-personal product tests additionally check
 authority bytes, reactivation and close. Python verifier now passes 6 tests
 locally. Swift/AppKit/native correction execution and final/main remain pending.
+
+## Production initialization path: native result and another retained tail
+
+Head `5275e9d97c55f652de8d7fc18aabb30379687d53`, B1 run
+[38102452331](https://github.com/haohongfei2001-png/paia-ime/actions/runs/38102452331),
+job 114361012022 passed. Original 73-file artifact SHA256:
+`6c81d82eb9aa37a80b7e56f9a04fc2b81617576e912d3852e2a29556bd60980c`.
+Independent review verified every extracted byte and all million records.
+
+Within this run's identical compiled pack, unprimed four-phase owner times were
+95.724 / 0.062 / 0.065 / 105.304 ms. Production-initialized times were
+0.190 / 0.067 / 0.125 / 0.238 ms, including reactivation after zero host owners.
+The expected partial-initialization failure crossed seven successful C keys and
+seven snapshots, with zero C failures/selection/clear, one created/destroyed owner,
+and rejected same-process retry without counter changes. No learning/userdb or
+resource modification was found. The actual bounded host again passed 32/128.
+
+All 1,000,017 native operation records, 911,616 keys, 33,150 selections, 55,251
+clears, 88,397 once-only commits, 4,995,763 assertions and 11,117 created/destroyed
+native owners reconcile. The private owner's seven startup keys are outside the
+million denominator and inside the actual cumulative counters. Timing binary
+SHA256 is `bee5208139fa1aa3604c314dbb4a222e91d02d4bd5987696167e951477f4e50e`.
+Key native/owner p99 were 0.608/0.643 ms, but owner maximum was **278.061 ms**.
+This is retained, not treated as a pass against a per-key latency budget.
+
+The maximum is zero-based record 44533, episode 3937, Full/Simplified
+with Chinese punctuation (`paia_b1_full_punct`), fourth `shurufa`'s final `a`.
+Native action was 278.019 ms, copy 0.022 ms. All-operation owner counts above
+2/16.7/33/100 ms were 135/1/1/1. The next largest was 6.638 ms. Independent schedule
+reconstruction found the same location at 0.092/0.110 ms in the earlier two
+million runs; each run has 345 matching schema/scenario/final-key observations,
+whose earlier maxima were 0.495/0.254 ms and managed maximum excluding this
+preserved point was 0.527 ms. These cross-run controls share pinned source,
+dictionary table/OpenCC and schedule, but independently compiled schema/prism
+hashes differ, so they are not called byte-identical compiled-pack comparisons.
+Without per-key CPU, this single tail cannot be assigned to either scheduler
+noise or an algorithm regression.
+
+All managed initialization receipts span 82.881–127.393 ms, including calibration;
+three default startup open-to-first-snapshot observations are 85.871–109.567 ms.
+These time the research runtime, not candidate resource checks/helper setup or a
+whole installed service. Idle RSS with the retained owner is 29.64–34.19 MiB,
+versus approximately 8 MiB in the earlier unprimed startup observations: there is
+a real idle-memory tradeoff. Million steady RSS was 36.02–37.48 MiB, peak 37.52 MiB;
+this is not a cross-machine memory-improvement claim. Replay wall/CPU were
+105.197/102.219 seconds including harness work.
+
+A separate fixed first-50k diagnostic is now added using the same seed/schedule,
+managed initializer and immutable pack. Each operation retains the original wall
+record plus a process-CPU bracket in a separate binary. It covers the original
+position with its prefix and repeated same-scenario observations. Process CPU
+includes measurement overhead and other threads, not native-thread CPU. No CPU
+calls are added inside the million process's per-operation path. The diagnostic
+cannot substitute for the million, remove the 278 ms point or qualify G02 if the
+point does not recur. Python verifier 7/7 passes; new native execution, candidate
+product lanes and final/main remain pending at this revision.

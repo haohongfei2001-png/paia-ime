@@ -19,7 +19,7 @@ func signature(_ value:CandidateSnapshot?)->[String] {
 }
 let variables=ProcessInfo.processInfo.environment
 let args=Array(CommandLine.arguments.dropFirst())
-guard args.count==4,["prepare","startup","initialization","managed-initialization","initialization-failure","calibrate","endurance"].contains(args[0]),variables["PAIA_B1_RESEARCH"]=="1",
+guard args.count==4,["prepare","startup","initialization","managed-initialization","initialization-failure","calibrate","endurance","tail-diagnostic"].contains(args[0]),variables["PAIA_B1_RESEARCH"]=="1",
       let library=variables["PAIA_RIME_LIBRARY"],let revision=variables["PAIA_B1_REVISION"] else {
     FileHandle.standardError.write(Data("Explicit verified B1 research environment and mode/shared/new-user/output required.\n".utf8));exit(2)
 }
@@ -34,13 +34,15 @@ var report:[String:Any]=["complete":false,"evidence":"ENGINE_NATIVE","mode":mode
     "operationSamples":0,"failures":[],"OS":ProcessInfo.processInfo.operatingSystemVersionString,
     "engine":"librime 1.16.0","clock":"shared C CLOCK_MONOTONIC for owner and nested components","generator":"xorshift64 with Fisher-Yates eight-case permutation per schema; 32-schema cycle"]
 var runtime:RimeRuntime?
-var records:FileHandle?
+var records:FileHandle?,cpuRecords:FileHandle?
+var cpuBuffer=Data()
 var buffer=Data(),samples=0,assertions=0,commits=0,diagnosticReads=0,episodes=0
 var byOperation=["key":0,"selection":0,"clear":0]
 var schemaEpisodes=[String:Int](),scenarioEpisodes=[String:Int](),rss=[[String:Any]]()
 func check(_ condition:Bool,_ message:String)throws {assertions+=1;try require(condition,message)}
 func checkpoint(_ phase:String)throws {
     if !buffer.isEmpty {try records?.write(contentsOf:buffer);buffer.removeAll(keepingCapacity:true)}
+    if !cpuBuffer.isEmpty {try cpuRecords?.write(contentsOf:cpuBuffer);cpuBuffer.removeAll(keepingCapacity:true)}
     let resident=paia_qualification_current_rss();try require(resident>0,"resident measurement unavailable")
     rss.append(["phase":phase,"samples":samples,"episodes":episodes,"residentBytes":resident,"wholeProcessPeakBytes":paia_qualification_peak_rss()])
     report["operationSamples"]=samples;report["episodes"]=episodes;report["assertions"]=assertions;report["commits"]=commits
@@ -51,6 +53,7 @@ func checkpoint(_ phase:String)throws {
     print("PAIA_NATIVE_CHECKPOINT phase=\(phase) samples=\(samples) episodes=\(episodes) residentBytes=\(resident)")
 }
 func timed(_ session:InputSession,operation:String,_ action:()throws->SessionUpdate)throws->SessionUpdate {
+    let cpuStart=mode=="tail-diagnostic" ? paia_qualification_cpu_ns():0
     let generation=session.snapshot?.inputGeneration ?? 0,begin=now()
     let update:SessionUpdate
     do{update=try action()}catch{
@@ -60,11 +63,20 @@ func timed(_ session:InputSession,operation:String,_ action:()throws->SessionUpd
         throw error
     }
     let elapsed=now()-begin,timing=session.lastTiming
+    if mode=="tail-diagnostic" {
+        let cpuEnd=paia_qualification_cpu_ns()
+        try check(cpuStart>0 && cpuEnd>=cpuStart,"process CPU diagnostic unavailable")
+        var little=(cpuEnd-cpuStart).littleEndian
+        withUnsafeBytes(of:&little){cpuBuffer.append(contentsOf:$0)}
+    }
     try check(update.snapshot?.inputGeneration==generation+1,"operation did not produce exactly one native snapshot")
     let code:UInt64=operation=="key" ? 1:operation=="selection" ? 2:3
     buffer.append(QualificationTimingRecord(operation:code,owner:elapsed,nativeAction:timing.engineNanoseconds,contextCopy:timing.copyNanoseconds).data)
     samples+=1;byOperation[operation,default:0]+=1
-    if buffer.count>=262144 {try records!.write(contentsOf:buffer);buffer.removeAll(keepingCapacity:true)}
+    if buffer.count>=262144 {
+        try records!.write(contentsOf:buffer);buffer.removeAll(keepingCapacity:true)
+        if !cpuBuffer.isEmpty{try cpuRecords!.write(contentsOf:cpuBuffer);cpuBuffer.removeAll(keepingCapacity:true)}
+    }
     return update
 }
 func input(_ key:InputKey,_ session:InputSession,operation:String="key",mayCommit:Bool=false)throws->SessionUpdate {
@@ -221,12 +233,18 @@ do {
             report["probeMeaning"]=managed ? "Same production initializer retains one private native owner across zero host owners; all initialization time/counters disclosed":"Unprimed same-data control retains original cold/warm/zero-native-owner costs; no latency threshold inferred"
             try require(owner.close() && owner.close(),"initialization diagnostic close failed");try check(owner.diagnostics.liveSessions==0 && owner.diagnostics.sessionsCreated==owner.diagnostics.sessionsDestroyed,"private owner close unbalanced");report["complete"]=true;try checkpoint("initialization-diagnostic-closed")
         } else {
-            let minimum=mode=="calibrate" ? QualificationSchedule.calibrationEvents:QualificationSchedule.minimumEvents
+            let minimum=mode=="calibrate" ? QualificationSchedule.calibrationEvents:mode=="tail-diagnostic" ? 50_000:QualificationSchedule.minimumEvents
             report["requestedMinimumNativeInputOperations"]=minimum
             report["timingRecordBytes"]=QualificationTimingRecord.bytes
             report["timingColumns"]=["operation: 1 key, 2 selection, 3 clear","owner nanoseconds: InputSession call including Swift decoding and snapshot free","native action nanoseconds: select includes current-page validation","C context/commit acquisition, malloc-copy and upstream free nanoseconds; excludes Swift decoding and shim snapshot free"]
             let timingFile=output.appendingPathComponent("timings.bin")
             try Data().write(to:timingFile,options:.withoutOverwriting);records=try FileHandle(forWritingTo:timingFile);buffer.reserveCapacity(262144)
+            if mode=="tail-diagnostic" {
+                let cpuFile=output.appendingPathComponent("process-cpu-brackets.bin")
+                try Data().write(to:cpuFile,options:.withoutOverwriting);cpuRecords=try FileHandle(forWritingTo:cpuFile);cpuBuffer.reserveCapacity(65536)
+                report["processCPUDiagnostic"]="Separate fixed 50k schedule prefix; UInt64 LE process CPU bracket per native operation, including measurement overhead and other process threads; not native-thread CPU. Million process has no per-key CPU calls. No latency acceptance inferred."
+                report["originalTailRecordZeroBased"]=44533
+            }
             let before=try autoreleasepool{try diagnostics(owner,schemas:schemas)}
             try writeJSON(before,output.appendingPathComponent("diagnostics-before.json"))
             // Two host sessions plus the actual private initialization owner. The sentinel crosses native
@@ -340,7 +358,7 @@ do {
             let final=owner.diagnostics
             try check(final.liveSessions==0 && final.sessionsCreated==final.sessionsDestroyed,"unbalanced native session lifecycle")
             report["complete"]=true;try checkpoint("closed")
-            try records?.close();records=nil
+            try records?.close();records=nil;try cpuRecords?.close();cpuRecords=nil
         }
     }
     print("PAIA_NATIVE_QUALIFICATION mode=\(mode) complete=true samples=\(samples) episodes=\(episodes)")
@@ -348,6 +366,6 @@ do {
     report["complete"]=false;report["failures"]=[String(describing:error)]
     if let runtime=runtime {_=runtime.close()}
     do{try checkpoint("failed")}catch{FileHandle.standardError.write(Data("Could not preserve final checkpoint.\n".utf8))}
-    try? records?.close()
+    try? records?.close();try? cpuRecords?.close()
     FileHandle.standardError.write(Data("PAIA_NATIVE_QUALIFICATION failed; complete=false preserved when writable.\n".utf8));exit(1)
 }

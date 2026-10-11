@@ -10,7 +10,8 @@ ROOT=Path(__file__).resolve().parents[1]
 OUT=ROOT/'evidence/b1-run/qualification'
 MINIMUM=1_000_000
 CALIBRATION=10_000
-TIMEOUTS={'prepare':240,'startup':30,'initialization':30,'managed-initialization':30,'initialization-failure':30,'calibrate':120,'endurance':1200,'host':120}
+TAIL_DIAGNOSTIC=50_000
+TIMEOUTS={'prepare':240,'startup':30,'initialization':30,'managed-initialization':30,'initialization-failure':30,'calibrate':120,'endurance':1200,'tail-diagnostic':120,'host':120}
 SCHEMA_COUNT=32
 
 def sha(data):return hashlib.sha256(data).hexdigest()
@@ -59,6 +60,19 @@ def summarize(path,report):
     write(path.with_name('timing-summary.json'),result)
     return result
 
+def summarize_cpu(cpu_path,timing_path):
+    data=cpu_path.read_bytes();timing_data=timing_path.read_bytes()
+    if len(data)%8 or len(timing_data)%32 or len(data)//8!=len(timing_data)//32:raise RuntimeError('CPU diagnostic records do not match timing records')
+    cpu=[x[0] for x in struct.iter_unpack('<Q',data)];timings=list(struct.iter_unpack('<QQQQ',timing_data))
+    if len(timings)<=44533:raise RuntimeError('CPU diagnostic did not reach original tail position')
+    def row(index):
+        kind,owner,action,copy=timings[index]
+        return {'record':index,'operation':kind,'ownerNanoseconds':owner,'nativeActionNanoseconds':action,'contextCopyNanoseconds':copy,'processCPUBracketNanoseconds':cpu[index]}
+    result={'samples':len(cpu),'CPUBytes':len(data),'CPUSHA256':sha(data),'originalTailPosition':row(44533),
+        'largestWallObservations':[row(i) for i in sorted(range(len(cpu)),key=lambda i:timings[i][1],reverse=True)[:20]],
+        'boundary':'separate instrumented deterministic prefix; process CPU bracket includes measurement overhead and other threads, not native-thread CPU; failure to reproduce does not remove prior tail or qualify latency'}
+    write(cpu_path.with_name('process-cpu-summary.json'),result);return result
+
 def host_receipt(text):
     rows=re.findall(r"APPKIT_HOST qualification episodes=(\d+) insertCalls=(\d+); real production controller and NSTextView-backed authored IMK client; installed=false",text)
     if rows != [("32","128")]:raise RuntimeError("missing, duplicated or incomplete actual host receipt")
@@ -82,7 +96,7 @@ def main():
     lock=json.loads((ROOT/'Resources/A2/upstream-lock.json').read_text())
     write(OUT/'contract.json',{'sourceSHA':env.get('PAIA_SOURCE_SHA'),'corpusRows':lock['totalDefaultChineseDictionaryRows'],
         'sourceLockSHA256':sha((ROOT/'Resources/A2/upstream-lock.json').read_bytes()),'librarySHA256':sha(Path(env['PAIA_RIME_LIBRARY']).read_bytes()),
-        'researchInputSHA256':digest(source_before),'requestedNativeOperations':MINIMUM,'calibrationNativeOperations':CALIBRATION,
+        'researchInputSHA256':digest(source_before),'requestedNativeOperations':MINIMUM,'calibrationNativeOperations':CALIBRATION,'diagnosticPrefixNativeOperations':TAIL_DIAGNOSTIC,
         'deadlinesSeconds':TIMEOUTS,'seed':str(0x5041494132303236),'scope':'repeatable authored endurance, not one million distinct language tasks',
         'resourceRights':'research only, not cleared production corpus redistribution',
         'artifactContents':'authored receipts, metadata, all completed timing records, logs; no corpus or engine binaries'})
@@ -143,7 +157,7 @@ def main():
     _,negative,_=child('initialization-failure','initialization-failure',faulty)
     summary['partialInitializationFailure']={'expectedFailure':negative['expectedFailure'],'nativeCounters':negative['nativeCounters']}
     if inventory(pack)!=expected:raise RuntimeError('fault control changed original resources')
-    for mode,minimum in [('calibrate',CALIBRATION),('endurance',MINIMUM)]:
+    for mode,minimum in [('calibrate',CALIBRATION),('endurance',MINIMUM),('tail-diagnostic',TAIL_DIAGNOSTIC)]:
         if inventory(pack)!=expected:raise RuntimeError('precompiled authority changed before replay')
         _,report,process=child(mode,mode,pack)
         if report['operationSamples']<minimum or report['requestedMinimumNativeInputOperations']!=minimum:raise RuntimeError('million denominator not completed')
@@ -151,6 +165,7 @@ def main():
         if (OUT/mode/'diagnostics-before.json').read_bytes()!=(OUT/mode/'diagnostics-after.json').read_bytes():raise RuntimeError('native candidate drift')
         timing=summarize(OUT/mode/'timings.bin',report)
         summary[mode]={'nativeOperations':report['operationSamples'],'episodes':report['episodes'],'process':process,'timing':timing,'RSS':report['rssCheckpoints']}
+        if mode=='tail-diagnostic':summary[mode]['processCPU']=summarize_cpu(OUT/mode/'process-cpu-brackets.bin',OUT/mode/'timings.bin')
         if mode=='calibrate':
             # Estimate is disclosed, never used to reduce the full denominator.
             summary[mode]['linearMillionSecondsEstimate']=report['workloadWallNanoseconds']/1e9*MINIMUM/report['operationSamples']
