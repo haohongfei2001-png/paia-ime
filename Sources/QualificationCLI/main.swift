@@ -19,7 +19,7 @@ func signature(_ value:CandidateSnapshot?)->[String] {
 }
 let variables=ProcessInfo.processInfo.environment
 let args=Array(CommandLine.arguments.dropFirst())
-guard args.count==4,["prepare","startup","calibrate","endurance"].contains(args[0]),variables["PAIA_B1_RESEARCH"]=="1",
+guard args.count==4,["prepare","startup","initialization","calibrate","endurance"].contains(args[0]),variables["PAIA_B1_RESEARCH"]=="1",
       let library=variables["PAIA_RIME_LIBRARY"],let revision=variables["PAIA_B1_REVISION"] else {
     FileHandle.standardError.write(Data("Explicit verified B1 research environment and mode/shared/new-user/output required.\n".utf8));exit(2)
 }
@@ -151,6 +151,45 @@ do {
             let cpu=paia_qualification_cpu_ns(),wall=now();Thread.sleep(forTimeInterval:2)
             report["idleCPUFractionOfOneCore"]=Double(paia_qualification_cpu_ns()-cpu)/Double(now()-wall)
             try require(owner.close(),"startup close failed");report["complete"]=true;try checkpoint("startup-closed")
+        } else if mode=="initialization" {
+            // Do not prewarm the endurance process. This independent process
+            // observes the actual first-key cost across native owner lifetimes.
+            var observations=[[String:Any]](),expected:[String]?
+            var sentinel:InputSession?=try owner.makeSession(schema:"paia_b1_full_ascii")
+            var traditional:InputSession?=try owner.makeSession(schema:"paia_b1_flypy_traditional_ascii")
+            func observe(_ label:String)throws {
+                let session=traditional!;try check(session.learningDisabled && sentinel!.learningDisabled,"initialization diagnostic learning enabled")
+                let cpu=paia_qualification_cpu_ns(),begin=now(),update=try session.process(.code(117)),elapsed=now()-begin,timing=session.lastTiming
+                let cpuElapsed=paia_qualification_cpu_ns()-cpu
+                try check(update.commit==nil && update.snapshot?.rawASCII=="u","initialization probe input changed")
+                let current=signature(update.snapshot)
+                if let expected=expected{try check(current==expected,"lifetime transition changed probe candidates")}else{expected=current}
+                try check(elapsed>=timing.engineNanoseconds+timing.copyNanoseconds,"initialization nested timer containment")
+                observations.append(["phase":label,"schema":"paia_b1_flypy_traditional_ascii","authoredKey":"u",
+                    "ownerNanoseconds":elapsed,"nativeActionNanoseconds":timing.engineNanoseconds,"contextCopyNanoseconds":timing.copyNanoseconds,"diagnosticBracketCPUNanoseconds":cpuElapsed,
+                    "residentBytes":paia_qualification_current_rss(),"nativeCounters":try object(owner.diagnostics)])
+                for byte in "urufa".utf8 {let continued=try session.process(.code(Int32(byte)));try check(continued.commit==nil,"probe continuation committed unexpectedly")}
+                try check(session.snapshot?.rawASCII=="uurufa" && session.snapshot?.rows.first?.text=="輸入法","probe did not retain actual traditional conversion")
+                let cleared=try session.process(.escape);try check(cleared.commit==nil && cleared.snapshot?.rawASCII=="","probe did not clear")
+            }
+            try observe("fresh-runtime-first-traditional-key")
+            try observe("same-native-session-after-clear")
+            traditional?.end();traditional=nil
+            try check(owner.diagnostics.liveSessions==1,"sentinel-only transition failed")
+            traditional=try owner.makeSession(schema:"paia_b1_flypy_traditional_ascii")
+            try observe("new-traditional-session-with-sentinel-retained")
+            traditional?.end();traditional=nil;sentinel?.end();sentinel=nil
+            try check(owner.diagnostics.liveSessions==0,"all native owners not destroyed")
+            sentinel=try owner.makeSession(schema:"paia_b1_full_ascii")
+            traditional=try owner.makeSession(schema:"paia_b1_flypy_traditional_ascii")
+            try observe("zero-owner-reactivation-first-traditional-key")
+            traditional?.end();traditional=nil;sentinel?.end();sentinel=nil
+            let counts=owner.diagnostics
+            try check(counts.keys==24 && counts.clears==4 && counts.snapshots==28 && counts.failedSteps==0,"initialization probe native counts differ")
+            try check(counts.liveSessions==0 && counts.sessionsCreated==5 && counts.sessionsDestroyed==5,"initialization owner lifecycle differs")
+            report["initializationObservations"]=observations
+            report["probeMeaning"]="Independent same-data native lifetime diagnostic; no warmup added to product or million workload, no latency threshold inferred"
+            try require(owner.close(),"initialization diagnostic close failed");report["complete"]=true;try checkpoint("initialization-diagnostic-closed")
         } else {
             let minimum=mode=="calibrate" ? QualificationSchedule.calibrationEvents:QualificationSchedule.minimumEvents
             report["requestedMinimumNativeInputOperations"]=minimum
@@ -167,7 +206,7 @@ do {
             let sentinelSignature=signature(sentinel.snapshot)
             let baseline=owner.diagnostics;report["nativeCountersBeforeWorkload"]=try object(baseline)
             var schedule=QualificationSchedule(),session:InputSession?,schemaIndex:Int?,nextCheckpoint=10_000
-            try checkpoint("all-schemas-warmed-before-workload")
+            try checkpoint("all-schemas-diagnostic-sweep-complete")
             let begin=now(),cpu=paia_qualification_cpu_ns()
             while samples<minimum {
                 try autoreleasepool {

@@ -10,7 +10,7 @@ ROOT=Path(__file__).resolve().parents[1]
 OUT=ROOT/'evidence/b1-run/qualification'
 MINIMUM=1_000_000
 CALIBRATION=10_000
-TIMEOUTS={'prepare':240,'startup':30,'calibrate':120,'endurance':1200,'host':120}
+TIMEOUTS={'prepare':240,'startup':30,'initialization':30,'calibrate':120,'endurance':1200,'host':120}
 SCHEMA_COUNT=32
 
 def sha(data):return hashlib.sha256(data).hexdigest()
@@ -112,7 +112,12 @@ def main():
         if inventory(pack)!=expected:raise RuntimeError('precompiled authority changed before startup')
         child('startup','startup-'+str(index+1),pack)
         if inventory(pack)!=expected:raise RuntimeError('precompiled authority changed after startup')
-    summary={}
+    if inventory(pack)!=expected:raise RuntimeError('precompiled authority changed before initialization diagnostic')
+    _,initialization,_=child('initialization','initialization',pack)
+    if inventory(pack)!=expected:raise RuntimeError('precompiled authority changed after initialization diagnostic')
+    observed=initialization['initializationObservations']
+    if [x['phase'] for x in observed]!=['fresh-runtime-first-traditional-key','same-native-session-after-clear','new-traditional-session-with-sentinel-retained','zero-owner-reactivation-first-traditional-key']:raise RuntimeError('incomplete native lifetime diagnostic')
+    summary={'initialization':observed}
     for mode,minimum in [('calibrate',CALIBRATION),('endurance',MINIMUM)]:
         if inventory(pack)!=expected:raise RuntimeError('precompiled authority changed before replay')
         _,report,process=child(mode,mode,pack)

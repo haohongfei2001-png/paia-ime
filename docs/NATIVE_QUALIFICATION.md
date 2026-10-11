@@ -36,7 +36,13 @@ inventoried. Each measured child uses a reverified copied precompiled tree,
 extension guard is unchanged. Ordinary engine/session behavior is measured;
 retained G01 and typed-mixed extension correctness keep their dedicated suites.
 
-Three fresh-process startup runs are separate from deployment. Then a fresh
+Three fresh-process startup runs, specifically default Full/Simplified/ASCII,
+are separate from deployment. They do not qualify every mode’s first input. A
+separate native lifetime diagnostic observes first traditional Flypy `u`, a
+same-session warmed key, a new traditional session while a simplified sentinel
+still lives, and reactivation after all native sessions are destroyed. It checks
+identical candidates and exact native counters; it asserts no performance
+threshold and adds no warmup to the product or million-event process. Then a fresh
 process performs at least 10,000 native input operations as calibration. Another
 fresh process must perform at least 1,000,000, finishing its final episode.
 Calibration is never substituted for the million or used to shrink the denominator.
@@ -92,7 +98,9 @@ its receipt/log and the job fails; it is never silently dropped from a pass.
   observer diagnostics are outside the owner timer. Whole replay wall/CPU
   includes its harness work and is separately recorded.
 - Current task RSS is distinct from Darwin whole-process peak RSS. All schemas
-  are touched before steady checkpoints; same two-session checkpoints permit
+  are exercised by a diagnostic sweep before steady checkpoints, but those
+  temporary sessions are destroyed, so this does not guarantee that every lazy
+  native cache remains warm. Same two-session checkpoints permit
   inspection of growth, not automatic diagnosis of a leak. Startup idle has zero
   live sessions. Library code is intentionally retained until process exit.
 - Runtime open, first session, first key and warmed first key are separate from
@@ -122,3 +130,28 @@ accessibility matrices, eight-hour continuous and 500-hour real use, signing,
 notarization, installation/update/uninstallation qualification. See the original
 REPORT and PRODUCTION_DICTIONARY_GATE rather than inferring product readiness
 from a green machine replay.
+
+## Observed first-traditional-key tail
+
+The clock-corrected million replay observed 98.207 ms owner / 98.109 ms native
+at record 340: first `u` in the first traditional Flypy workload session. Its
+separate calibration observed the same position at 86.314 / 86.217 ms. All tail
+records are retained. This is a real synchronous engine tail, not a claim of
+visible latency and not made acceptable simply by a sub-2-ms p99.
+
+The pinned librime Simplifier stores OpenCC by configuration via weak ownership;
+OpenCC initializes its configuration on first conversion. A prior diagnostic
+sweep whose sessions are destroyed cannot guarantee preloading for later owners.
+This source behavior fits the repeatable observed tail; the independent
+cold/warm/zero-owner reactivation diagnostic tests that lifecycle hypothesis.
+No production prewarm, cache-retention workaround or XPC switch is introduced by
+this measurement node. Full initialization and G02 release qualification remain
+open. The native replay gate is distinct from those product-performance gates.
+
+Pinned source inspection uses engine commit
+`a251145d3aafa33871824a40bbec04c966bd8b56` from Resources/a1-lock.json:
+[Simplifier first-conversion initialization](https://github.com/rime/librime/blob/a251145d3aafa33871824a40bbec04c966bd8b56/src/rime/gear/simplifier.cc#L34-L55),
+[weak cache lookup/creation](https://github.com/rime/librime/blob/a251145d3aafa33871824a40bbec04c966bd8b56/src/rime/gear/simplifier.cc#L313-L341),
+[shared filter / weak map ownership](https://github.com/rime/librime/blob/a251145d3aafa33871824a40bbec04c966bd8b56/src/rime/gear/simplifier.h#L36-L53).
+The source mechanism is verified; attribution of the observed latency remains an
+inference to test against the explicit owner-lifetime experiment, not a CPU profile.

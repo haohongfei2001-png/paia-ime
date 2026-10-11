@@ -48,3 +48,37 @@ including the old A1 benchmark. It does not clamp values, delete the outlier,
 relax the containment assertion or change the million denominator. New exact-head
 native execution remains pending. No million or bounded host result exists for
 the initial checkpoint; earlier gates did not make the B1 run successful.
+
+## Corrected-clock native result and retained first-key risk
+
+Head `ca630d5a2289ca223731ad5a0391d426468484f7`, B1 run
+[38100452479](https://github.com/haohongfei2001-png/paia-ime/actions/runs/38100452479),
+job 114355132099, passed. The 57-file complete archive SHA256 is
+`f981756280f9be2fb33c05ea0a6225d42fa833d8558815bfd8dc25426cf478bd`.
+
+Independent review decoded all 1,000,017 native records (32,000,544 bytes),
+recomputed every aggregate/per-operation percentile/max and reconciled counters.
+There were 911,616 key calls, 33,150 selections and 55,251 clears; 88,401 authored
+episodes, 88,397 once-only commits, 4,995,761 assertions, all 32 schemas,
+11,116 created/destroyed sessions, zero native-step failures, no discarded samples,
+no containment failures and no before/after candidate drift. The separate actual
+host XCTest passed 32 episodes/128 inserts. These are not installed-client events.
+
+Key-only native p99 was 0.665 ms and owner p99 0.717 ms. Owner maximum 98.207 ms
+is retained; all-operation owner counts above 2/16.7/33/100 ms were 450/2/1/0.
+The maximum is record340, first `u` of first traditional Flypy workload session;
+calibration reproduces that position at 86.314 ms. A local deterministic replay
+of the schedule matched every native record kind when locating these tails.
+The original “all-schemas-warmed” checkpoint name was overly strong: diagnostic
+sessions were destroyed. It is corrected to diagnostic-sweep-complete and a
+separate cold/warm/zero-owner lifetime diagnostic is added, without prewarming
+or deleting the million workload’s first-key costs. Full G02/init/visible-latency
+performance qualification remains open.
+
+100 two-session RSS observations ranged 55,230,464–55,427,072 bytes; first to last
+increased 147,456 bytes (144 KiB). Whole-process peak was 55,427,072 bytes. Replay
+wall/CPU were 116.683/114.857 seconds, including harness work. Three startup
+children measured only default Full/Simplified/ASCII (open-to-first-snapshot
+4.161–6.620 ms), not all-mode cold startup. These cloud-runner observations are
+not M1-budget acceptance. The exact-head native lifetime diagnostic, remaining
+CI, final/main and recovery checks are still pending at this document revision.
