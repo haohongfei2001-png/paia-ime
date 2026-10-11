@@ -22,12 +22,12 @@ benchmark: for round in -1..<rounds {
         do {_=try session.process(.escape)} catch {failures.append("terminal reset failure at round=\(round),task=\(taskIndex)");break benchmark}
         for (keyIndex,key) in raw.utf8.enumerated() {
             var failed=false
-            let begin=DispatchTime.now().uptimeNanoseconds
+            let begin=RimeRuntime.monotonicNanoseconds
             do {
                 let u=try session.process(key==32 ? .code(39) : .code(Int32(key)))
                 if let effect=u.commit { _=session.reserve(effect) }
             } catch {failures.append("round=\(round),task=\(taskIndex),key=\(keyIndex)");failed=true}
-            let elapsed=Double(DispatchTime.now().uptimeNanoseconds-begin)/1_000_000
+            let elapsed=Double(RimeRuntime.monotonicNanoseconds-begin)/1_000_000
             if round>=0 {
                 samples.append(elapsed)
                 if !failed {

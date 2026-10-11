@@ -38,6 +38,20 @@ jobs:
           export PAIA_CAPTURE_LAYOUT=1
           swift test --filter NativeControlTests 2>&1 | tee evidence/b1-run/control-tests.txt
           swift build --product PAIANativeLab 2>&1 | tee evidence/b1-run/app-build.txt
+      - name: Native qualification verifier and pure schedule (SIMULATED)
+        run: |
+          set -o pipefail
+          python3 Tools/test-native-qualification.py 2>&1 | tee evidence/b1-run/qualification-verifier-tests.txt
+          swift test --filter QualificationCoreTests 2>&1 | tee evidence/b1-run/qualification-core-tests.txt
+      - name: Compile release endurance tool
+        run: |
+          set -o pipefail
+          swift build -c release --product paia-qualification 2>&1 | tee evidence/b1-run/qualification-build.txt
+      - name: Precompiled startup, calibration, million native operations and bounded IMK host
+        run: |
+          set -o pipefail
+          source .build/b1-env.sh
+          python3 Tools/run-native-qualification.py 2>&1 | tee evidence/b1-run/qualification-supervisor.txt
       - name: Preserve evidence only
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02

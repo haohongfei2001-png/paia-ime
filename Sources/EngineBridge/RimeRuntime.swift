@@ -7,7 +7,14 @@ import ResourceCore
 
 public enum EngineError: Error { case code(Int32), invalidUTF8, closed }
 public enum CandidateStartupError:Error {case authorityChangedBeforeEntry}
+public enum EngineInitializationError:Error {case learningEnabled,unexpectedComposition,traditionalConversion,unclearedOwner}
+public enum EngineInitializationProfile:Equatable {case none,research}
+public struct EngineInitializationReceipt:Codable,Equatable {
+    public let schema:String,nanoseconds:UInt64,keyOperations:UInt64,clearOperations:UInt64
+    public let privateNativeOwners:UInt64,learningDisabled:Bool,cleared:Bool
+}
 public final class RimeRuntime {
+    public static var monotonicNanoseconds:UInt64 {paia_rime_monotonic_nanoseconds()}
     public let dictionaryRevision: String
     public let version = "1.16.0"
     private static let lifetime = NSLock()
@@ -15,6 +22,12 @@ public final class RimeRuntime {
     private static var attempts:UInt64=0
     public static var startupAttempts:UInt64 {lifetime.lock();defer{lifetime.unlock()};return attempts}
     public var deploymentCalls:UInt64 {paia_rime_deployment_calls()}
+    public static var nativeDiagnostics:EngineDiagnostics {var value=PaiaRimeDiagnostics();paia_rime_diagnostics(&value);return EngineDiagnostics(value)}
+    public var diagnostics:EngineDiagnostics {Self.nativeDiagnostics}
+    public private(set) var initializationReceipt:EngineInitializationReceipt?
+    // A raw native ID avoids runtime -> InputSession -> runtime retention. It has
+    // no host binding, SessionCore, candidate reference or commit effect.
+    private var initializationOwner:UInt64=0
     private let repairDisabledSchemas:Set<String>
     public private(set) var repairExtensionLoaded=false,mixedExtensionLoaded=false
     private final class WeakSession {weak var value:InputSession?;init(_ value:InputSession){self.value=value}}
@@ -22,8 +35,8 @@ public final class RimeRuntime {
     private var sessions=[WeakSession](),closed=false,cleanupSucceeded=true
     private let cleanup:(()throws->Void)?
     // Explicit directories only: callers must create a fresh isolated user directory.
-    public convenience init(library: String, shared: String, isolatedUser: String, dictionaryRevision: String, schemas:[String] = [], g01Library:String? = nil,repairDisabledSchemas:Set<String> = [],precompiled:Bool=false,cleanup:(()throws->Void)?=nil) throws {
-        try self.init(library:library,shared:shared,isolatedUser:isolatedUser,dictionaryRevision:dictionaryRevision,schemas:schemas,g01Library:g01Library,repairDisabledSchemas:repairDisabledSchemas,precompiled:precompiled,verifiedExtension:false,cleanup:cleanup)
+    public convenience init(library: String, shared: String, isolatedUser: String, dictionaryRevision: String, schemas:[String] = [], g01Library:String? = nil,repairDisabledSchemas:Set<String> = [],precompiled:Bool=false,initialization:EngineInitializationProfile = .none,cleanup:(()throws->Void)?=nil) throws {
+        try self.init(library:library,shared:shared,isolatedUser:isolatedUser,dictionaryRevision:dictionaryRevision,schemas:schemas,g01Library:g01Library,repairDisabledSchemas:repairDisabledSchemas,precompiled:precompiled,verifiedExtension:false,initializationSchema:initialization == .research ? "paia_b1_full_traditional_ascii":nil,cleanup:cleanup)
     }
     public convenience init(candidate:CandidateResourceSnapshot,components:CandidateComponents,repairDisabledSchemas:Set<String> = [],authorityCheck:(()throws->Void)?=nil,cleanup:(()throws->Void)?=nil)throws {
         try candidate.verify();try components.verify()
@@ -31,9 +44,9 @@ public final class RimeRuntime {
         // No further filesystem hashing after this authority check. Rejection is
         // distinctly pre-entry; any later engine failure still consumes the attempt.
         do{try authorityCheck?()}catch{throw CandidateStartupError.authorityChangedBeforeEntry}
-        try self.init(library:components.library.path,shared:candidate.directory.path,isolatedUser:candidate.userDirectory.path,dictionaryRevision:candidate.pack.manifest.dictionaryRevision,schemas:[],g01Library:components.extensionLibrary.path,repairDisabledSchemas:repairDisabledSchemas.union(overlay),precompiled:true,verifiedExtension:true,cleanup:{defer{candidate.close();components.close()};try cleanup?()})
+        try self.init(library:components.library.path,shared:candidate.directory.path,isolatedUser:candidate.userDirectory.path,dictionaryRevision:candidate.pack.manifest.dictionaryRevision,schemas:[],g01Library:components.extensionLibrary.path,repairDisabledSchemas:repairDisabledSchemas.union(overlay),precompiled:true,verifiedExtension:true,initializationSchema:"paia_candidate_full_traditional_ascii",cleanup:{defer{candidate.close();components.close()};try cleanup?()})
     }
-    private init(library:String,shared:String,isolatedUser:String,dictionaryRevision:String,schemas:[String],g01Library:String?,repairDisabledSchemas:Set<String>,precompiled:Bool,verifiedExtension:Bool,cleanup:(()throws->Void)?)throws {
+    private init(library:String,shared:String,isolatedUser:String,dictionaryRevision:String,schemas:[String],g01Library:String?,repairDisabledSchemas:Set<String>,precompiled:Bool,verifiedExtension:Bool,initializationSchema:String?,cleanup:(()throws->Void)?)throws {
         self.repairDisabledSchemas=repairDisabledSchemas;self.cleanup=cleanup
         Self.lifetime.lock(); defer { Self.lifetime.unlock() }
         guard !Self.created else { throw EngineError.code(Int32(PAIA_BUSY)) }
@@ -49,13 +62,44 @@ public final class RimeRuntime {
             if let path=g01Library {let code=paia_rime_enable_g01(path);guard code==PAIA_OK else{throw EngineError.code(code)}}
             let capabilities=paia_rime_extension_capabilities();repairExtensionLoaded=capabilities&1 != 0;mixedExtensionLoaded=capabilities&2 != 0
             if verifiedExtension && (!repairExtensionLoaded || !mixedExtensionLoaded){throw EngineError.code(Int32(PAIA_ABI))}
-        } catch {paia_rime_close();throw error}
+            // All deployment and extension capability checks must finish with
+            // zero sessions before the one private conversion owner is created.
+            if let schema=initializationSchema {try initializeConversion(schema:schema)}
+        } catch {
+            if initializationOwner != 0 {paia_rime_end_session(initializationOwner);initializationOwner=0}
+            paia_rime_close();throw error
+        }
+    }
+    private func initializeConversion(schema:String)throws {
+        let begin=Self.monotonicNanoseconds,id=paia_rime_start_named(schema,0)
+        guard id != 0 else{throw EngineError.code(Int32(PAIA_SESSION))}
+        initializationOwner=id
+        guard paia_rime_learning_disabled(id) != 0 else{throw EngineInitializationError.learningEnabled}
+        func step(_ action:Int32,_ key:Int32=0)throws->EngineValue {
+            var snapshot=PaiaRimeSnapshot();let code=paia_rime_step(id,action,key,0,&snapshot)
+            defer{paia_rime_free_snapshot(&snapshot)}
+            guard code==PAIA_OK else{throw EngineError.code(code)}
+            return try InputSession.decode(snapshot)
+        }
+        var raw="",last:EngineValue?
+        // Fixed authored public reading only. It never selects or commits, and
+        // Full/Traditional never uses a personal Full/Simplified overlay.
+        for byte in "shurufa".utf8 {
+            raw.append(Character(UnicodeScalar(byte)));let value=try step(1,Int32(byte));last=value
+            guard value.handled,value.raw==raw,value.commit==nil else{throw EngineInitializationError.unexpectedComposition}
+        }
+        guard last?.candidates.first=="輸入法" else{throw EngineInitializationError.traditionalConversion}
+        let empty=try step(3)
+        guard empty.commit==nil,empty.raw.isEmpty,empty.preedit.isEmpty,empty.candidates.isEmpty else{throw EngineInitializationError.unclearedOwner}
+        guard paia_rime_learning_disabled(id) != 0 else{throw EngineInitializationError.learningEnabled}
+        initializationReceipt=EngineInitializationReceipt(schema:schema,nanoseconds:Self.monotonicNanoseconds-begin,keyOperations:7,clearOperations:1,privateNativeOwners:1,learningDisabled:true,cleared:true)
     }
     deinit {_ = close()}
     @discardableResult public func close()->Bool {
         lifecycle.lock();defer{lifecycle.unlock()}
         guard !closed else{return cleanupSucceeded};closed=true
         for session in sessions{session.value?.end()};sessions=[]
+        if initializationOwner != 0 {paia_rime_end_session(initializationOwner);initializationOwner=0}
         paia_rime_close()
         do{try cleanup?()}catch{cleanupSucceeded=false}
         return cleanupSucceeded
@@ -71,6 +115,11 @@ public final class RimeRuntime {
 
 public struct EngineTiming {
     public let engineNanoseconds:UInt64, copyNanoseconds:UInt64
+}
+public struct EngineDiagnostics:Codable,Equatable {
+    public let keys,selections,clears,snapshots,failedSteps,sessionsCreated,sessionsDestroyed,liveSessions:UInt64
+    fileprivate init(_ value:PaiaRimeDiagnostics){keys=value.keys;selections=value.selections;clears=value.clears;snapshots=value.snapshots;failedSteps=value.failed_steps;sessionsCreated=value.sessions_created;sessionsDestroyed=value.sessions_destroyed;liveSessions=value.live_sessions}
+    public var inputOperations:UInt64 {keys+selections+clears}
 }
 public enum InputKey {
     case text(String), code(Int32, modifiers: Int32 = 0), returnKey, space, number(Int), escape, command
@@ -96,6 +145,7 @@ public final class InputSession {
     private var ended=false
     private var timing=EngineTiming(engineNanoseconds:0,copyNanoseconds:0)
     public var lastTiming:EngineTiming {lock.lock();defer{lock.unlock()};return timing}
+    public var learningDisabled:Bool {lock.lock();defer{lock.unlock()};return !ended && paia_rime_learning_disabled(id) != 0}
     internal init(runtime: RimeRuntime,id: UInt64,chinesePunctuation:Bool,canRetainForRepair:Bool,canUseMixed:Bool,retained:Bool) {
         self.runtime=runtime; self.id=id; self.chinesePunctuation=chinesePunctuation;self.canRetainForRepair=canRetainForRepair;self.canUseMixed=canUseMixed;self.retained=retained;core=SessionCore(dictionaryRevision:runtime.dictionaryRevision)
     }
@@ -123,7 +173,7 @@ public final class InputSession {
         do { return try core.receive(Self.decode(c),literal:literal) }
         catch { core.invalidate(); throw error }
     }
-    private static func decode(_ c:PaiaRimeSnapshot) throws -> EngineValue {
+    fileprivate static func decode(_ c:PaiaRimeSnapshot) throws -> EngineValue {
         func string(_ p:UnsafeMutablePointer<CChar>?) throws -> String {
             guard let p=p else{return ""}
             guard let s=String(validatingUTF8:p) else{throw EngineError.invalidUTF8};return s

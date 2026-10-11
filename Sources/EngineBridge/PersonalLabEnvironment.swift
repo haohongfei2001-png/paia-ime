@@ -27,7 +27,7 @@ import LexiconCore
             resources=try PersonalSchemaBuilder.prepare(baseline:URL(fileURLWithPath:required("PAIA_B1_SHARED")),destination:temp.appendingPathComponent("shared"),document:document,baseRevision:required("PAIA_B1_REVISION"))
             let user=temp.appendingPathComponent("engine-user");try FileManager.default.createDirectory(at:user,withIntermediateDirectories:false)
             let engine=try RimeRuntime(library:required("PAIA_RIME_LIBRARY"),shared:resources.shared.path,isolatedUser:user.path,dictionaryRevision:resources.revision,
-                schemas:resources.schemas,g01Library:required("PAIA_G01_LIBRARY"),repairDisabledSchemas:resources.overlaySchemas,cleanup:{try scratch.remove()})
+                schemas:resources.schemas,g01Library:required("PAIA_G01_LIBRARY"),repairDisabledSchemas:resources.overlaySchemas,initialization:.research,cleanup:{try scratch.remove()})
             started=engine;runtime=engine
             try PersonalSchemaBuilder.verifyCompiled(resources,userDirectory:user)
         } catch {if let engine=started{_ = engine.close()}else{try? scratch.remove()};authority?.close();throw error}
