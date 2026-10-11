@@ -17,6 +17,9 @@ int main(void) {
     assert(!paia_rime_api_compatible(NULL));
     PaiaRimeSnapshot snapshot={0};paia_rime_free_snapshot(&snapshot);paia_rime_free_snapshot(&snapshot);
     assert(paia_rime_step(0,0,0,0,&snapshot)==PAIA_SESSION);
+    PaiaRimeDiagnostics diagnostics={0};paia_rime_diagnostics(&diagnostics);
+    assert(diagnostics.failed_steps==1 && !diagnostics.keys && !diagnostics.selections && !diagnostics.clears && !diagnostics.snapshots);
+    assert(!paia_rime_learning_disabled(0));paia_rime_diagnostics(NULL);
     // Output copies have no native object pointers and remain releasable after
     // table/runtime closure. Authored allocations, not real engine evidence.
     PaiaG01List list={0};list.raw=strdup("synthetic");list.preview=strdup("synthetic");

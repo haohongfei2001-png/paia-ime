@@ -104,4 +104,20 @@ final class EngineTests:XCTestCase {
         let contents=FileManager.default.enumerator(atPath:Self.lab.temporaryDirectory.path)?.allObjects as? [String] ?? []
         XCTAssertFalse(contents.contains(where:{$0.contains("userdb")}))
     }
+    func testNativeCountersExcludeOwnerOnlyChecksAndLearningOptionIsActual()throws {
+        let s=try make(),runtime=Self.lab!.runtime,before=runtime.diagnostics
+        XCTAssertTrue(s.learningDisabled)
+        _ = try s.process(.code(110));_ = try s.process(.code(105))
+        let old=try XCTUnwrap(s.snapshot?.rows.first?.ref)
+        _ = try s.process(.escape)
+        XCTAssertThrowsError(try s.select(old));XCTAssertFalse(try s.process(.returnKey).handled)
+        _ = try s.refresh()
+        let after=runtime.diagnostics
+        XCTAssertEqual(after.keys-before.keys,2);XCTAssertEqual(after.clears-before.clears,1)
+        XCTAssertEqual(after.selections-before.selections,0);XCTAssertEqual(after.snapshots-before.snapshots,4)
+        XCTAssertEqual(after.failedSteps,before.failedSteps)
+        s.end();XCTAssertFalse(s.learningDisabled)
+        XCTAssertEqual(runtime.diagnostics.sessionsDestroyed,after.sessionsDestroyed+1)
+    }
+
 }

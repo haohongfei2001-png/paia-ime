@@ -18,6 +18,7 @@ static PaiaMixedAPI *mixed;
 static size_t live_sessions;
 static int precompiled_mode;
 static uint64_t deployment_calls;
+static PaiaRimeDiagnostics diagnostics;
 static void *library_handle;
 static char *shared_path, *user_path;
 // Require the whole function pointer, not only its first byte. data_size excludes itself.
@@ -96,6 +97,15 @@ int paia_rime_open_precompiled(const char *library, const char *shared, const ch
 uint64_t paia_rime_deployment_calls(void) {
     pthread_mutex_lock(&owner);uint64_t count=deployment_calls;pthread_mutex_unlock(&owner);return count;
 }
+void paia_rime_diagnostics(PaiaRimeDiagnostics *out) {
+    if(!out)return;
+    pthread_mutex_lock(&owner);*out=diagnostics;out->live_sessions=live_sessions;pthread_mutex_unlock(&owner);
+}
+int paia_rime_learning_disabled(uint64_t id) {
+    pthread_mutex_lock(&owner);
+    int disabled=api && api->find_session(id) && HAS(api,get_option) && api->get_option(id,"_no_learning");
+    pthread_mutex_unlock(&owner);return disabled;
+}
 void paia_rime_close(void) {
     pthread_mutex_lock(&owner);
     if (mixed) {mixed->close_all();mixed=NULL;}
@@ -109,13 +119,14 @@ uint64_t paia_rime_start_session(void) {
     pthread_mutex_lock(&owner);
     RimeSessionId id=api ? api->create_session() : 0;
     if (id && !api->select_schema(id, "paia_a1")) { api->destroy_session(id); id=0; }
-    if (id) { api->set_option(id, "ascii_mode", False); api->set_option(id, "_no_learning", True); live_sessions++; }
+    if (id) { api->set_option(id, "ascii_mode", False); api->set_option(id, "_no_learning", True); live_sessions++;diagnostics.sessions_created++; }
     pthread_mutex_unlock(&owner); return id;
 }
 void paia_rime_end_session(uint64_t id) {
-    pthread_mutex_lock(&owner); if (api && api->find_session(id)) {api->destroy_session(id);if(live_sessions)live_sessions--;} pthread_mutex_unlock(&owner);
+    pthread_mutex_lock(&owner); if (api && api->find_session(id)) {api->destroy_session(id);if(live_sessions)live_sessions--;diagnostics.sessions_destroyed++;} pthread_mutex_unlock(&owner);
 }
 static int snapshot(RimeSessionId id, PaiaRimeSnapshot *out) {
+    diagnostics.snapshots++;
     int rc=copy_text(&out->raw, api->get_input(id), PAIA_RAW_LIMIT);
     if (rc) return rc;
     out->caret_utf8=api->get_caret_pos(id);
@@ -152,7 +163,7 @@ int paia_rime_step(uint64_t id, int action, int key, int modifiers, PaiaRimeSnap
     int rc=PAIA_OK;
     if (!api || !api->find_session(id)) { rc=PAIA_SESSION; goto done; }
     uint64_t engine_begin=monotonic_ns();
-    if (action==1) out->handled=api->process_key(id,key,modifiers);
+    if (action==1) {diagnostics.keys++;out->handled=api->process_key(id,key,modifiers);}
     else if (action==2) {
         if (key<0 || key>=PAIA_MAX_CANDIDATES) { rc=PAIA_BOUNDS; goto done; }
         RIME_STRUCT(RimeContext, current);
@@ -160,11 +171,11 @@ int paia_rime_step(uint64_t id, int action, int key, int modifiers, PaiaRimeSnap
         int in_page=key<current.menu.num_candidates;
         api->free_context(&current);
         if (!in_page) { rc=PAIA_BOUNDS; goto done; }
-        out->handled=api->select_candidate_on_current_page(id,(size_t)key);
-    } else if (action==3) { api->clear_composition(id); out->handled=1; }
+        diagnostics.selections++;out->handled=api->select_candidate_on_current_page(id,(size_t)key);
+    } else if (action==3) { diagnostics.clears++;api->clear_composition(id); out->handled=1; }
     else if (action==4) {
         if(key<0 || key>=PAIA_G01_MAX_SEARCH) {rc=PAIA_BOUNDS;goto done;}
-        out->handled=api->select_candidate(id,(size_t)key);
+        diagnostics.selections++;out->handled=api->select_candidate(id,(size_t)key);
     } else if(action==5) out->handled=api->commit_composition(id);
     else if(action==6) {
         // Explicit idle-only arming, never library/resource loading on a key.
@@ -182,6 +193,7 @@ int paia_rime_step(uint64_t id, int action, int key, int modifiers, PaiaRimeSnap
     rc=snapshot(id,out);
     out->copy_nanoseconds=monotonic_ns()-copy_begin;
 done:
+    if(rc)diagnostics.failed_steps++;
     pthread_mutex_unlock(&owner);
     if (rc) paia_rime_free_snapshot(out);
     return rc;
@@ -205,7 +217,7 @@ uint64_t paia_rime_start_named(const char *schema,int deferred) {
     if(api && valid_schema(schema)) {
         id=api->create_session();
         if(id && !api->select_schema(id,schema)){api->destroy_session(id);id=0;}
-        if(id){api->set_option(id,"ascii_mode",False);api->set_option(id,"_no_learning",True);api->set_option(id,"_auto_commit",!deferred);live_sessions++;}
+        if(id){api->set_option(id,"ascii_mode",False);api->set_option(id,"_no_learning",True);api->set_option(id,"_auto_commit",!deferred);live_sessions++;diagnostics.sessions_created++;}
     }
     pthread_mutex_unlock(&owner);return id;
 }

@@ -24,6 +24,14 @@ int paia_rime_open(const char *library, const char *shared, const char *isolated
 // and named deploy is disabled for the lifetime of this runtime.
 int paia_rime_open_precompiled(const char *library, const char *shared, const char *isolated_user);
 uint64_t paia_rime_deployment_calls(void);
+// Content-free cumulative counters; sampled explicitly by engineering tools.
+// Counts actual upstream calls, not Swift-only refusal/reservation assertions.
+typedef struct {
+    uint64_t keys, selections, clears, snapshots, failed_steps;
+    uint64_t sessions_created, sessions_destroyed, live_sessions;
+} PaiaRimeDiagnostics;
+void paia_rime_diagnostics(PaiaRimeDiagnostics *out);
+int paia_rime_learning_disabled(uint64_t session);
 // Independent actual loaded-table capabilities: bit 0 G01, bit 1 mixed owner.
 unsigned paia_rime_extension_capabilities(void);
 int paia_rime_mixed_api_compatible(const void *table);
