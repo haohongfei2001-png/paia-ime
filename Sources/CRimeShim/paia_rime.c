@@ -109,7 +109,13 @@ int paia_rime_learning_disabled(uint64_t id) {
 void paia_rime_close(void) {
     pthread_mutex_lock(&owner);
     if (mixed) {mixed->close_all();mixed=NULL;}
-    if (api) { api->cleanup_all_sessions(); api->finalize(); api=NULL; }
+    if (api) {
+        api->cleanup_all_sessions();
+        // Pending exported G01 trials may outlive their Swift source owner.
+        // The actual batch cleanup releases those remaining bridge-owned IDs.
+        diagnostics.sessions_destroyed+=live_sessions;live_sessions=0;
+        api->finalize();api=NULL;
+    }
     // Keep loaded code resident: some upstream dependency static destructors may outlive finalize.
     // A process may initialize only one runtime in the Swift owner; no runtime hot reload in A1.
     free(shared_path); free(user_path); shared_path=NULL; user_path=NULL; g01=NULL; live_sessions=0;
@@ -260,7 +266,7 @@ int paia_rime_g01_prepare(uint64_t id,size_t target,const char *replacement,cons
     if(!out)return PG_INVALID;
     memset(out,0,sizeof(*out));
     pthread_mutex_lock(&owner);int rc=g01?g01->prepare(id,target,replacement,surface,limit,out):PAIA_UNAVAILABLE;
-    if(rc==PG_OK && out->session)live_sessions++;
+    if(rc==PG_OK && out->session){live_sessions++;diagnostics.sessions_created++;}
     pthread_mutex_unlock(&owner);return rc;
 }
 void paia_rime_g01_free_list(PaiaG01List *list) {

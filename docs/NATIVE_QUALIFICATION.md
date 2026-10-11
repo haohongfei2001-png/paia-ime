@@ -218,3 +218,13 @@ analysis occurs after exit. The ordinary million process never makes these extra
 per-operation CPU calls. The new diagnostic's timing and RSS have a different
 instrumentation boundary and are not substituted for the million result. Lack of
 reproduction leaves the prior tail unexplained; G02 is still open.
+
+### Session counter scope
+
+Lifecycle counters include native IDs opened by this shim and successful G01
+trials transferred to it. Internal G01 search scratch and Mixed projections/trials
+are excluded; they are not a universal census of all librime sessions. The
+extension-free million has no such extension internals. Actual batch shutdown
+accounts for any remaining exported proposal owners only after cleanup_all_sessions;
+late cancellation and repeated shutdown must not count them twice. Separate native
+cancellation/adoption/failed-search/pending-close tests protect this accounting.

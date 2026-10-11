@@ -25,7 +25,9 @@ int paia_rime_open(const char *library, const char *shared, const char *isolated
 int paia_rime_open_precompiled(const char *library, const char *shared, const char *isolated_user);
 uint64_t paia_rime_deployment_calls(void);
 // Content-free cumulative counters; sampled explicitly by engineering tools.
-// Counts actual upstream calls, not Swift-only refusal/reservation assertions.
+// Input counters cover this shim step boundary, not Swift-only assertions.
+// Lifecycle counters cover native IDs owned by this bridge, including returned
+// G01 trials. Extension-internal transient searches/mixed shadows are excluded.
 typedef struct {
     uint64_t keys, selections, clears, snapshots, failed_steps;
     uint64_t sessions_created, sessions_destroyed, live_sessions;

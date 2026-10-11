@@ -59,6 +59,7 @@ let package = Package(name: "PAIAIME", platforms: [.macOS(.v13)], products: [
     .testTarget(name: "PersonalControlTests", dependencies: ["NativeHost", "LexiconCore"]),
     .testTarget(name: "PersonalEngineTests", dependencies: ["LexiconCore", "EngineBridge", "NativeHost"]),
     .testTarget(name: "ConstraintCoreTests", dependencies: ["ConstraintCore", "SessionCore"]),
+    .testTarget(name: "ConstraintCloseTests", dependencies: ["ConstraintCore", "EngineBridge"]),
     .testTarget(name: "ConstraintHostTests", dependencies: ["ConstraintCore", "EngineBridge", "NativeHost"]),
     .testTarget(name: "SessionCoreTests", dependencies: ["SessionCore", "TextBoundary"]),
     .testTarget(name: "EngineTests", dependencies: ["EngineBridge", "SessionCore"]),

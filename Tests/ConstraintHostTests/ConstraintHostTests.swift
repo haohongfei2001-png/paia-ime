@@ -50,5 +50,35 @@ final class ConstraintHostTests:XCTestCase {
         XCTAssertFalse(host.apply(preview));XCTAssertEqual(client.string,"new target");XCTAssertEqual(host.insertCount,0)
         XCTAssertThrowsError(try s.commitEngineComposition())
     }
+    @MainActor func testRepairTrialCountersCoverCancellationAndAdoption()throws {
+        let runtime=try XCTUnwrap(Self.runtime),baseline=runtime.diagnostics
+        let session=try runtime.makeSession(deferredCommit:true);defer{session.end()}
+        for byte in "nihaoshijie".utf8{XCTAssertNil(try session.process(.code(Int32(byte))).commit)}
+        for text in ["你好","世界"] {
+            let choice=try XCTUnwrap(session.repairChoices().rows.first{$0.anchor.text==text})
+            XCTAssertNil(try session.selectForRepair(choice).commit)
+        }
+        let beforeCancel=runtime.diagnostics
+        let cancelled=try session.prepareRepair(target:XCTUnwrap(session.repairAnchors().targets.first),replacementRaw:"nihao",surface:"拟好")
+        XCTAssertEqual(runtime.diagnostics.sessionsCreated,beforeCancel.sessionsCreated+1)
+        XCTAssertEqual(runtime.diagnostics.liveSessions,beforeCancel.liveSessions+1)
+        cancelled.cancel();cancelled.cancel()
+        XCTAssertEqual(runtime.diagnostics.sessionsDestroyed,beforeCancel.sessionsDestroyed+1)
+        XCTAssertEqual(runtime.diagnostics.liveSessions,beforeCancel.liveSessions)
+        let beforeAdopt=runtime.diagnostics
+        let adopted=try session.prepareRepair(target:XCTUnwrap(session.repairAnchors().targets.first),replacementRaw:"nihao",surface:"拟好")
+        XCTAssertEqual(runtime.diagnostics.sessionsCreated,beforeAdopt.sessionsCreated+1)
+        XCTAssertNil(try session.applyRepair(adopted).commit)
+        XCTAssertEqual(runtime.diagnostics.sessionsDestroyed,beforeAdopt.sessionsDestroyed+1)
+        XCTAssertEqual(runtime.diagnostics.liveSessions,beforeAdopt.liveSessions)
+        let afterAdopt=runtime.diagnostics;adopted.cancel();XCTAssertEqual(runtime.diagnostics,afterAdopt)
+        session.end();session.end()
+        let final=runtime.diagnostics
+        XCTAssertEqual(final.sessionsCreated-baseline.sessionsCreated,3)
+        XCTAssertEqual(final.sessionsDestroyed-baseline.sessionsDestroyed,3)
+        XCTAssertEqual(final.liveSessions,baseline.liveSessions)
+        print("ENGINE_NATIVE G01 returned-trial lifecycle created=3 destroyed=3 cancellation_and_adoption=true")
+    }
+
 }
 #endif

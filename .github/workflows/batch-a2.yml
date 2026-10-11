@@ -47,6 +47,7 @@ jobs:
           set -o pipefail
           source .build/a2-env.sh
           swift test --skip-build --filter ConstraintHostTests 2>&1 | tee evidence/a2-run/host-tests.txt
+          swift test --skip-build --filter ConstraintCloseTests 2>&1 | tee evidence/a2-run/runtime-close-tests.txt
       - name: Preserve measurements and failures, never corpus/user directories
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02

@@ -165,3 +165,35 @@ calls are added inside the million process's per-operation path. The diagnostic
 cannot substitute for the million, remove the 278 ms point or qualify G02 if the
 point does not recur. Python verifier 7/7 passes; new native execution, candidate
 product lanes and final/main remain pending at this revision.
+
+## Preserved candidate lifecycle counter failure
+
+The same `5275e9d` checkpoint finished with 11 workflows successful and one real
+IMK failure, run
+[38102452335](https://github.com/haohongfei2001-png/paia-ime/actions/runs/38102452335),
+job 114361065707. Its public candidate stage reached actual initialization, G01
+repair and mixed host operations, then the new post-close assertion found 71
+bridge-owned sessions created versus 72 destroyed. Later candidate restarts,
+resource publication/recovery, release compatibility and downstream IMK stages
+were skipped. Earlier expected-red controls are separate from this genuine failure.
+
+Independent source review identified a missing creation counter on successful
+G01 trial ownership transfer. The existing live count and later destroy count
+already included that returned native session. A bounded counter correction also
+accounts for remaining exported trials actually released by cleanup_all_sessions.
+It does not remove the assertion or change candidate selection/input semantics.
+Counters explicitly describe shim-owned/exported native IDs; internal G01 scratch
+and Mixed shadows are outside this diagnostic boundary. The extension-free million
+has none of those excluded extension owners.
+
+New native tests cover returned-trial cancellation, adoption, real failed-search
+non-export, and a pending proposal closed with its runtime followed by late cancel
+and repeated close. The close test has its own SwiftPM target and filtered test
+process under the existing A2 job. Static independent review passed; actual macOS
+execution and the failed IMK stage must still pass on a new head.
+
+Local GCC strict C and ABI/ASan/UBSan checks pass with the explicit POSIX feature
+macro. The first Linux C11 command omitted that macro and failed on declarations
+of strdup/strnlen; its original output is retained. Compiler diagnostics were not
+weakened. LeakSanitizer remains unavailable under the already recorded ptrace
+boundary, so local leak detection is not claimed.
