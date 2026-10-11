@@ -14,21 +14,8 @@ import LexiconCore
     public init(pack:URL,reference:ResourceReference,components:CandidateComponents,personalStore:LexiconStore?,catalog:URL?=nil,
                 publicProbeOverride:((CandidateResourceSnapshot,CandidatePublicPreset)throws->Void)?=nil,
                 helperRun:((URL,[String],URL,TimeInterval)throws->Data)?=nil,beforeAuthorityCheck:(()throws->Void)?=nil)throws {
-        self.components=components;try components.verify()
-        let bundled=try VerifiedCandidatePack(directory:ResourceDirectory(pack),expected:reference)
-        let policy=try CandidateSourcePolicy(bundle:bundled,expectedBundle:reference)
-        let probe=publicProbeOverride ?? {snapshot,preset in
-            try CandidateHelper.probe(snapshot,components:components,timeout:120)
-            try CandidateHelper.probeUpdate(snapshot,preset:preset,components:components)
-        }
-        let selection:CandidateResourceSelection
-        if let catalog=catalog {
-            selection=try CandidateResourceCatalog(directory:catalog,policy:policy).select(probe:probe)
-        } else {
-            let copy=try CandidateResourceSnapshot(bundled)
-            do {try probe(copy,.baseline);try copy.verify()}catch{copy.close();throw error}
-            selection=CandidateResourceSelection(snapshot:copy,reason:.bundled,preset:.baseline)
-        }
+        self.components=components
+        let selection=try CandidateUpdate.selectPublic(pack:pack,reference:reference,components:components,catalog:catalog,probeOverride:publicProbeOverride)
         let original=selection.snapshot,base=original.pack
         publicReference=base.reference;publicPreset=selection.preset;publicSelectionReason=selection.reason
         var selected=original,active=false,failed=false,expectedPersonal:Data?

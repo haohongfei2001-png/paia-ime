@@ -31,6 +31,34 @@ final class CandidateUpdateCoreTests:XCTestCase {
     func damage(_ directory:URL,_ reference:ResourceReference)throws {
         try Data("SIMULATED broken public binary".utf8).write(to:directory.appendingPathComponent("generations/"+reference.generation+"/build/paia_candidate.table.bin"))
     }
+    func testInspectionHoldsExistingWriterAndPreservesRuntimeFallbackWithoutPublishing()throws {
+        let base=try pack(),policy=try policy(base),updated=try pack(inputs:policy.sources(.updated))
+        let directory=try scratch().appendingPathComponent("catalog"),publisher=try CandidateResourceStore(directory:directory,policy:policy,create:true)
+        _=try publisher.publish(base,expectedRevision:0,probe:inspect)
+        _=try publisher.publish(updated,expectedRevision:1,probe:inspect);publisher.close()
+        try damage(directory,updated.reference)
+        let path=directory.appendingPathComponent("index.json"),before=try Data(contentsOf:path)
+        let assessment=try CandidateResourceStore(directory:directory,policy:policy,create:false)
+        let selected=try assessment.selectForInspection{snapshot,preset in
+            XCTAssertThrowsError(try CandidateResourceStore(directory:directory,policy:policy,create:false))
+            try self.inspect(snapshot,preset)
+        }
+        XCTAssertEqual(selected.reason,.lastGood);XCTAssertEqual(selected.snapshot.pack.reference,base.reference)
+        selected.snapshot.close();XCTAssertEqual(try Data(contentsOf:path),before);assessment.close()
+        XCTAssertThrowsError(try assessment.selectForInspection(probe:inspect))
+        let reopened=try CandidateResourceStore(directory:directory,policy:policy,create:false);reopened.close()
+        XCTAssertEqual(try Data(contentsOf:path),before)
+        let stale=try CandidateResourceStore(directory:directory,policy:policy,create:false)
+        var retained:CandidateResourceSnapshot?
+        let replacement=try ResourceContract.encode(CandidateResourceIndex(policy:policy,revision:3,current:base.reference,lastGood:nil))
+        XCTAssertThrowsError(try stale.selectForInspection{snapshot,preset in
+            retained=snapshot;try self.inspect(snapshot,preset)
+            try replacement.write(to:path) // Explicit noncooperating authored mutation.
+        }){XCTAssertEqual($0 as? ResourceError,.stale)}
+        XCTAssertThrowsError(try XCTUnwrap(retained).verify())
+        XCTAssertEqual(try Data(contentsOf:path),replacement) // Never repair/re-publish.
+        stale.close();let afterFailure=try CandidateResourceStore(directory:directory,policy:policy,create:false);afterFailure.close()
+    }
     func testIncomingManifestCannotDeclareItsOwnSourceTrust()throws {
         let base=try pack(),policy=try policy(base),updated=try pack(inputs:policy.sources(.updated))
         XCTAssertEqual(try policy.admitSourceIdentity(base),.baseline);XCTAssertEqual(try policy.admitSourceIdentity(updated),.updated)

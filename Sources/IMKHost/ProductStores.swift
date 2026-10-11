@@ -6,6 +6,22 @@ import SettingsCore
 import LexiconCore
 import ExpressionCore
 
+// The ordinary optional-store path and strict explicit assessment use exactly
+// these descriptor handoffs and the original store validators.
+@MainActor enum ProductStoreFactory {
+    static func settings(_ root:ProductDataRoot)throws->SettingsStore {
+        let slot=try root.slot(.settings)
+        return try slot.withDescriptor{try SettingsStore(directory:slot.directory,preopenedDirectory:$0,allowCreateLock:root.createdThisLaunch,authorityGuard:{try slot.verify()})}
+    }
+    static func personal(_ root:ProductDataRoot)throws->LexiconStore {
+        let slot=try root.slot(.personal)
+        return try slot.withDescriptor{try LexiconStore(directory:slot.directory,preopenedDirectory:$0,allowCreateLock:root.createdThisLaunch,authorityGuard:{try slot.verify()})}
+    }
+    static func expressions(_ root:ProductDataRoot)throws->ExpressionStore {
+        let slot=try root.slot(.expressions)
+        return try slot.withDescriptor{try ExpressionStore(directory:slot.directory,preopenedDirectory:$0,allowCreateLock:root.createdThisLaunch,authorityGuard:{try slot.verify()})}
+    }
+}
 @MainActor public final class ProductStores {
     public let root:ProductDataRoot?,settings:SettingsStore?,personal:LexiconStore?,expressions:ExpressionStore?
     public let unavailable:[String]
@@ -21,10 +37,9 @@ import ExpressionCore
             self.root=nil;self.settings=nil;self.personal=nil;self.expressions=nil;unavailable=["product data root"];return
         }
         self.root=root
-        func settings()throws->SettingsStore {let slot=try root.slot(.settings);return try slot.withDescriptor{try SettingsStore(directory:slot.directory,preopenedDirectory:$0,allowCreateLock:root.createdThisLaunch,authorityGuard:{try slot.verify()})}}
-        func personal()throws->LexiconStore {let slot=try root.slot(.personal);return try slot.withDescriptor{try LexiconStore(directory:slot.directory,preopenedDirectory:$0,allowCreateLock:root.createdThisLaunch,authorityGuard:{try slot.verify()})}}
-        func expressions()throws->ExpressionStore {let slot=try root.slot(.expressions);return try slot.withDescriptor{try ExpressionStore(directory:slot.directory,preopenedDirectory:$0,allowCreateLock:root.createdThisLaunch,authorityGuard:{try slot.verify()})}}
-        self.settings=try? settings();self.personal=try? personal();self.expressions=try? expressions()
+        self.settings=try? ProductStoreFactory.settings(root)
+        self.personal=try? ProductStoreFactory.personal(root)
+        self.expressions=try? ProductStoreFactory.expressions(root)
         var missing=[String]();if self.settings==nil{missing.append("settings")};if self.personal==nil{missing.append("personal terms")};if self.expressions==nil{missing.append("expressions")};unavailable=missing
     }
     public static func preflight(parent:URL?=nil)throws->ProductStores {

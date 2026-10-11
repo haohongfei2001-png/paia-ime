@@ -142,3 +142,13 @@ bundle uses a fixed public-resource sibling, with no new management UI or resear
 flag. [Commit-bound evidence](evidence/candidate-resource-recovery/VALIDATION.md)
 separates in-progress native checks from the earlier fixture recovery. This remains
 46 authored rows, restart-only activation and uninstalled engineering evidence.
+
+## Existing-data compatibility qualification
+
+[Explicit existing-data inspection and frozen N→N+1→N checks](docs/RELEASE_COMPATIBILITY.md)
+add a strict engineering entry before main-engine/server startup and compare the
+actual original 0.3.0 app/test bundle with 0.3.1 on authored saves and tombstones.
+[Checkpoint evidence](evidence/release-compatibility/VALIDATION.md) records the
+complete twelve-workflow native implementation checkpoint and its separate
+final-head/main gates. No new data format, installer,
+signing flow or production-dictionary qualification is implied.

@@ -14,6 +14,7 @@ let package = Package(name: "PAIAIME", platforms: [.macOS(.v13)], products: [
     .target(name: "ResourceCore"),
     .executableTarget(name:"ResourceTool",dependencies:["ResourceCore","EngineBridge","LexiconCore"]),
     .testTarget(name:"ResourceCoreTests",dependencies:["ResourceCore"]),
+    .testTarget(name:"ReleaseCompatibilityTests",dependencies:["IMKHost","EngineBridge","ResourceCore","SettingsCore","LexiconCore","ExpressionCore"]),
     .testTarget(name:"ProductCoreTests",dependencies:["ResourceCore","SettingsCore","LexiconCore","ExpressionCore"]),
     .testTarget(name:"ProductCandidateTests",dependencies:["ResourceCore","SettingsCore","LexiconCore","ExpressionCore","IMKHost","IMKTestClient","EngineBridge","SessionCore"]),
     .testTarget(name:"ResourceIMKTests",dependencies:["ResourceCore","IMKHost","IMKTestClient","EngineBridge","LexiconCore","SessionCore"]),

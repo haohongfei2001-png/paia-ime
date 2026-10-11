@@ -85,6 +85,15 @@ public final class CandidateResourceStore {
               owned.st_nlink==1,linked.st_nlink==1,(owned.st_mode&S_IFMT)==S_IFREG,
               owned.st_ino==linked.st_ino,owned.st_dev==linked.st_dev else{throw ResourceError.stale}
     }
+    // Explicit release assessment holds the same existing writer flock without
+    // publishing or creating any authority. Runtime fallback semantics are kept.
+    public func selectForInspection(probe:(CandidateResourceSnapshot,CandidatePublicPreset)throws->Void)throws->CandidateResourceSelection {
+        lock.lock();defer{lock.unlock()};try ready()
+        let catalog=CandidateResourceCatalog(owner:owner,policy:policy),before=try catalog.index()
+        let selected=try catalog.select(probe:probe)
+        do {try ready();guard try catalog.index()==before else{throw ResourceError.stale};return selected}
+        catch {selected.snapshot.close();throw error}
+    }
     // Low-level transaction, not an arbitrary-pack importer. Production callers
     // publish only a fixed preset just compiled by the verified helper. Source
     // hashes plus a finite behavior probe are not compiled-artifact authentication.

@@ -19,12 +19,20 @@ import ResourceCore
 }
 MainActor.assumeIsolated {
     let preflight=CommandLine.arguments.contains("--preflight")
+    let compatibilityRequested=CommandLine.arguments.contains{$0.hasPrefix("--compatibility-check")}
     var phase="metadata"
     do {
         let launch=try InputMethodLaunchArguments(Array(CommandLine.arguments.dropFirst()))
         let isolatedParent=launch.isolatedParent
         guard launch.preflight==preflight else{throw EngineError.closed}
 
+        if launch.compatibilityCheck {
+            phase="compatibility"
+            guard let parent=isolatedParent else{throw ResourceError.format}
+            let receipt=try ProductCompatibility.assessExisting(parent:parent,bundle:.main)
+            FileHandle.standardOutput.write(try ResourceContract.encode(receipt));FileHandle.standardOutput.write(Data([10]))
+            return // No controller, NSApplication, IMKServer or main native entry.
+        }
         _=InputMethodController.self
         guard Bundle.main.object(forInfoDictionaryKey:"InputMethodServerControllerClass") as? String == "PAIAInputMethodController",
               NSClassFromString("PAIAInputMethodController") != nil,
@@ -86,7 +94,8 @@ MainActor.assumeIsolated {
             let delegate=InputMethodDelegate();app.delegate=delegate
             withExtendedLifetime(delegate){app.run()}
         }
-    } catch {if preflight{fputs("IMK_PREFLIGHT_FAILURE phase=\(phase) mainAttempts=\(RimeRuntime.startupAttempts)\n",stderr)}
+    } catch {if compatibilityRequested{fputs("IMK_COMPATIBILITY_FAILURE phase=\(phase) mainAttempts=\(RimeRuntime.startupAttempts); no authority-byte retry or repair.\n",stderr)}
+        if preflight{fputs("IMK_PREFLIGHT_FAILURE phase=\(phase) mainAttempts=\(RimeRuntime.startupAttempts)\n",stderr)}
         fputs("Input method verified-resource preflight failed.\n",stderr);exit(1)}
 }
 #else
