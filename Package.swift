@@ -5,10 +5,16 @@ let package = Package(name: "PAIAIME", platforms: [.macOS(.v13)], products: [
     .executable(name: "PAIAInputMethod", targets: ["InputMethodService"]),
     .executable(name: "paia-resources", targets:["ResourceTool"]),
     .executable(name: "paia-benchmark", targets: ["BenchmarkCLI"]),
+    .executable(name: "paia-qualification", targets: ["QualificationCLI"]),
     .executable(name: "paia-constraints", targets: ["ConstraintCLI"])
 ], targets: [
     .target(name: "CRimeShim", publicHeadersPath: "include", linkerSettings: [.linkedLibrary("dl"), .linkedLibrary("pthread")]),
     .target(name: "TextBoundary"),
+    .target(name: "QualificationCore"),
+    .target(name: "QualificationMetrics",publicHeadersPath:"include"),
+    .executableTarget(name:"QualificationCLI",dependencies:["QualificationCore","QualificationMetrics","EngineBridge","SessionCore"]),
+    .testTarget(name:"QualificationCoreTests",dependencies:["QualificationCore"]),
+    .testTarget(name:"QualificationHostTests",dependencies:["IMKHost","IMKTestClient","EngineBridge","SessionCore"]),
     .target(name: "CIMKContext", publicHeadersPath:"include",cSettings:[.unsafeFlags(["-fobjc-arc","-Werror=protocol","-Werror=mismatched-return-types"])]),
     .target(name: "LexiconCore"),
     .target(name: "ResourceCore"),

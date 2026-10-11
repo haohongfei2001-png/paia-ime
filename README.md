@@ -152,3 +152,12 @@ actual original 0.3.0 app/test bundle with 0.3.1 on authored saves and tombstone
 complete twelve-workflow native implementation checkpoint and its separate
 final-head/main gates. No new data format, installer,
 signing flow or production-dictionary qualification is implied.
+
+## Native reliability and resource qualification
+
+[Seeded native replay and measurement boundaries](docs/NATIVE_QUALIFICATION.md)
+add separate precompiled startup, 10k calibration, a fixed million actual native
+input-operation gate and bounded production-controller protocol tests to the
+existing B1 Mac lane. [Exact checkpoint evidence](evidence/native-qualification/VALIDATION.md)
+records what has actually run; repeated authored input is not human language
+quality, installed compatibility or long-duration real use.

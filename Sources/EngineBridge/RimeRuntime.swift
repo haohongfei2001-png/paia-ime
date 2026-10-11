@@ -8,6 +8,7 @@ import ResourceCore
 public enum EngineError: Error { case code(Int32), invalidUTF8, closed }
 public enum CandidateStartupError:Error {case authorityChangedBeforeEntry}
 public final class RimeRuntime {
+    public static var monotonicNanoseconds:UInt64 {paia_rime_monotonic_nanoseconds()}
     public let dictionaryRevision: String
     public let version = "1.16.0"
     private static let lifetime = NSLock()
@@ -15,6 +16,7 @@ public final class RimeRuntime {
     private static var attempts:UInt64=0
     public static var startupAttempts:UInt64 {lifetime.lock();defer{lifetime.unlock()};return attempts}
     public var deploymentCalls:UInt64 {paia_rime_deployment_calls()}
+    public var diagnostics:EngineDiagnostics {var value=PaiaRimeDiagnostics();paia_rime_diagnostics(&value);return EngineDiagnostics(value)}
     private let repairDisabledSchemas:Set<String>
     public private(set) var repairExtensionLoaded=false,mixedExtensionLoaded=false
     private final class WeakSession {weak var value:InputSession?;init(_ value:InputSession){self.value=value}}
@@ -72,6 +74,11 @@ public final class RimeRuntime {
 public struct EngineTiming {
     public let engineNanoseconds:UInt64, copyNanoseconds:UInt64
 }
+public struct EngineDiagnostics:Codable,Equatable {
+    public let keys,selections,clears,snapshots,failedSteps,sessionsCreated,sessionsDestroyed,liveSessions:UInt64
+    fileprivate init(_ value:PaiaRimeDiagnostics){keys=value.keys;selections=value.selections;clears=value.clears;snapshots=value.snapshots;failedSteps=value.failed_steps;sessionsCreated=value.sessions_created;sessionsDestroyed=value.sessions_destroyed;liveSessions=value.live_sessions}
+    public var inputOperations:UInt64 {keys+selections+clears}
+}
 public enum InputKey {
     case text(String), code(Int32, modifiers: Int32 = 0), returnKey, space, number(Int), escape, command
 }
@@ -96,6 +103,7 @@ public final class InputSession {
     private var ended=false
     private var timing=EngineTiming(engineNanoseconds:0,copyNanoseconds:0)
     public var lastTiming:EngineTiming {lock.lock();defer{lock.unlock()};return timing}
+    public var learningDisabled:Bool {lock.lock();defer{lock.unlock()};return !ended && paia_rime_learning_disabled(id) != 0}
     internal init(runtime: RimeRuntime,id: UInt64,chinesePunctuation:Bool,canRetainForRepair:Bool,canUseMixed:Bool,retained:Bool) {
         self.runtime=runtime; self.id=id; self.chinesePunctuation=chinesePunctuation;self.canRetainForRepair=canRetainForRepair;self.canUseMixed=canUseMixed;self.retained=retained;core=SessionCore(dictionaryRevision:runtime.dictionaryRevision)
     }
