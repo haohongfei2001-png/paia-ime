@@ -8,7 +8,7 @@ import QualificationMetrics
 // It is never invoked by the input service and never discovers a user profile.
 enum Failure:Error {case check(String)}
 func require(_ condition:Bool,_ message:String)throws {if !condition{throw Failure.check(message)}}
-func now()->UInt64 {DispatchTime.now().uptimeNanoseconds}
+func now()->UInt64 {RimeRuntime.monotonicNanoseconds}
 func writeJSON(_ value:Any,_ path:URL)throws {
     try JSONSerialization.data(withJSONObject:value,options:[.prettyPrinted,.sortedKeys]).write(to:path,options:.atomic)
 }
@@ -32,7 +32,7 @@ var report:[String:Any]=["complete":false,"evidence":"ENGINE_NATIVE","mode":mode
     "scope":"authored repeated workload on unbundled strong research corpus; not language-quality or installed-IME evidence",
     "unmeasured":["visible latency","M1 release budget","true OS-cold cache","installed clients","8 hours continuous input","500 hours real use","human quality","production corpus rights"],
     "operationSamples":0,"failures":[],"OS":ProcessInfo.processInfo.operatingSystemVersionString,
-    "engine":"librime 1.16.0","generator":"xorshift64 with Fisher-Yates eight-case permutation per schema; 32-schema cycle"]
+    "engine":"librime 1.16.0","clock":"shared C CLOCK_MONOTONIC for owner and nested components","generator":"xorshift64 with Fisher-Yates eight-case permutation per schema; 32-schema cycle"]
 var runtime:RimeRuntime?
 var records:FileHandle?
 var buffer=Data(),samples=0,assertions=0,commits=0,diagnosticReads=0,episodes=0

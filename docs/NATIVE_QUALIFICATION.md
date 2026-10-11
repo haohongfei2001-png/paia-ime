@@ -67,6 +67,11 @@ network capture or universal no-persistence proof.
 
 ## Honest timing and resource boundaries
 
+Owner and nested C measurements use the same C CLOCK_MONOTONIC function.
+Mixing Swift DispatchTime and that C clock produced a real calibration failure;
+the original records remain, and the component-within-owner assertion is retained.
+The older A1 benchmark now also uses that shared clock.
+
 Each completed operation produces four little-endian UInt64 words (32 bytes):
 operation kind (1 key, 2 selection, 3 clear), owner duration, native action
 duration, C commit/context copy duration, all in nanoseconds. At most 256 KiB of

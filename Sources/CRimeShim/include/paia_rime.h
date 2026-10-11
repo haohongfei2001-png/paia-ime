@@ -31,6 +31,8 @@ typedef struct {
     uint64_t sessions_created, sessions_destroyed, live_sessions;
 } PaiaRimeDiagnostics;
 void paia_rime_diagnostics(PaiaRimeDiagnostics *out);
+// Shared clock for nested native/owner measurements; no engine or mutex access.
+uint64_t paia_rime_monotonic_nanoseconds(void);
 int paia_rime_learning_disabled(uint64_t session);
 // Independent actual loaded-table capabilities: bit 0 G01, bit 1 mixed owner.
 unsigned paia_rime_extension_capabilities(void);

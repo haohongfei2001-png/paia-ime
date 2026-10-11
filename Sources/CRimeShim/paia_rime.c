@@ -7,7 +7,7 @@
 #include <stdio.h>
 #include <limits.h>
 #include <time.h>
-static uint64_t monotonic_ns(void) {
+uint64_t paia_rime_monotonic_nanoseconds(void) {
     struct timespec t;
     return clock_gettime(CLOCK_MONOTONIC,&t)==0 ? (uint64_t)t.tv_sec*1000000000ULL+(uint64_t)t.tv_nsec : 0;
 }
@@ -162,7 +162,7 @@ int paia_rime_step(uint64_t id, int action, int key, int modifiers, PaiaRimeSnap
     pthread_mutex_lock(&owner);
     int rc=PAIA_OK;
     if (!api || !api->find_session(id)) { rc=PAIA_SESSION; goto done; }
-    uint64_t engine_begin=monotonic_ns();
+    uint64_t engine_begin=paia_rime_monotonic_nanoseconds();
     if (action==1) {diagnostics.keys++;out->handled=api->process_key(id,key,modifiers);}
     else if (action==2) {
         if (key<0 || key>=PAIA_MAX_CANDIDATES) { rc=PAIA_BOUNDS; goto done; }
@@ -188,10 +188,10 @@ int paia_rime_step(uint64_t id, int action, int key, int modifiers, PaiaRimeSnap
         api->set_option(id,"_auto_commit",False);out->handled=1;
     }
     else if (action!=0) { rc=PAIA_BOUNDS; goto done; }
-    out->engine_nanoseconds=monotonic_ns()-engine_begin;
-    uint64_t copy_begin=monotonic_ns();
+    out->engine_nanoseconds=paia_rime_monotonic_nanoseconds()-engine_begin;
+    uint64_t copy_begin=paia_rime_monotonic_nanoseconds();
     rc=snapshot(id,out);
-    out->copy_nanoseconds=monotonic_ns()-copy_begin;
+    out->copy_nanoseconds=paia_rime_monotonic_nanoseconds()-copy_begin;
 done:
     if(rc)diagnostics.failed_steps++;
     pthread_mutex_unlock(&owner);

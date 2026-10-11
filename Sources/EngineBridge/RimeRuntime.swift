@@ -8,6 +8,7 @@ import ResourceCore
 public enum EngineError: Error { case code(Int32), invalidUTF8, closed }
 public enum CandidateStartupError:Error {case authorityChangedBeforeEntry}
 public final class RimeRuntime {
+    public static var monotonicNanoseconds:UInt64 {paia_rime_monotonic_nanoseconds()}
     public let dictionaryRevision: String
     public let version = "1.16.0"
     private static let lifetime = NSLock()
