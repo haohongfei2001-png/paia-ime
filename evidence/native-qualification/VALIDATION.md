@@ -197,3 +197,49 @@ macro. The first Linux C11 command omitted that macro and failed on declarations
 of strdup/strnlen; its original output is retained. Compiler diagnostics were not
 weakened. LeakSanitizer remains unavailable under the already recorded ptrace
 boundary, so local leak detection is not claimed.
+
+## Counter and fixed-prefix native checkpoint
+
+Head `a3d9e5b7c36f0ab4d3650ae4c29fc2ddb54c8ab7` finished with 11 workflows
+successful and one IMK failure. A2 run
+[38104019161](https://github.com/haohongfei2001-png/paia-ime/actions/runs/38104019161)
+passes the actual returned-trial cancellation/adoption tests and the separate
+failed-search/pending-runtime-close test (3/3 and 1/1 XCTest cases), alongside the
+existing 46 native constraint cases. Its artifact is `11689102731`, SHA-256
+`3c406b3882e8c6fd6f56fed169b57ad2d87dd5453b54ce6552e3d9c629d93e1a`.
+
+B1 run [38104019103](https://github.com/haohongfei2001-png/paia-ime/actions/runs/38104019103)
+passes the million replay, host, initialization controls and separate CPU prefix.
+Artifact `11689330254` has 84 files, 4,612,584 bytes, SHA-256
+`5c87d5fdf47bf03c0c35b32c535d49ffbb52fe078ee7b8c22416802d046390cd`.
+Independent recomputation verifies every 1,000,017 endurance, 10,001 calibration
+and 50,006 diagnostic wall record, every CPU companion, counters, hashes,
+percentiles and nested timing containment. Endurance has 88,397 commits,
+4,995,763 assertions, 11,117 created/destroyed owners and no failed operations.
+Key p99 native/owner is 0.521/0.546 ms. Raw million timings SHA-256 is
+`fc506da8d7072f5796254eb3b80931250cb33b86e2143aca8bc651e3a894d9a0`.
+
+All new tails remain: zero-based records 204535/204551/204552 have owner times
+30.144/34.134/86.287 ms. Their largest components differ (native action, outer
+owner work and context-copy respectively); the last has 86.010 ms in the copy
+boundary. These three exceed 16.7 ms. They are not removed or diagnosed as noise.
+The original record 44533 is 0.082 ms in this million and 0.084 ms wall/0.085 ms
+process CPU in the separate prefix. The prefix's largest wall observation is
+9.690 ms with a 0.644 ms process CPU bracket, which supports a substantial
+non-process-CPU interval for that observation only. It cannot establish the cause
+of the prior 278.061 ms or these new million tails. G02 remains open.
+
+IMK run [38104019332](https://github.com/haohongfei2001-png/paia-ime/actions/runs/38104019332),
+job 114365595078, now passes public and save stages including the former 71/72
+assertion. Restore fails at the newly added constructor snapshot assertion:
+9 observed versus 8 expected. Source tracing confirms preferences startup
+legitimately restores saved settings through a temporary empty native session and
+one refresh, after the constructor but before that misplaced assertion. Later
+IMK stages remain skipped in this run; all logs and original artifacts are retained.
+
+The test-only correction measures the constructor first (7 keys, 1 clear,
+8 snapshots, 1 created, 0 destroyed, 1 live). It then requires exactly one restored
+probe's snapshot/create/destroy, or zero if the actual saved document is absent;
+input-operation counters, failures, live owner and authority bytes must remain
+unchanged. No production behavior or assertion is weakened. Independent static
+review passes; the corrected exact-head IMK and all final/main checks are pending.

@@ -47,14 +47,26 @@ final class ProductCandidateTests:XCTestCase {
         XCTAssertTrue(["public","save","restore","delete","deleted"].contains(stage))
         let environment=try IMKServiceEnvironment(environment:[:],preflight:true,isolatedDataParent:parent,applicationBundle:bundle());defer{environment.close()}
         let candidate=try XCTUnwrap(environment.candidate),stores=try XCTUnwrap(environment.productStores),workspace=environment.workspace
-        let preferences=IMKPreferencesController(workspace:workspace);defer{preferences.close()}
         XCTAssertTrue(stores.unavailable.isEmpty);XCTAssertEqual(RimeRuntime.startupAttempts,1);XCTAssertEqual(environment.runtime.deploymentCalls,0)
         let initial=try authorities(parent)
         let initialized=try XCTUnwrap(environment.runtime.initializationReceipt)
         XCTAssertEqual(initialized.schema,"paia_candidate_full_traditional_ascii");XCTAssertTrue(initialized.learningDisabled);XCTAssertTrue(initialized.cleared)
         XCTAssertEqual(initialized.keyOperations,7);XCTAssertEqual(initialized.clearOperations,1);XCTAssertEqual(initialized.privateNativeOwners,1)
-        XCTAssertEqual(environment.runtime.diagnostics.liveSessions,1)
-        XCTAssertEqual(environment.runtime.diagnostics.keys,7);XCTAssertEqual(environment.runtime.diagnostics.snapshots,8)
+        let constructor=environment.runtime.diagnostics
+        XCTAssertEqual(constructor.keys,7);XCTAssertEqual(constructor.selections,0);XCTAssertEqual(constructor.clears,1)
+        XCTAssertEqual(constructor.snapshots,8);XCTAssertEqual(constructor.failedSteps,0)
+        XCTAssertEqual(constructor.sessionsCreated,1);XCTAssertEqual(constructor.sessionsDestroyed,0);XCTAssertEqual(constructor.liveSessions,1)
+        // Saved settings are validated by a separate empty native session.
+        // Measure the constructor before that legitimate startup restore probe.
+        let saved=try XCTUnwrap(stores.settings).snapshot(),restoreProbe:UInt64=saved == nil ? 0:1
+        let preferences=IMKPreferencesController(workspace:workspace);defer{preferences.close()}
+        let restored=environment.runtime.diagnostics
+        XCTAssertEqual(restored.keys,constructor.keys);XCTAssertEqual(restored.selections,constructor.selections);XCTAssertEqual(restored.clears,constructor.clears)
+        XCTAssertEqual(restored.failedSteps,constructor.failedSteps);XCTAssertEqual(restored.liveSessions,1)
+        XCTAssertEqual(restored.snapshots,constructor.snapshots+restoreProbe)
+        XCTAssertEqual(restored.sessionsCreated,constructor.sessionsCreated+restoreProbe)
+        XCTAssertEqual(restored.sessionsDestroyed,constructor.sessionsDestroyed+restoreProbe)
+        XCTAssertEqual(try authorities(parent),initial)
         // Public and restored-personal product paths use the exact constructor,
         // not a test-only prewarm. No host is bound while the private owner lives.
         for attempt in 1...2 {
