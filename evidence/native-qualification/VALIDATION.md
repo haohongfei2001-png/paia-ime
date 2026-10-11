@@ -82,3 +82,30 @@ children measured only default Full/Simplified/ASCII (open-to-first-snapshot
 4.161–6.620 ms), not all-mode cold startup. These cloud-runner observations are
 not M1-budget acceptance. The exact-head native lifetime diagnostic, remaining
 CI, final/main and recovery checks are still pending at this document revision.
+
+## Native owner-lifetime diagnostic and bounded correction
+
+Head `6688b7ea0f11259d22c243afa0e2249198338edc`, B1 run
+[38101398041](https://github.com/haohongfei2001-png/paia-ime/actions/runs/38101398041),
+job 114357883809 passed. Original 62-file artifact SHA256:
+`2dc62d5187cad499d80a8f8768c2618a6b5bcb5a0dd6c02c0af720877b3c4ac8`.
+Independent review verified the exact receipt, archive bytes, compiled inventory
+and source lifecycle. Four owner timings were 153.602 / 0.064 / 0.127 / 99.577 ms;
+native action timings were 153.392 / 0.026 / 0.065 / 99.475 ms. The final cold
+reactivation's CPU was 98.576 ms. There were 24 real keys, 4 clears, 28 snapshots,
+5 created/destroyed sessions, no native failure and unchanged candidates including
+actual 輸入法 after every probe. The 153.602 ms observation exceeds 120 ms on this
+hosted runner; it is retained, not dismissed by percentiles or earlier 98 ms.
+The separate million again completed 1,000,017 operations and actual host
+32 episodes/128 inserts; owner maximum was 90.054 ms. This checkpoint made no
+production initialization change.
+
+The next minimal correction uses a startup-owned cleared/no-learning native ID
+on a fixed public traditional schema. Managed startup/lifetime/million paths
+use this same initializer; unprimed controls and all prior raw records remain.
+The extra owner is counted in RSS/lifecycle, initialization cost is included in
+startup-ready time, and no host/user input is used. A deliberately modified
+compiled-copy negative must fail after seven real C keys, clean the owner and
+reject runtime retry. Public/restored-personal product tests additionally check
+authority bytes, reactivation and close. Python verifier now passes 6 tests
+locally. Swift/AppKit/native correction execution and final/main remain pending.

@@ -32,7 +32,7 @@ public struct ResearchLabEnvironment {
         let temp=FileManager.default.temporaryDirectory.appendingPathComponent("paia-b1-"+UUID().uuidString)
         try FileManager.default.createDirectory(at:temp,withIntermediateDirectories:false);temporaryDirectory=temp
         do {runtime=try RimeRuntime(library:required("PAIA_RIME_LIBRARY"),shared:required("PAIA_B1_SHARED"),isolatedUser:temp.path,
-             dictionaryRevision:required("PAIA_B1_REVISION"),schemas:schemas,g01Library:required("PAIA_G01_LIBRARY"))}
+             dictionaryRevision:required("PAIA_B1_REVISION"),schemas:schemas,g01Library:required("PAIA_G01_LIBRARY"),initialization:.research)}
         catch{try? FileManager.default.removeItem(at:temp);throw error}
     }
 }

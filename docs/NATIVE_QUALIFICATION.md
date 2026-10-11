@@ -3,8 +3,8 @@
 This engineering node implements the original REPORT §15.3 million-event replay
 and separates native timing/resource measurements requested by HANDOFF §4. It
 uses the same pinned, explicit unbundled strong research corpus and 32 B1 schemas.
-No corpus is newly distributed or claimed cleared for production. The installed
-product still defaults to 46 authored dictionary rows.
+No corpus is newly distributed or claimed cleared for production. The candidate
+bundle still defaults to 46 authored dictionary rows.
 
 ## Reproduce without installation
 
@@ -42,7 +42,9 @@ separate native lifetime diagnostic observes first traditional Flypy `u`, a
 same-session warmed key, a new traditional session while a simplified sentinel
 still lives, and reactivation after all native sessions are destroyed. It checks
 identical candidates and exact native counters; it asserts no performance
-threshold and adds no warmup to the product or million-event process. Then a fresh
+threshold. This unprimed control remains in a separate process. A managed
+comparison uses the exact production initialization method described below;
+startup, calibration and endurance use that method too. Then a fresh
 process performs at least 10,000 native input operations as calibration. Another
 fresh process must perform at least 1,000,000, finishing its final episode.
 Calibration is never substituted for the million or used to shrink the denominator.
@@ -100,9 +102,10 @@ its receipt/log and the job fails; it is never silently dropped from a pass.
 - Current task RSS is distinct from Darwin whole-process peak RSS. All schemas
   are exercised by a diagnostic sweep before steady checkpoints, but those
   temporary sessions are destroyed, so this does not guarantee that every lazy
-  native cache remains warm. Same two-session checkpoints permit
-  inspection of growth, not automatic diagnosis of a leak. Startup idle has zero
-  live sessions. Library code is intentionally retained until process exit.
+  native cache remains warm. Managed checkpoints have two host sessions plus
+  one private native initialization owner; all three are included in counters and
+  RSS. Startup idle has zero host sessions and one private native owner. These
+  measurements permit inspection of growth, not automatic diagnosis of a leak. Library code is intentionally retained until process exit.
 - Runtime open, first session, first key and warmed first key are separate from
   compilation. Fresh process does not mean cold filesystem/OS cache. Three
   samples are observations, not startup-tail qualification.
@@ -144,8 +147,11 @@ OpenCC initializes its configuration on first conversion. A prior diagnostic
 sweep whose sessions are destroyed cannot guarantee preloading for later owners.
 This source behavior fits the repeatable observed tail; the independent
 cold/warm/zero-owner reactivation diagnostic tests that lifecycle hypothesis.
-No production prewarm, cache-retention workaround or XPC switch is introduced by
-this measurement node. Full initialization and G02 release qualification remain
+The lifetime diagnostic reproduced 153.602 ms cold, 0.064 ms same-session,
+0.127 ms new session with sentinel retained, and 99.577 ms after all owners were
+destroyed. The last phase used 98.576 ms CPU. This strongly supports the lifecycle
+mechanism; the exact internal call stack was not profiled. The original records
+and their real first-key risk are retained. Full G02 release qualification remains
 open. The native replay gate is distinct from those product-performance gates.
 
 Pinned source inspection uses engine commit
@@ -154,4 +160,40 @@ Pinned source inspection uses engine commit
 [weak cache lookup/creation](https://github.com/rime/librime/blob/a251145d3aafa33871824a40bbec04c966bd8b56/src/rime/gear/simplifier.cc#L313-L341),
 [shared filter / weak map ownership](https://github.com/rime/librime/blob/a251145d3aafa33871824a40bbec04c966bd8b56/src/rime/gear/simplifier.h#L36-L53).
 The source mechanism is verified; attribution of the observed latency remains an
-inference to test against the explicit owner-lifetime experiment, not a CPU profile.
+inference supported by the explicit owner-lifetime experiment, not a CPU profile.
+
+## Bounded production initialization correction
+
+After deployment and extension capability checks, before an IMK workspace/client
+is published, the candidate runtime and explicit research environments create one
+private native owner on the fixed public Full/Traditional/ASCII schema. It sends
+only authored `shurufa`, checks each real raw prefix, no commit and actual top
+`輸入法`, clears, and verifies empty raw/preedit/candidates and `_no_learning`.
+It retains only the native ID until runtime close: no InputSession retain cycle,
+SessionCore, host binding, candidate capability, effect or stored input body.
+Ordinary A1 and compile-only runtimes retain their default unprimed behavior.
+Candidate personal overlays are Full/Simplified only; this private owner always
+uses the public traditional schema, so personal disable/deletion remains effective.
+
+This relocates synchronous conversion initialization into startup; it does not
+remove its cost. Runtime-ready and open-to-first-snapshot timings include it,
+and RSS/native counters include the retained owner. The managed four-phase
+comparison retains one private owner when all host owners retire. The million
+still records every subsequent key, including each mode's first host key, with
+its baseline established after disclosed initialization. No sample is trimmed.
+
+A separate deliberately invalid compiled copy disables only the traditional
+filter option. It must cross seven successful C keys, fail the actual conversion
+oracle, destroy the private owner, retain startupAttempts=1, and reject a second
+initialization as PAIA_BUSY without touching counters. Its changed path and
+before/after hashes are saved. This is an expected-red partial-initialization
+control, not a verified candidate pack or an OpenCC mid-load failure test.
+The original measured resource inventory must remain byte-identical.
+Product candidate public/save/restore/delete/deleted stages verify the same
+constructor receipt, two traditional reactivations after zero host owners,
+unchanged authority bytes, existing overlay-disable behavior and balanced
+idempotent close. The research host lane likewise counts its private owner.
+
+The correction's exact-head native tests are pending at this revision. No claim
+of M1/visible latency, all-mode startup tails, total startup budget, installed use,
+eight-hour reliability or release readiness follows from moving initialization.

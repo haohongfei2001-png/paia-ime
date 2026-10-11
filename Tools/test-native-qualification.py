@@ -33,6 +33,12 @@ class Tests(unittest.TestCase):
         self.assertEqual(module.host_receipt(text)["insertCalls"],128)
         for invalid in ["",text+"\n"+text,text.replace("episodes=32","episodes=31"),text.replace("insertCalls=128","insertCalls=0")]:
             with self.assertRaises(RuntimeError):module.host_receipt(invalid)
+    def testInitializationFaultOnlyChangesDeclaredFilterOption(self):
+        for text in ['traditionalize:\n  option_name: traditionalization\n','traditionalize: {option_name: traditionalization, opencc_config: s2t.json}\n']:
+            result=module.disable_conversion_for_negative(text)
+            self.assertEqual(result,text.replace('traditionalization','paia_authored_disabled_conversion'))
+        for text in ['', 'option_name: other', 'option_name: traditionalization\noption_name: traditionalization']:
+            with self.assertRaises(RuntimeError):module.disable_conversion_for_negative(text)
     def testFullGateCannotBeReplacedByCalibration(self):
         self.assertEqual(module.MINIMUM,1_000_000);self.assertEqual(module.CALIBRATION,10_000)
 if __name__=='__main__':unittest.main()

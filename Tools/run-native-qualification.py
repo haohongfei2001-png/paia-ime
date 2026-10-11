@@ -4,13 +4,13 @@
 A deadline kills/reaps only this disposable test process. It does not make an
 in-process C++ call safely cancellable or permit replaying an unknown commit.
 """
-import array,hashlib,json,math,os,re,signal,struct,subprocess,sys,tempfile,time
+import array,hashlib,json,math,os,re,signal,shutil,struct,subprocess,sys,tempfile,time
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 OUT=ROOT/'evidence/b1-run/qualification'
 MINIMUM=1_000_000
 CALIBRATION=10_000
-TIMEOUTS={'prepare':240,'startup':30,'initialization':30,'calibrate':120,'endurance':1200,'host':120}
+TIMEOUTS={'prepare':240,'startup':30,'initialization':30,'managed-initialization':30,'initialization-failure':30,'calibrate':120,'endurance':1200,'host':120}
 SCHEMA_COUNT=32
 
 def sha(data):return hashlib.sha256(data).hexdigest()
@@ -63,6 +63,14 @@ def host_receipt(text):
     rows=re.findall(r"APPKIT_HOST qualification episodes=(\d+) insertCalls=(\d+); real production controller and NSTextView-backed authored IMK client; installed=false",text)
     if rows != [("32","128")]:raise RuntimeError("missing, duplicated or incomplete actual host receipt")
     return {"evidence":"APPKIT_HOST","authoredEpisodes":int(rows[0][0]),"insertCalls":int(rows[0][1]),"framework":"actual IMKControllerDriver + NSTextView-backed protocol client; no IMKServer"}
+
+def disable_conversion_for_negative(text):
+    # Compiled YAML may use block or flow syntax. Change exactly the declared
+    # filter option to an absent authored switch, whose value is false. Avoid
+    # touching the immutable measured pack or depending on a YAML package.
+    changed,count=re.subn(r'(option_name:\s*)traditionalization\b',r'\1paia_authored_disabled_conversion',text)
+    if count!=1:raise RuntimeError('unexpected compiled conversion option')
+    return changed
 
 def main():
     if os.environ.get('PAIA_B1_RESEARCH')!='1':raise RuntimeError('explicit research mode required')
@@ -117,7 +125,24 @@ def main():
     if inventory(pack)!=expected:raise RuntimeError('precompiled authority changed after initialization diagnostic')
     observed=initialization['initializationObservations']
     if [x['phase'] for x in observed]!=['fresh-runtime-first-traditional-key','same-native-session-after-clear','new-traditional-session-with-sentinel-retained','zero-owner-reactivation-first-traditional-key']:raise RuntimeError('incomplete native lifetime diagnostic')
-    summary={'initialization':observed}
+    summary={'unprimedInitializationControl':observed}
+    _,managed_initialization,_=child('managed-initialization','managed-initialization',pack)
+    managed_observed=managed_initialization['initializationObservations']
+    if [x['phase'] for x in managed_observed]!=['first-host-traditional-key-after-production-initialization','same-native-session-after-clear','new-traditional-session-with-sentinel-retained','zero-host-owner-reactivation-private-owner-retained']:raise RuntimeError('incomplete managed lifetime diagnostic')
+    if inventory(pack)!=expected:raise RuntimeError('managed initialization changed resources')
+    summary['productionInitialization']=managed_observed
+    faulty=scratch/'authored-initialization-fault';shutil.copytree(pack,faulty)
+    fault_schema=faulty/'build/paia_b1_full_traditional_ascii.schema.yaml'
+    original=fault_schema.read_bytes();fault_schema.write_text(disable_conversion_for_negative(original.decode()))
+    write(OUT/'initialization-fault.json',{'scope':'disposable deliberately invalid compiled control, never a verified candidate pack',
+        'file':'build/paia_b1_full_traditional_ascii.schema.yaml','originalSHA256':sha(original),'faultSHA256':sha(fault_schema.read_bytes()),
+        'fault':'traditional filter uses absent authored option; actual native output fails startup oracle after seven keys'})
+    modified=inventory(faulty)
+    if set(modified)!=set(expected) or [name for name in expected if expected[name]!=modified[name]]!=['build/paia_b1_full_traditional_ascii.schema.yaml']:raise RuntimeError('unexpected fault modification')
+    env['PAIA_QUALIFICATION_ORIGINAL_PACK']=str(pack)
+    _,negative,_=child('initialization-failure','initialization-failure',faulty)
+    summary['partialInitializationFailure']={'expectedFailure':negative['expectedFailure'],'nativeCounters':negative['nativeCounters']}
+    if inventory(pack)!=expected:raise RuntimeError('fault control changed original resources')
     for mode,minimum in [('calibrate',CALIBRATION),('endurance',MINIMUM)]:
         if inventory(pack)!=expected:raise RuntimeError('precompiled authority changed before replay')
         _,report,process=child(mode,mode,pack)

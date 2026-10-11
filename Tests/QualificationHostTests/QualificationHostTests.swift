@@ -17,8 +17,9 @@ final class QualificationHostTests:XCTestCase {
         let e=ProcessInfo.processInfo.environment
         guard e["PAIA_B1_RESEARCH"]=="1",let shared=e["PAIA_QUALIFICATION_SHARED"],let user=e["PAIA_QUALIFICATION_HOST_USER"] else{throw XCTSkip("Explicit native qualification host lane not selected")}
         _=NSApplication.shared
-        let runtime=try RimeRuntime(library:XCTUnwrap(e["PAIA_RIME_LIBRARY"]),shared:shared,isolatedUser:user,dictionaryRevision:XCTUnwrap(e["PAIA_B1_REVISION"]),precompiled:true)
+        let runtime=try RimeRuntime(library:XCTUnwrap(e["PAIA_RIME_LIBRARY"]),shared:shared,isolatedUser:user,dictionaryRevision:XCTUnwrap(e["PAIA_B1_REVISION"]),precompiled:true,initialization:.research)
         defer{runtime.close()}
+        XCTAssertEqual(runtime.initializationReceipt?.privateNativeOwners,1);XCTAssertEqual(runtime.diagnostics.liveSessions,1)
         var episodes=0,inserts=0
         for schema in LabConfiguration.researchSchemas {
             try autoreleasepool {
@@ -69,6 +70,8 @@ final class QualificationHostTests:XCTestCase {
             }
         }
         XCTAssertEqual(episodes,32);XCTAssertEqual(inserts,128);XCTAssertEqual(runtime.deploymentCalls,0)
+        XCTAssertEqual(runtime.diagnostics.liveSessions,1)
+        XCTAssertTrue(runtime.close());XCTAssertTrue(runtime.close())
         XCTAssertEqual(runtime.diagnostics.liveSessions,0)
         XCTAssertEqual(runtime.diagnostics.sessionsCreated,runtime.diagnostics.sessionsDestroyed)
         print("APPKIT_HOST qualification episodes=\(episodes) insertCalls=\(inserts); real production controller and NSTextView-backed authored IMK client; installed=false")

@@ -19,7 +19,7 @@ func signature(_ value:CandidateSnapshot?)->[String] {
 }
 let variables=ProcessInfo.processInfo.environment
 let args=Array(CommandLine.arguments.dropFirst())
-guard args.count==4,["prepare","startup","initialization","calibrate","endurance"].contains(args[0]),variables["PAIA_B1_RESEARCH"]=="1",
+guard args.count==4,["prepare","startup","initialization","managed-initialization","initialization-failure","calibrate","endurance"].contains(args[0]),variables["PAIA_B1_RESEARCH"]=="1",
       let library=variables["PAIA_RIME_LIBRARY"],let revision=variables["PAIA_B1_REVISION"] else {
     FileHandle.standardError.write(Data("Explicit verified B1 research environment and mode/shared/new-user/output required.\n".utf8));exit(2)
 }
@@ -127,10 +127,40 @@ do {
     try writeJSON(report,reportPath)
     let schemas=LabConfiguration.researchSchemas
     try require(schemas.count==32,"research schema contract changed")
+    if mode=="initialization-failure" {
+        // Deliberately modified disposable compiled schema. This negative lane
+        // is never a verified candidate pack or the million-run resource tree.
+        guard let original=variables["PAIA_QUALIFICATION_ORIGINAL_PACK"] else{throw Failure.check("missing original control pack")}
+        do {
+            _ = try RimeRuntime(library:library,shared:shared,isolatedUser:user,dictionaryRevision:revision,precompiled:true,initialization:.research)
+            throw Failure.check("disabled traditional conversion was accepted")
+        } catch EngineInitializationError.traditionalConversion {assertions+=1}
+        let count=RimeRuntime.nativeDiagnostics
+        try check(count.keys==7 && count.snapshots==7 && count.clears==0 && count.selections==0 && count.failedSteps==0,"partial initialization did not cross seven successful native keys")
+        try check(count.sessionsCreated==1 && count.sessionsDestroyed==1 && count.liveSessions==0 && RimeRuntime.startupAttempts==1,"failed initialization leaked or reused attempt")
+        do {
+            _ = try RimeRuntime(library:library,shared:original,isolatedUser:user,dictionaryRevision:revision,precompiled:true)
+            throw Failure.check("second initialization accepted")
+        } catch EngineError.code(let code) {try check(code==7,"second attempt was not PAIA_BUSY")}
+        try check(RimeRuntime.startupAttempts==1 && RimeRuntime.nativeDiagnostics==count,"rejected retry touched native state")
+        report["expectedFailure"]="traditional conversion oracle after seven real native keys; cleared by owner destruction"
+        report["nativeCounters"]=try object(count);report["complete"]=true;try checkpoint("partial-initialization-failure-cleaned")
+        print("PAIA_NATIVE_INITIALIZATION_NEGATIVE keys=7 owners=0 attempts=1 retry=PAIA_BUSY")
+        exit(0)
+    }
+    let managed=mode != "prepare" && mode != "initialization",privateOwners:UInt64=managed ? 1:0
+    report["initializationProfile"]=managed ? "production-research-private-conversion-owner":"unprimed-control"
     let opened=now()
     let owner=try RimeRuntime(library:library,shared:shared,isolatedUser:user,dictionaryRevision:revision,
-                              schemas:mode=="prepare" ? schemas:[],precompiled:mode != "prepare")
+                              schemas:mode=="prepare" ? schemas:[],precompiled:mode != "prepare",initialization:managed ? .research:.none)
     runtime=owner;report["runtimeOpenNanoseconds"]=now()-opened
+    if managed {
+        guard let receipt=owner.initializationReceipt else{throw Failure.check("production initializer receipt missing")}
+        try check(receipt.schema=="paia_b1_full_traditional_ascii" && receipt.keyOperations==7 && receipt.clearOperations==1 && receipt.privateNativeOwners==1 && receipt.learningDisabled && receipt.cleared,"initializer receipt differs")
+        let count=owner.diagnostics
+        try check(count.keys==7 && count.clears==1 && count.snapshots==8 && count.failedSteps==0 && count.liveSessions==1 && count.sessionsCreated==1 && count.sessionsDestroyed==0,"private initialization counters differ")
+        report["initializationReceipt"]=try object(receipt);report["runtimeReadyResidentBytes"]=paia_qualification_current_rss()
+    } else {try check(owner.initializationReceipt==nil,"control unexpectedly primed")}
     if mode=="prepare" {
         try require(owner.deploymentCalls==33,"not all 32 research schemas and fixture deployed")
         try require(owner.close(),"deployment close failed")
@@ -147,11 +177,11 @@ do {
             _ = try s.process(.escape)
             let warm=now();_ = try s.process(.code(115));report["warmFirstKeyNanoseconds"]=now()-warm
             _ = try s.process(.escape);s.end()
-            try checkpoint("zero-session-idle")
+            try check(owner.diagnostics.liveSessions==1,"idle private owner absent");try checkpoint("zero-host-sessions-one-private-owner-idle")
             let cpu=paia_qualification_cpu_ns(),wall=now();Thread.sleep(forTimeInterval:2)
             report["idleCPUFractionOfOneCore"]=Double(paia_qualification_cpu_ns()-cpu)/Double(now()-wall)
             try require(owner.close(),"startup close failed");report["complete"]=true;try checkpoint("startup-closed")
-        } else if mode=="initialization" {
+        } else if mode=="initialization" || mode=="managed-initialization" {
             // Do not prewarm the endurance process. This independent process
             // observes the actual first-key cost across native owner lifetimes.
             var observations=[[String:Any]](),expected:[String]?
@@ -172,24 +202,24 @@ do {
                 try check(session.snapshot?.rawASCII=="uurufa" && session.snapshot?.rows.first?.text=="輸入法","probe did not retain actual traditional conversion")
                 let cleared=try session.process(.escape);try check(cleared.commit==nil && cleared.snapshot?.rawASCII=="","probe did not clear")
             }
-            try observe("fresh-runtime-first-traditional-key")
+            try observe(managed ? "first-host-traditional-key-after-production-initialization":"fresh-runtime-first-traditional-key")
             try observe("same-native-session-after-clear")
             traditional?.end();traditional=nil
-            try check(owner.diagnostics.liveSessions==1,"sentinel-only transition failed")
+            try check(owner.diagnostics.liveSessions==1+privateOwners,"sentinel-only transition failed")
             traditional=try owner.makeSession(schema:"paia_b1_flypy_traditional_ascii")
             try observe("new-traditional-session-with-sentinel-retained")
             traditional?.end();traditional=nil;sentinel?.end();sentinel=nil
-            try check(owner.diagnostics.liveSessions==0,"all native owners not destroyed")
+            try check(owner.diagnostics.liveSessions==privateOwners,"host owners not destroyed")
             sentinel=try owner.makeSession(schema:"paia_b1_full_ascii")
             traditional=try owner.makeSession(schema:"paia_b1_flypy_traditional_ascii")
-            try observe("zero-owner-reactivation-first-traditional-key")
+            try observe(managed ? "zero-host-owner-reactivation-private-owner-retained":"zero-owner-reactivation-first-traditional-key")
             traditional?.end();traditional=nil;sentinel?.end();sentinel=nil
             let counts=owner.diagnostics
-            try check(counts.keys==24 && counts.clears==4 && counts.snapshots==28 && counts.failedSteps==0,"initialization probe native counts differ")
-            try check(counts.liveSessions==0 && counts.sessionsCreated==5 && counts.sessionsDestroyed==5,"initialization owner lifecycle differs")
+            try check(counts.keys==24+7*privateOwners && counts.clears==4+privateOwners && counts.snapshots==28+8*privateOwners && counts.failedSteps==0,"initialization probe native counts differ")
+            try check(counts.liveSessions==privateOwners && counts.sessionsCreated==5+privateOwners && counts.sessionsDestroyed==5,"initialization owner lifecycle differs")
             report["initializationObservations"]=observations
-            report["probeMeaning"]="Independent same-data native lifetime diagnostic; no warmup added to product or million workload, no latency threshold inferred"
-            try require(owner.close(),"initialization diagnostic close failed");report["complete"]=true;try checkpoint("initialization-diagnostic-closed")
+            report["probeMeaning"]=managed ? "Same production initializer retains one private native owner across zero host owners; all initialization time/counters disclosed":"Unprimed same-data control retains original cold/warm/zero-native-owner costs; no latency threshold inferred"
+            try require(owner.close() && owner.close(),"initialization diagnostic close failed");try check(owner.diagnostics.liveSessions==0 && owner.diagnostics.sessionsCreated==owner.diagnostics.sessionsDestroyed,"private owner close unbalanced");report["complete"]=true;try checkpoint("initialization-diagnostic-closed")
         } else {
             let minimum=mode=="calibrate" ? QualificationSchedule.calibrationEvents:QualificationSchedule.minimumEvents
             report["requestedMinimumNativeInputOperations"]=minimum
@@ -199,7 +229,7 @@ do {
             try Data().write(to:timingFile,options:.withoutOverwriting);records=try FileHandle(forWritingTo:timingFile);buffer.reserveCapacity(262144)
             let before=try autoreleasepool{try diagnostics(owner,schemas:schemas)}
             try writeJSON(before,output.appendingPathComponent("diagnostics-before.json"))
-            // At most two simultaneous sessions. This sentinel crosses native
+            // Two host sessions plus the actual private initialization owner. The sentinel crosses native
             // readback at checkpoints; cached Swift state alone is insufficient.
             let sentinel=try owner.makeSession(schema:"paia_b1_full_ascii")
             for byte in "ni".utf8 {_ = try sentinel.process(.code(Int32(byte)))}
@@ -288,9 +318,9 @@ do {
                     let count=owner.diagnostics
                     try check(count.inputOperations-baseline.inputOperations==UInt64(samples),"native input denominator differs")
                     try check(count.snapshots-baseline.snapshots==UInt64(samples+diagnosticReads),"unexpected native snapshot path")
-                    try check(count.failedSteps==baseline.failedSteps && count.liveSessions==2,"native failure or leaked live session")
+                    try check(count.failedSteps==baseline.failedSteps && count.liveSessions==2+privateOwners,"native failure or leaked live session")
                     try check(session!.learningDisabled && sentinel.learningDisabled,"checkpoint learning option changed")
-                    try checkpoint("steady-two-sessions");nextCheckpoint+=10_000
+                    try checkpoint("steady-two-host-sessions-one-private-owner");nextCheckpoint+=10_000
                 }
             }
             report["workloadWallNanoseconds"]=now()-begin;report["workloadCPUNanoseconds"]=paia_qualification_cpu_ns()-cpu
@@ -300,13 +330,13 @@ do {
             try check(measured.snapshots-baseline.snapshots==UInt64(samples+diagnosticReads) && measured.failedSteps==baseline.failedSteps,"snapshot/failure total mismatch")
             report["nativeCountersAfterWorkload"]=try object(measured)
             session?.end();session=nil;sentinel.end()
-            try check(owner.diagnostics.liveSessions==0,"sessions survived explicit teardown")
+            try check(owner.diagnostics.liveSessions==privateOwners,"host sessions survived explicit teardown")
             let after=try autoreleasepool{try diagnostics(owner,schemas:schemas)}
             try writeJSON(after,output.appendingPathComponent("diagnostics-after.json"))
             try check(try JSONSerialization.data(withJSONObject:before,options:.sortedKeys)==JSONSerialization.data(withJSONObject:after,options:.sortedKeys),"before/after candidate diagnostics drifted")
             try check(Set(schemaEpisodes.keys)==Set(schemas) && scenarioEpisodes.count==8,"workload did not cover every schema/scenario")
             try check(owner.deploymentCalls==0,"deployment occurred in input process")
-            try require(owner.close(),"runtime close failed")
+            try require(owner.close() && owner.close(),"runtime close failed")
             let final=owner.diagnostics
             try check(final.liveSessions==0 && final.sessionsCreated==final.sessionsDestroyed,"unbalanced native session lifecycle")
             report["complete"]=true;try checkpoint("closed")

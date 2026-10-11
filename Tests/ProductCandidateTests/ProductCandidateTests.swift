@@ -50,6 +50,24 @@ final class ProductCandidateTests:XCTestCase {
         let preferences=IMKPreferencesController(workspace:workspace);defer{preferences.close()}
         XCTAssertTrue(stores.unavailable.isEmpty);XCTAssertEqual(RimeRuntime.startupAttempts,1);XCTAssertEqual(environment.runtime.deploymentCalls,0)
         let initial=try authorities(parent)
+        let initialized=try XCTUnwrap(environment.runtime.initializationReceipt)
+        XCTAssertEqual(initialized.schema,"paia_candidate_full_traditional_ascii");XCTAssertTrue(initialized.learningDisabled);XCTAssertTrue(initialized.cleared)
+        XCTAssertEqual(initialized.keyOperations,7);XCTAssertEqual(initialized.clearOperations,1);XCTAssertEqual(initialized.privateNativeOwners,1)
+        XCTAssertEqual(environment.runtime.diagnostics.liveSessions,1)
+        XCTAssertEqual(environment.runtime.diagnostics.keys,7);XCTAssertEqual(environment.runtime.diagnostics.snapshots,8)
+        // Public and restored-personal product paths use the exact constructor,
+        // not a test-only prewarm. No host is bound while the private owner lives.
+        for attempt in 1...2 {
+            var config=LabConfiguration();config.spelling = .flypy;config.traditional=true
+            let session=try environment.makeSession(config);XCTAssertTrue(session.learningDisabled)
+            let begin=RimeRuntime.monotonicNanoseconds,first=try session.process(.code(117)),elapsed=RimeRuntime.monotonicNanoseconds-begin
+            XCTAssertNil(first.commit);XCTAssertEqual(first.snapshot?.rawASCII,"u")
+            for byte in "urufa".utf8{XCTAssertNil(try session.process(.code(Int32(byte))).commit)}
+            XCTAssertEqual(session.snapshot?.rows.first?.text,"輸入法");session.end();session.end()
+            XCTAssertEqual(environment.runtime.diagnostics.liveSessions,1)
+            print("PRODUCT_INITIALIZATION stage=\(stage) reactivation=\(attempt) owner_ns=\(elapsed) startup_priming_ns=\(initialized.nanoseconds) private_owners=1 host_writes=0")
+        }
+        XCTAssertEqual(try authorities(parent),initial)
         if stage=="public" {
             XCTAssertFalse(candidate.personalActive);var count=0
             for spelling in LabSpelling.allCases {for traditional in [false,true] {for punctuation in [false,true] {for fuzzy in [false,true] {for correction in (spelling == .full ? [true,false]:[true]) {
@@ -159,6 +177,9 @@ final class ProductCandidateTests:XCTestCase {
         }
         let files=try FileManager.default.subpathsOfDirectory(atPath:candidate.snapshot.userDirectory.path)
         XCTAssertFalse(files.contains{$0.hasPrefix("build/") || $0.contains("userdb") || $0.hasSuffix(".table.bin") || $0.hasSuffix(".prism.bin")})
+        environment.close();environment.close()
+        XCTAssertEqual(environment.runtime.diagnostics.liveSessions,0)
+        XCTAssertEqual(environment.runtime.diagnostics.sessionsCreated,environment.runtime.diagnostics.sessionsDestroyed)
         print("PRODUCT_RESTART_STAGE \(stage) ENGINE_NATIVE + APPKIT_HOST main_attempts=1 deployments=0")
     }
     @MainActor func testOptionalStoreAndPersonalPreparationFaultStage()throws {
