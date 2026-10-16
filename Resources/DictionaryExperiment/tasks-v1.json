@@ -1,0 +1,242 @@
+[
+  {
+    "id": "D01",
+    "raw": "ni",
+    "expected": "你"
+  },
+  {
+    "id": "D02",
+    "raw": "hao",
+    "expected": "好"
+  },
+  {
+    "id": "D03",
+    "raw": "shi",
+    "expected": "是"
+  },
+  {
+    "id": "D04",
+    "raw": "jie",
+    "expected": "界"
+  },
+  {
+    "id": "D05",
+    "raw": "zhong",
+    "expected": "中"
+  },
+  {
+    "id": "D06",
+    "raw": "guo",
+    "expected": "国"
+  },
+  {
+    "id": "D07",
+    "raw": "ren",
+    "expected": "人"
+  },
+  {
+    "id": "D08",
+    "raw": "min",
+    "expected": "民"
+  },
+  {
+    "id": "D09",
+    "raw": "tian",
+    "expected": "天"
+  },
+  {
+    "id": "D10",
+    "raw": "di",
+    "expected": "地"
+  },
+  {
+    "id": "D11",
+    "raw": "xue",
+    "expected": "学"
+  },
+  {
+    "id": "D12",
+    "raw": "xi",
+    "expected": "习"
+  },
+  {
+    "id": "D13",
+    "raw": "gong",
+    "expected": "工"
+  },
+  {
+    "id": "D14",
+    "raw": "zuo",
+    "expected": "作"
+  },
+  {
+    "id": "D15",
+    "raw": "sheng",
+    "expected": "生"
+  },
+  {
+    "id": "D16",
+    "raw": "huo",
+    "expected": "活"
+  },
+  {
+    "id": "D17",
+    "raw": "shu",
+    "expected": "输"
+  },
+  {
+    "id": "D18",
+    "raw": "ru",
+    "expected": "入"
+  },
+  {
+    "id": "D19",
+    "raw": "fa",
+    "expected": "法"
+  },
+  {
+    "id": "D20",
+    "raw": "wen",
+    "expected": "文"
+  },
+  {
+    "id": "D21",
+    "raw": "zi",
+    "expected": "字"
+  },
+  {
+    "id": "D22",
+    "raw": "lv",
+    "expected": "绿"
+  },
+  {
+    "id": "D23",
+    "raw": "nv",
+    "expected": "女"
+  },
+  {
+    "id": "D24",
+    "raw": "yin",
+    "expected": "音"
+  },
+  {
+    "id": "D25",
+    "raw": "nihao",
+    "expected": "你好"
+  },
+  {
+    "id": "D26",
+    "raw": "shijie",
+    "expected": "世界"
+  },
+  {
+    "id": "D27",
+    "raw": "zhongguo",
+    "expected": "中国"
+  },
+  {
+    "id": "D28",
+    "raw": "renmin",
+    "expected": "人民"
+  },
+  {
+    "id": "D29",
+    "raw": "tianqi",
+    "expected": "天气"
+  },
+  {
+    "id": "D30",
+    "raw": "xuexi",
+    "expected": "学习"
+  },
+  {
+    "id": "D31",
+    "raw": "gongzuo",
+    "expected": "工作"
+  },
+  {
+    "id": "D32",
+    "raw": "shenghuo",
+    "expected": "生活"
+  },
+  {
+    "id": "D33",
+    "raw": "shurufa",
+    "expected": "输入法"
+  },
+  {
+    "id": "D34",
+    "raw": "zhongwen",
+    "expected": "中文"
+  },
+  {
+    "id": "D35",
+    "raw": "hanzi",
+    "expected": "汉字"
+  },
+  {
+    "id": "D36",
+    "raw": "pinyin",
+    "expected": "拼音"
+  },
+  {
+    "id": "D37",
+    "raw": "jisuanji",
+    "expected": "计算机"
+  },
+  {
+    "id": "D38",
+    "raw": "ruanjian",
+    "expected": "软件"
+  },
+  {
+    "id": "D39",
+    "raw": "yingjian",
+    "expected": "硬件"
+  },
+  {
+    "id": "D40",
+    "raw": "wangluo",
+    "expected": "网络"
+  },
+  {
+    "id": "D41",
+    "raw": "shuju",
+    "expected": "数据"
+  },
+  {
+    "id": "D42",
+    "raw": "anquan",
+    "expected": "安全"
+  },
+  {
+    "id": "D43",
+    "raw": "daimashencha",
+    "expected": "代码审查"
+  },
+  {
+    "id": "D44",
+    "raw": "chixujicheng",
+    "expected": "持续集成"
+  },
+  {
+    "id": "D45",
+    "raw": "danyuanceshi",
+    "expected": "单元测试"
+  },
+  {
+    "id": "D46",
+    "raw": "fenbushixitong",
+    "expected": "分布式系统"
+  },
+  {
+    "id": "D47",
+    "raw": "shengchengshirengongzhineng",
+    "expected": "生成式人工智能"
+  },
+  {
+    "id": "D48",
+    "raw": "dayuyanmoxing",
+    "expected": "大语言模型"
+  }
+]
