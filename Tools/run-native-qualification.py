@@ -30,7 +30,12 @@ def run(command,log,timeout,env):
         try:code=child.wait(timeout=timeout);timed_out=False
         except subprocess.TimeoutExpired:
             # No graceful retry/replay. This process group owns only test children.
-            os.killpg(child.pid,signal.SIGKILL);code=child.wait();timed_out=True
+            # The child may finish between wait's timeout and killpg. A missing
+            # owned group is already gone; still reap the child and retain the
+            # timeout as a failed qualification even if its exit code is zero.
+            try:os.killpg(child.pid,signal.SIGKILL)
+            except ProcessLookupError:pass
+            code=child.wait();timed_out=True
     result={'exitCode':code,'timeout':timed_out,'wallNanoseconds':time.monotonic_ns()-started,'deadlineSeconds':timeout}
     write(log.with_suffix('.process.json'),result)
     if code or timed_out:raise RuntimeError('native child failed or incomplete: '+log.name)

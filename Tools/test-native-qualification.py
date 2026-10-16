@@ -2,6 +2,7 @@
 """SIMULATED verifier failures. No native input result is manufactured."""
 import importlib.util,json,os,struct,sys,tempfile,unittest
 from pathlib import Path
+from unittest.mock import Mock,patch
 spec=importlib.util.spec_from_file_location('qualification',Path(__file__).with_name('run-native-qualification.py'))
 module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
 class Tests(unittest.TestCase):
@@ -23,6 +24,18 @@ class Tests(unittest.TestCase):
         with self.assertRaises(RuntimeError):module.run([sys.executable,'-c','import time;time.sleep(30)'],path,.1,os.environ.copy())
         receipt=json.loads(path.with_suffix('.process.json').read_text())
         self.assertTrue(receipt['timeout']);self.assertNotEqual(receipt['exitCode'],0)
+    def testTimeoutExitRaceStillReapsAndRecordsFailure(self):
+        path=self.root/'exit-race.log'
+        child=Mock(pid=987654)
+        child.wait.side_effect=[module.subprocess.TimeoutExpired('authored child',.1),0]
+        with patch.object(module.subprocess,'Popen',return_value=child), patch.object(module.os,'killpg',side_effect=ProcessLookupError):
+            with self.assertRaisesRegex(RuntimeError,'native child failed or incomplete'):
+                module.run(['authored-child'],path,.1,os.environ.copy())
+        self.assertEqual(child.wait.call_count,2)
+        receipt=json.loads(path.with_suffix('.process.json').read_text())
+        self.assertTrue(receipt['timeout'])
+        self.assertEqual(receipt['exitCode'],0)
+        self.assertEqual(receipt['deadlineSeconds'],.1)
     def testInventoriesRejectLinksAndNoticeByteChanges(self):
         p=self.root/'authored';p.write_text('authored');before=module.inventory(self.root)
         p.write_text('changed');self.assertNotEqual(before,module.inventory(self.root))
