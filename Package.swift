@@ -6,7 +6,8 @@ let package = Package(name: "PAIAIME", platforms: [.macOS(.v13)], products: [
     .executable(name: "paia-resources", targets:["ResourceTool"]),
     .executable(name: "paia-benchmark", targets: ["BenchmarkCLI"]),
     .executable(name: "paia-qualification", targets: ["QualificationCLI"]),
-    .executable(name: "paia-constraints", targets: ["ConstraintCLI"])
+    .executable(name: "paia-constraints", targets: ["ConstraintCLI"]),
+    .executable(name: "paia-dictionary-experiment", targets: ["DictionaryExperimentCLI"])
 ], targets: [
     .target(name: "CRimeShim", publicHeadersPath: "include", linkerSettings: [.linkedLibrary("dl"), .linkedLibrary("pthread")]),
     .target(name: "TextBoundary"),
@@ -44,6 +45,7 @@ let package = Package(name: "PAIAIME", platforms: [.macOS(.v13)], products: [
     .testTarget(name: "IMKBasicTests",dependencies:["IMKHost","IMKTestClient","EngineBridge","NativeHost","SettingsCore","LexiconCore","SessionCore"]),
     .testTarget(name: "IMKProtocolTests",dependencies:["IMKHost","IMKTestClient","EngineBridge","SessionCore"]),
     .executableTarget(name: "BenchmarkCLI", dependencies: ["EngineBridge", "SessionCore"]),
+    .executableTarget(name: "DictionaryExperimentCLI", dependencies:["EngineBridge","SessionCore"]),
     .executableTarget(name: "ConstraintCLI", dependencies: ["EngineBridge", "SessionCore", "ConstraintCore"]),
     .testTarget(name: "SettingsRecoveryTests", dependencies: ["SettingsCore"]),
     .testTarget(name: "SettingsRecoveryHostTests", dependencies: ["SettingsCore", "NativeHost", "EngineBridge"]),

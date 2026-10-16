@@ -41,6 +41,13 @@ jobs:
           source .build/a2-env.sh
           set -o pipefail
           swift run -c release paia-constraints | tee evidence/a2-run/constraints.json
+      - name: Unicode snapshot and isolated dictionary comparison (ENGINE_NATIVE)
+        run: |
+          set -o pipefail
+          source .build/a2-env.sh
+          python3 Tools/test-dictionary-experiment.py
+          swift build -c release --product paia-dictionary-experiment
+          PAIA_DICTIONARY_EXPERIMENT=1 python3 Tools/run-dictionary-experiment.py
       - name: Synthetic AppKit constrained composition (APPKIT_HOST)
         if: success() || failure()
         run: |

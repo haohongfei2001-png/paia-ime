@@ -1,0 +1,38 @@
+{
+  "formatVersion": 1,
+  "release": "17.0.0",
+  "archive": {
+    "bytes": 8518517,
+    "sha256": "f7a48b2b545acfaa77b2d607ae28747404ce02baefee16396c5d2d7a8ef34b5e",
+    "url": "https://www.unicode.org/Public/17.0.0/ucd/Unihan.zip"
+  },
+  "readings": {
+    "bytes": 8843048,
+    "sha256": "575e69c9ad85a4737a889a4f94cbd987042a90a1a6cc16dd3f4ed995c715b17c",
+    "member": "Unihan_Readings.txt"
+  },
+  "license": {
+    "bytes": 1995,
+    "sha256": "e7a93b009565cfce55919a381437ac4db883e9da2126fa28b91d12732bc53d96",
+    "url": "https://www.unicode.org/license.txt",
+    "identifier": "Unicode-3.0"
+  },
+  "snapshot": {
+    "bytes": 730547,
+    "sha256": "c7f6b7563ebc78caa2b981588477efd34677a0336bc92666987306cf127b3535"
+  },
+  "snapshotText": {
+    "bytes": 2785423,
+    "sha256": "fb678c131e6217140ee25a53571cc54be4f9a109303761d71b97cd3ec12b1eaf"
+  },
+  "generatedDictionary": {
+    "bytes": 549158,
+    "sha256": "418e43d44438114422b4215a5eafbb972ecce39124e45e16f44f5c2dc8dc9edb"
+  },
+  "historicalSnapshot": {
+    "bytes": 730547,
+    "sha256": "c7f6b7563ebc78caa2b981588477efd34677a0336bc92666987306cf127b3535",
+    "reconstruction": "exact match; source line number followed by original row, LF, gzip level9 mtime0 OS3"
+  },
+  "scope": "research only; no default candidate resource changes"
+}
